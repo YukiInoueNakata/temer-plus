@@ -31,6 +31,7 @@ Claude Code再起動時やPC再起動時に：
 - [x] Phase 2: clsDataAccess（データアクセス一元化）
 - [x] Phase 3: clsFigureFactory（図形生成統一）
 - [x] Phase 4: clsSettings（設定値管理）
+- [ ] Phase 5: Label/SubLabel機能（将来実装予定）
 
 ### リファクタリングタスク
 - [x] Git初期化・.gitignore作成
@@ -54,6 +55,145 @@ Claude Code再起動時やPC再起動時に：
   - [x] MakeFigシートにイベントコード追加
   - [x] ヘルパー関数追加（Module_MakeFig_sh）
   - [x] 動作テスト完了
+
+### バグ修正・機能改善タスク
+- [ ] ShiftShapesRight修正（Line/SD/SG連動移動）
+- [ ] MoveRightSideShapes修正（Line/SD/SG連動移動）
+- [ ] テスト実施（横型図）
+- [ ] 縦型図対応（後回し）
+
+---
+
+## 2025-12-30: 図形移動時のLine/SD/SG連動修正
+
+### 問題
+- **シフト挿入時**: UserForm_AddBoxの「シフト挿入」モード使用時、Boxのみが移動し、Line（矢印）とSD/SG図形が取り残される
+- **連動移動時**: MoveRightSideShapes（連動チェックボックス機能）でも同様にBoxのみ移動
+- **将来実装**: Label/SubLabel機能でも同じ問題が発生する可能性
+
+### 原因分析
+コードベース全体を調査した結果、図形移動関数は以下の2種類に分類される：
+
+#### 正しく実装されている関数
+- `AdjustBoxOnItemAndTimeLevel`: Box移動後に`adj_relation_SDSG_Line()`を呼び出し、LineとSD/SGも自動更新
+- `MoveLine`: Line端点を再計算し、必要に応じてFrom/Toを自動Swap
+- `MoveSDSG`: SD/SG図形の位置を親Box/Lineに追従
+- `adj_relation_SDSG_Line`: 接続されたLineとSD/SGを一括更新
+
+#### 問題がある関数（Boxのみ移動）
+1. **ShiftShapesRight** (UserForm_AddBox.frm:295-328)
+   - シフト挿入時に右側のBoxのみを移動
+   - LineとSD/SGは無視
+
+2. **MoveRightSideShapes** (Module_adj_Box_level.bas:325-371)
+   - 連動移動機能だがBoxのみフィルタリング（CheckIfRectangle）
+   - LineとSD/SGは対象外
+
+### 修正方針
+
+**3パスアプローチ**（既存の検証済み関数を再利用）:
+1. **Pass 1**: Dataシートの全図形のTime_Levelを更新
+2. **Pass 2**: 全図形の.Leftプロパティを移動
+3. **Pass 3**: 影響を受けたすべてのLineに対して`MoveLine()`を呼び出し、端点を再計算
+4. **Pass 4**（将来）: Label/SubLabel実装時に`MoveLabelsWithParent()`を呼び出し
+
+### 修正内容
+
+#### 1. ShiftShapesRight関数の改修 (UserForm_AddBox.frm)
+
+**修正前** (Lines 295-328):
+```vba
+Private Sub ShiftShapesRight(DataWs As Worksheet, baseTimeLevel As Double, shiftAmount As Double)
+    ' Boxのみを移動
+    For row = 2 To lastRow
+        If shpTimeLevel > baseTimeLevel Then
+            DataWs.Cells(row, timeLevelCol).value = shpTimeLevel + shiftAmount
+            FigWs.Shapes(shpName).Left = FigWs.Shapes(shpName).Left + shiftPixels
+        End If
+    Next row
+End Sub
+```
+
+**修正後**:
+- Pass 1: 全図形のTime_Level更新
+- Pass 2: 全図形の.Left移動
+- Pass 3: 影響を受けたLineに対してMoveLine()呼び出し
+- Pass 4（コメントアウト）: Label/SubLabel移動用コード準備
+
+#### 2. MoveRightSideShapes関数の改修 (Module_adj_Box_level.bas)
+
+**修正前** (Lines 325-371):
+```vba
+Private Sub MoveRightSideShapes(...)
+    For Each shp In FigWs.Shapes
+        If CheckIfRectangle(shp) Then  ' Boxのみフィルタリング
+            ' 移動処理
+        End If
+    Next shp
+End Sub
+```
+
+**修正後**:
+- Box移動ロジックは維持
+- 移動後、影響を受けたすべてのLineに対してMoveLine()呼び出し
+- SD/SGは自動的にLineの端点変更で連動するため追加処理不要
+- Label/SubLabel移動用コード（コメントアウト）追加
+
+### 将来実装への対応（Label/SubLabel）
+
+**パターンB: 親図形プロパティ管理**を採用:
+- Label/SubLabelは親図形（BoxまたはLine）のプロパティとして管理
+- 図形名: `親図形名_Label`, `親図形名_SubLabel`
+- Dataシート: 親図形の行に`Label_Text`, `Label_OffsetX`, `Label_OffsetY`列を追加
+
+**MoveLabelsWithParent関数** (将来実装):
+```vba
+Private Sub MoveLabelsWithParent(parentShapeName As String, deltaX As Double, deltaY As Double)
+    Dim labelName As String
+    Dim subLabelName As String
+
+    labelName = parentShapeName & "_Label"
+    subLabelName = parentShapeName & "_SubLabel"
+
+    On Error Resume Next
+    FigWs.Shapes(labelName).Left = FigWs.Shapes(labelName).Left + deltaX
+    FigWs.Shapes(labelName).Top = FigWs.Shapes(labelName).Top + deltaY
+
+    FigWs.Shapes(subLabelName).Left = FigWs.Shapes(subLabelName).Left + deltaX
+    FigWs.Shapes(subLabelName).Top = FigWs.Shapes(subLabelName).Top + deltaY
+    On Error GoTo 0
+End Sub
+```
+
+### テスト予定
+
+1. **シフト挿入テスト**:
+   - 2Box間に新Box挿入（Time_Level 1.0と3.0の間に2.0を挿入）
+   - 右側のすべての図形（Box、Line、SD/SG）が移動することを確認
+
+2. **連動移動テスト**（同列以上）:
+   - Box移動時、同じTime_Level以上のすべての図形が連動
+
+3. **連動移動テスト**（右側のみ）:
+   - Box移動時、より大きいTime_Levelの図形のみが連動
+
+4. **エッジケース**:
+   - Line端点のBoxが逆転する場合（MoveLine内のSwapFromTo機能）
+   - 存在しない図形名への参照（Null check）
+
+### 技術的考慮事項
+
+1. **Null Checkの重要性**: `MoveLine`関数には既にNull check実装済み（Lines 217-227）
+2. **Line端点の自動Swap**: FromTimeLevel > ToTimeLevelの場合、自動的にFrom/Toを入れ替え
+3. **SD/SG自動連動**: LineのMoveLine呼び出し時に`adj_relation_SDSG_Line`経由で自動移動
+
+### 参照ドキュメント
+- 詳細な実装計画: `C:\Users\YIN\.claude\plans\whimsical-coalescing-ladybug.md`
+
+### 更新予定ファイル
+- `VBA_Backup/UserForm_AddBox.frm` - ShiftShapesRight関数修正
+- `VBA_Backup/Module_adj_Box_level.bas` - MoveRightSideShapes関数修正
+- `HISTORY.md` - 本記録
 
 ---
 
