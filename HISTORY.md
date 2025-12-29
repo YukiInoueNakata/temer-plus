@@ -37,7 +37,10 @@ Claude Code再起動時やPC再起動時に：
 - [x] VBAクラスモジュール4つを作成
 - [x] Excel VBEにクラスモジュールをインポート
 - [x] 動作テスト（全クラス正常動作確認）
-- [ ] 既存モジュールの修正（5ファイル）
+- [x] 既存モジュールの修正（3ファイル）
+  - [x] Module_Make_Box.bas - 最適化版関数追加
+  - [x] Edit_Line.bas - 最適化版関数追加
+  - [x] Edit_SD_SG.bas - 最適化版関数追加
 
 ---
 
@@ -234,6 +237,23 @@ Main_making_TEM_Fig_from_data()  ← DataシートからTEM図を生成
 | 2025-12-29 | Git初期化・refactor/classブランチ作成 | ✅ 完了 |
 | 2025-12-29 | VBAクラスモジュール4つ作成 | ✅ 完了 |
 | 2025-12-29 | Excel VBEにクラスインポート・動作確認 | ✅ 完了 |
+| 2025-12-29 | 既存モジュール修正（最適化版関数追加） | ✅ 完了 |
+
+---
+
+## 2025-12-29: 既存モジュールの最適化
+
+### 追加した最適化関数
+
+| モジュール | 追加関数 | 効果 |
+|-----------|---------|------|
+| Module_Make_Box | `Main_making_TEM_Fig_Optimized()` | clsFigureFactoryで統一生成 |
+| Module_Make_Box | `Make_Box_Optimized()` | clsShapeData+clsSettingsで8回→1回 |
+| Edit_Line | `Make_Line_by_ID_Optimized()` | clsShapeDataで6回→1回 |
+| Edit_SD_SG | `MakeArrowCalloutByID_Optimized()` | clsShapeDataで7回→1回 |
+
+### 使用方法
+既存の関数と並行して使用可能。段階的に移行するため、旧関数は残してあります。
 
 ---
 
