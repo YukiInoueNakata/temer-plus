@@ -27,15 +27,17 @@ Claude Code再起動時やPC再起動時に：
 - [x] 主要プロシージャの役割の特定
 
 ### 機能追加タスク
-- [ ] Phase 1: clsShapeData（図形データキャッシュ）
-- [ ] Phase 2: clsDataAccess（データアクセス一元化）
-- [ ] Phase 3: clsFigureFactory（図形生成統一）
-- [ ] Phase 4: clsSettings（設定値管理）
+- [x] Phase 1: clsShapeData（図形データキャッシュ）
+- [x] Phase 2: clsDataAccess（データアクセス一元化）
+- [x] Phase 3: clsFigureFactory（図形生成統一）
+- [x] Phase 4: clsSettings（設定値管理）
 
 ### リファクタリングタスク
-- [ ] Git初期化・.gitignore作成
-- [ ] VBAクラスモジュール4つを作成
+- [x] Git初期化・.gitignore作成
+- [x] VBAクラスモジュール4つを作成
 - [ ] 既存モジュールの修正（5ファイル）
+- [ ] Excel VBEにクラスモジュールをインポート
+- [ ] 動作テスト
 
 ---
 
@@ -229,6 +231,8 @@ Main_making_TEM_Fig_from_data()  ← DataシートからTEM図を生成
 | 2025-12-29 | VBAモジュールエクスポート | ✅ 完了 |
 | 2025-12-29 | VBA構造解析完了 | ✅ 完了 |
 | 2025-12-29 | Class化リファクタリング計画策定 | ✅ 完了 |
+| 2025-12-29 | Git初期化・refactor/classブランチ作成 | ✅ 完了 |
+| 2025-12-29 | VBAクラスモジュール4つ作成 | ✅ 完了 |
 
 ---
 
