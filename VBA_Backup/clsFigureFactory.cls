@@ -99,21 +99,20 @@ End Sub
 
 '@description("Box図形を生成")
 Private Sub CreateBox(ByVal shp_ID As String)
-    ' 既存のMake_Box関数を呼び出し
-    ' 将来的にはこのクラス内に移動可能
-    Call Make_Box(shp_ID)
+    ' 最適化版を呼び出し
+    Call Make_Box_Optimized(shp_ID)
 End Sub
 
 '@description("Line/Arrow図形を生成")
 Private Sub CreateLine(ByVal shp_ID As String)
-    ' 既存のMake_Line_by_ID関数を呼び出し
-    Call Make_Line_by_ID(shp_ID)
+    ' 最適化版を呼び出し
+    Call Make_Line_by_ID_Optimized(shp_ID)
 End Sub
 
 '@description("SD/SG図形を生成")
 Private Sub CreateSDSG(ByVal shp_ID As String)
-    ' 既存のMakeArrowCalloutByID関数を呼び出し
-    Call MakeArrowCalloutByID(shp_ID)
+    ' 最適化版を呼び出し
+    Call MakeArrowCalloutByID_Optimized(shp_ID)
 End Sub
 
 '=============================================================================

@@ -13,3 +13,13 @@ ehthumbs.db
 
 # 旧版フォルダは除外
 旧版/
+
+# 関連ドキュメント（Git管理対象外）
+*.pdf
+*.pptx
+2024TEA学会シンポ/
+
+# Excelファイル本体（VBA_Backupで管理）
+*.xlsm
+最新版/
+TEMerPlus/
