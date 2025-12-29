@@ -1,0 +1,259 @@
+# HISTORY.md - TEMerPlus 開発履歴
+
+## 概要
+
+TEMerPlus（TEM作図ツール）のVBA構造解析、開発履歴、問題追跡を記録します。
+
+---
+
+## テスト再開方法
+
+Claude Code再起動時やPC再起動時に：
+
+```
+@HISTORY.md テスト再開
+@HISTORY.md 開発再開
+@HISTORY.md 状況報告
+```
+
+---
+
+## 未完了タスク
+
+### 解析タスク
+- [x] VBAモジュール構造の把握
+- [x] Dataシートのデータ構造の把握
+- [x] Makefigシートの作図ロジックの把握
+- [x] 主要プロシージャの役割の特定
+
+### 機能追加タスク
+- [ ] Phase 1: clsShapeData（図形データキャッシュ）
+- [ ] Phase 2: clsDataAccess（データアクセス一元化）
+- [ ] Phase 3: clsFigureFactory（図形生成統一）
+- [ ] Phase 4: clsSettings（設定値管理）
+
+### リファクタリングタスク
+- [ ] Git初期化・.gitignore作成
+- [ ] VBAクラスモジュール4つを作成
+- [ ] 既存モジュールの修正（5ファイル）
+
+---
+
+## 2025-12-29: VBA解析完了
+
+### 作業内容
+- [x] CLAUDE.md 作成
+- [x] HISTORY.md 作成
+- [x] settings.json に許可設定追加
+- [x] VBAコード取得・解析
+- [x] VBAモジュールをVBA_Backupフォルダにエクスポート
+
+### 対象ファイル
+`D:\OneDrive\01プログラム作成\TEMerPlus\最新版\TEMerPlus_202400715.xlsm`
+
+### エクスポート先
+`D:\OneDrive\01プログラム作成\TEMerPlus\VBA_Backup\`
+
+---
+
+## VBA構造
+
+### シート構成
+| シート名 | 役割 |
+|---------|------|
+| Data | 入力データ格納（ID, Type, Text, Item_Level, Time_Level等） |
+| MakeFig | 作図出力先シート |
+| デモ用 | デモンストレーション用 |
+| デモ2 | デモンストレーション用2 |
+| General_Setting | 一般設定（レイアウト方向、サイズ等） |
+| Setting1 | 追加設定 |
+| dic_fig_type | 図形タイプの辞書（Type→ID名のマッピング） |
+
+### モジュール一覧
+
+#### 標準モジュール（Standard Modules）
+| モジュール名 | 主な役割 |
+|-------------|---------|
+| **Module_Make_Box** | Box作成のメイン処理 |
+| **Data_Cleaning** | IDの自動付与、辞書機能 |
+| **Edit_Line** | 線（矢印・コネクタ）の作成・接続 |
+| **Edit_SD_SG** | SD（分岐先駆け）/SG（分岐後）図形の作成 |
+| **Module_General_setting** | 軸ラベル作成、レイアウト設定 |
+| **Module_adj_Box_level** | Box位置（レベル）の調整 |
+| **Module_MakeFig_sh** | 作図シートの管理、ボタン処理 |
+| **Module_userform** | UserForm用ユーティリティ |
+| **Module_debug** | デバッグ用機能 |
+| **Module_よく使う** | 汎用ユーティリティ関数 |
+| Module1 | 雑多な機能 |
+| TestModule1 | テスト用 |
+
+#### UserForm（フォーム）
+| フォーム名 | 役割 |
+|-----------|------|
+| UserForm_AddBox | Box追加ダイアログ |
+| UserForm_Make_Line | 線/矢印作成ダイアログ |
+| UserForm_Make_SD_SG | SD/SG図形作成ダイアログ |
+| UserForm_Box_level_Change | Box位置調整ダイアログ |
+| UserForm_General_Setting | 一般設定ダイアログ |
+
+---
+
+### 主要プロシージャ
+
+#### メイン処理フロー
+```
+Main_making_TEM_Fig_from_data()  ← DataシートからTEM図を生成
+    ├── ID_Named()              ← 各行にID自動付与
+    ├── Make_Box()              ← 各Boxを作成
+    ├── Make_Line_by_ID()       ← 線/矢印を作成
+    ├── MakeArrowCalloutByID()  ← SD/SG図形を作成
+    └── MakeAxisLabel()         ← 軸ラベルを作成
+```
+
+#### Box作成関連 (Module_Make_Box)
+| 関数名 | 説明 |
+|--------|------|
+| `Main_making_TEM_Fig_from_data()` | Dataシートから図全体を作成 |
+| `Make_Box(shp_ID)` | 指定IDのBoxを作成 |
+| `CalculateBoxPosition()` | Box位置を計算 |
+| `ApplyShapeStyle()` | Box見た目を適用 |
+| `ApplyLineStyles()` | Box線スタイルを適用 |
+
+#### ID・辞書関連 (Data_Cleaning)
+| 関数名 | 説明 |
+|--------|------|
+| `ID_Named()` | TypeからIDを自動生成 |
+| `dic_fig_type(ItemORAll, Value_col)` | dic_fig_typeシートから辞書を作成 |
+| `ExtractRowsWithSubstring(Fig_Type)` | 指定Typeの既存ID番号を抽出 |
+| `GetNextAvailableRow(dict)` | 次の利用可能番号を取得 |
+
+#### 線・矢印関連 (Edit_Line)
+| 関数名 | 説明 |
+|--------|------|
+| `Make_Line_by_ID(shp_ID)` | IDで線を作成 |
+| `Arrow_Connect_box()` | 2つのBoxを矢印で接続 |
+| `CreateAndConfigureConnector()` | コネクタを作成・設定 |
+| `CalculateCoordinates()` | 始点・終点座標を計算 |
+
+#### SD/SG関連 (Edit_SD_SG)
+| 関数名 | 説明 |
+|--------|------|
+| `MakeArrowCalloutByID(shp_ID)` | IDでSD/SG図形を作成 |
+| `CreateArrowCalloutBasedOnSelectedShape()` | 選択図形からSD/SG作成 |
+| `CalculateNewShapePosition()` | SD/SG位置を計算 |
+| `ConfigureSDSGShapeProperties()` | SD/SG見た目を設定 |
+
+#### 設定・軸関連 (Module_General_setting)
+| 関数名 | 説明 |
+|--------|------|
+| `MakeAxisLabel()` | 軸ラベルを作成 |
+| `InsertNumLabelShape()` | 番号ラベルを挿入 |
+| `Func_vertical_level_size()` | 縦方向サイズを取得 |
+| `Func_time_level_size()` | 時間方向サイズを取得 |
+| `is_type_vertical_or_horizontal()` | レイアウト方向を判定 |
+
+#### ユーティリティ (Module_よく使う)
+| 関数名 | 説明 |
+|--------|------|
+| `FindShapeByName(shp_Name)` | 名前で図形を検索 |
+| `GetShapeByID(shp_Name)` | IDで図形を取得 |
+| `Datash_GetValueOfSearchValue()` | Dataシートから値を検索 |
+| `GetValueOfSearchValue()` | General_Settingから値を取得 |
+| `get_count_selected_shape()` | 選択図形数を取得 |
+| `CheckIfRectangle()` | 四角形かどうか判定 |
+| `GetWriteCellFromValue_typeAndshp_IDorItem()` | 書き込みセルを取得 |
+
+---
+
+### データ構造
+
+#### Dataシートの列構成
+| 列名 | 説明 |
+|------|------|
+| ID | 図形の一意識別子（例: Item1, OPP2, Arrow_Item1_OPP1_1） |
+| Type | 図形タイプ（Item, OPP, BFP, EFP, SD, SG, 実線矢印, 点線矢印） |
+| Text | 表示テキスト |
+| Item_Level | 縦方向位置（数値） |
+| Time_Level | 時間方向位置（数値） |
+| Height | 図形の高さ |
+| Width | 図形の幅 |
+| From_shp_Name | 矢印の始点図形名 |
+| To_shp_Name | 矢印の終点図形名 |
+| Start_Margin | 矢印始点のマージン |
+| End_Margin | 矢印終点のマージン |
+| Adj_Start_Height | 始点高さ調整 |
+| Adj_End_Height | 終点高さ調整 |
+| SDSG_Item_Adj | SD/SGのItem方向調整 |
+| SDSG_Time_Adj | SD/SGのTime方向調整 |
+
+#### dic_fig_typeシートの構成
+| 列 | 説明 |
+|----|------|
+| 1列目 | Type（例: Item, OPP, BFP） |
+| 2列目 | ID接頭辞（例: Item, OPP, BFP） |
+| 3列目 | カテゴリ（例: Box） |
+
+---
+
+### ワークフロー
+
+1. **データ入力**: DataシートにType, Text, Level等を入力
+2. **ID自動付与**: `ID_Named()`でTypeに基づくIDを自動生成
+3. **図形生成**: `Main_making_TEM_Fig_from_data()`で：
+   - 各行のTypeに応じてBox/Line/SD/SGを作成
+   - 位置はItem_Level/Time_Levelから計算
+   - 矢印はFrom/To_shp_Nameで接続
+4. **手動調整**: UserFormを使って追加・位置調整
+
+---
+
+## 問題・課題の追跡
+
+### 現在の問題
+（なし）
+
+### 解決済みの問題
+| 問題 | 解決方法 |
+|------|----------|
+| VBAコード取得困難 | execute_vbaでFileSystemObject使用しファイルエクスポート |
+| UTF-16エンコーディング | エクスポートファイルは読み取り可能 |
+
+---
+
+## 変更履歴
+
+| 日付 | 変更内容 | 結果 |
+|------|----------|------|
+| 2025-12-29 | CLAUDE.md, HISTORY.md 作成 | ✅ 完了 |
+| 2025-12-29 | settings.json 許可設定追加 | ✅ 完了 |
+| 2025-12-29 | VBAモジュールエクスポート | ✅ 完了 |
+| 2025-12-29 | VBA構造解析完了 | ✅ 完了 |
+| 2025-12-29 | Class化リファクタリング計画策定 | ✅ 完了 |
+
+---
+
+## 2025-12-29: Class化リファクタリング計画
+
+### 問題点の特定
+| 問題 | 影響度 | 発生箇所 |
+|------|--------|----------|
+| Datash_GetValueOfSearchValue重複呼び出し | 高 | 32回/3モジュール |
+| 同一データの繰り返し取得（キャッシュなし） | 高 | Make_Box, Edit_Line |
+| 3重For Eachループ（Main_making） | 中 | Module_Make_Box |
+
+### 提案するClass構成
+```
+clsShapeData       # 図形データのキャッシュ・アクセス
+clsDataAccess      # Dataシートへの読み書き
+clsSettings        # 設定値の一元管理
+clsFigureFactory   # 図形生成の統一インターフェース
+```
+
+### 期待効果
+- **コード行数**: 約150行削減（28%減）
+- **関数呼び出し**: 32→4回（87%減）
+- **ループ回数**: 3→1回（67%減）
+
+### Git管理計画
+- リポジトリ: `D:\OneDrive\01プログラム作成\TEMerPlus\`
+- ブランチ: main（安定版）、refactor/class（作業用）

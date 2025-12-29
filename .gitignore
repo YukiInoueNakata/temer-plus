@@ -1,0 +1,15 @@
+# Excel一時ファイル
+~$*.xlsm
+~$*.xlsx
+*.tmp
+
+# Windows
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# バックアップ
+*.bak
+
+# 旧版フォルダは除外
+旧版/
