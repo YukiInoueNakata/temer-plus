@@ -141,8 +141,8 @@ Private Sub Add_Box_Click()
     Dim shp_ID As String
     shp_ID = DataWs.Cells(lastRow, FindItemColumn(DataWs, "ID")).value
     
-    'Box‚ğì‚é
-    Call Make_Box_Optimized(shp_ID)
+    'Box‚ğì‚éiŒ³‚ÌMake_Box‚É–ß‚·j
+    Call Make_Box(shp_ID)
     
     
     'ü‚ğ‚Â‚­‚é
@@ -193,12 +193,5 @@ Private Sub Add_Box_Click()
 
    
 End Sub
-
-
-
-
-
-
-
 
 

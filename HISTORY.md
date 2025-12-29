@@ -57,6 +57,33 @@ Claude Code再起動時やPC再起動時に：
 
 ---
 
+## 2025-12-29: バグ修正・ツールバー改善
+
+### 修正内容
+
+1. **MoveLine sub Nullチェック追加** (Module_adj_Box_level)
+   - 問題: レベル調整時に`ToShp.Name`でエラー発生
+   - 原因: `FindShapeByName`が図形を見つけられない場合にNothingを返すが、チェックがなかった
+   - 修正: FromShp, ToShp, shpのNullチェックを追加し、見つからない場合はExit Sub
+
+2. **UserForm_AddBox修正**
+   - 問題: Box追加の位置がおかしい
+   - 原因: `Make_Box_Optimized`を使用していた
+   - 修正: オリジナルの`Make_Box`に戻す
+
+3. **ツールバー（toolbar）修正**
+   - フォーム名を`toolbar`に統一
+   - ボタンイベントを`Main_making_TEM_Fig_from_data`に変更（Optimized版から戻す）
+   - Nullチェック付きのエラーハンドリング
+
+### 更新ファイル
+- `VBA_Backup/Module_adj_Box_level.bas` - MoveLine修正
+- `VBA_Backup/UserForm_AddBox.frm` - Make_Boxに戻す
+- `VBA_Backup/toolbar.frm` - 新規ツールバー
+- `VBA_Backup/CreateToolbarForm.bas` - ツールバー作成用コード
+
+---
+
 ## 2025-12-29: フローティングツールバー実装
 
 ### 目的
