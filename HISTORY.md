@@ -49,6 +49,41 @@ Claude Code再起動時やPC再起動時に：
 - [x] MakeFigシートのボタン割り当て更新
 - [x] clsFigureFactory内部関数を最適化版に移行
 - [x] UserForm_AddBoxを最適化版に移行
+- [x] フローティングツールバー実装
+  - [x] frmToolbar UserForm作成
+  - [x] MakeFigシートにイベントコード追加
+  - [x] ヘルパー関数追加（Module_MakeFig_sh）
+  - [x] 動作テスト完了
+
+---
+
+## 2025-12-29: フローティングツールバー実装
+
+### 目的
+MakeFigシートでよく使う機能をワンクリックで実行できるようにする
+
+### 実装内容
+1. **frmToolbar** - フローティングツールバー UserForm
+   - 6つのボタン: 図作成、Box追加、線追加、SD/SG、設定、レベル調整
+   - モードレスで表示（他の操作を妨げない）
+
+2. **Sheet4 (MakeFig) イベント**
+   - `Worksheet_Activate`: ツールバーを表示
+   - `Worksheet_Deactivate`: ツールバーを非表示（Unload）
+
+3. **Module_MakeFig_sh ヘルパー関数**
+   - `IsUserFormLoaded()`: UserFormがロードされているか確認
+   - `ShowToolbar()`: ツールバーを表示
+   - `HideToolbar()`: ツールバーをアンロード
+
+### 動作確認
+- MakeFigシートに移動 → ツールバー表示: OK
+- 別のシートに移動 → ツールバー非表示: OK
+
+### 新規ファイル
+- `VBA_Backup/frmToolbar.frm`
+- `VBA_Backup/Sheet4_MakeFig.cls`
+- `VBA_Backup/Module_MakeFig_sh.bas` (更新)
 
 ---
 
