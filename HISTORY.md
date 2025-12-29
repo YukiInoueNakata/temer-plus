@@ -57,29 +57,29 @@ Claude Code再起動時やPC再起動時に：
 
 ---
 
-## 2025-12-29: 追加機能実装（未テスト）
+## 2025-12-29: 追加機能実装（セットアップ必要）
 
 ### 実装内容
 
 #### 1. レベル調整時の矢印始点・終点修正 (Module_adj_Box_level.bas)
 - **問題**: 図形AがBより前→後に移動した際、矢印の始点・終点が不正になる
-- **修正**: `MoveLine`関数にTime_Level比較ロジックを追加
-  - FromTimeLevel > ToTimeLevelの場合：
-    - 始点 = FromShp右側中点（End座標）
-    - 終点 = ToShp左側中点（Start座標）
-  - 従来（FromTimeLevel <= ToTimeLevel）：
-    - 始点 = FromShp右側中点（Start座標）
-    - 終点 = ToShp左側中点（End座標）
+- **修正**: `MoveLine`関数を改修
+  - FromTimeLevel > ToTimeLevelの場合、**Dataシートを更新**
+  - `SwapFromToInDataSheet`関数を新規追加
+    - From_shp_Name ↔ To_shp_Name を入れ替え
+    - Start_Margin ↔ End_Margin を入れ替え
+    - Adj_Start_Height ↔ Adj_End_Height を入れ替え
+  - これにより図を再生成しても矢印の方向が正しく維持される
 
 #### 2. 連動チェックボックス (UserForm_Box_level_Change + Module_adj_Box_level.bas)
 - **機能**: 選択した図形より右側の図形を一括移動
-- **新規コントロール**:
-  - `CheckBox_Sync`: 連動機能ON/OFF
-  - `OptionButton_SyncSameAndRight`: 同列以上(>=)を移動
-  - `OptionButton_SyncRightOnly`: 右側のみ(>)を移動（暗黙）
-- **新規関数**: `MoveRightSideShapes(baseTimeLevel, changeLeft, changeTop, includeSameLevel, excludeShpName)`
+- **バックエンド実装済み**:
+  - `MoveRightSideShapes(baseTimeLevel, changeLeft, changeTop, includeSameLevel, excludeShpName)`
   - 基準Time_Level以上/超の全図形を移動
   - 自分自身は除外
+- **フロントエンド（UserFormコントロール）**: セットアップが必要
+  - `Module_SetupUserForm.bas`をインポート
+  - `AddSyncControlsToBoxLevelForm`を一度実行
 
 #### 3. Box追加の2選択時対応 (UserForm_AddBox.frm)
 - **機能**: 2つの図形を選択した状態でBox追加可能
@@ -91,17 +91,27 @@ Claude Code再起動時やPC再起動時に：
   - `ShiftShapesRight(DataWs, baseTimeLevel, shiftAmount)`: 右側図形のシフト
   - `CreateLineForNewBox(shp_ID)`: 線作成の共通処理
 
+### セットアップ手順
+
+**連動チェックボックスを有効にするには:**
+
+1. `VBA_Backup/Module_SetupUserForm.bas`をExcelにインポート
+2. VBAエディタで`AddSyncControlsToBoxLevelForm`を実行
+3. UserForm_Box_level_Changeに以下のコントロールが追加される:
+   - `CheckBox_Sync`: 連動ON/OFF
+   - `OptionButton_SyncSameAndRight`: 同列以上を移動
+   - `OptionButton_SyncRightOnly`: 右側のみを移動
+
 ### テスト状況
 - [ ] 横型図での矢印始点・終点修正テスト
-- [ ] 連動チェックボックス動作テスト
+- [ ] 連動チェックボックス動作テスト（セットアップ後）
 - [ ] Box追加2選択時テスト（間に挿入）
 - [ ] Box追加2選択時テスト（シフト挿入）
 - [ ] 縦型図でのテスト（後回し）
 
 ### 更新ファイル
-- `VBA_Backup/Module_adj_Box_level.bas` - MoveLine修正 + MoveRightSideShapes追加
-- `VBA_Backup/UserForm_Box_level_Change.frm` - 連動チェックボックス追加
-- `VBA_Backup/UserForm_Box_level_Change.frx` - フォームコントロール定義
+- `VBA_Backup/Module_adj_Box_level.bas` - MoveLine修正 + SwapFromToInDataSheet追加
+- `VBA_Backup/Module_SetupUserForm.bas` - 新規（連動コントロール追加用）
 - `VBA_Backup/UserForm_AddBox.frm` - 2選択時対応追加
 
 ---

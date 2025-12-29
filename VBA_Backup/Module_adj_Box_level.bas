@@ -249,11 +249,11 @@ End Sub
 
 Sub MoveLine(matchingIdShp As String)
     Dim ws As Worksheet
-    Dim shp As shape
+    Dim shp As Shape
     Set ws = ThisWorkbook.Sheets("MakeFig")
-    
-    Dim FromShp As shape
-    Dim ToShp As shape
+
+    Dim FromShp As Shape
+    Dim ToShp As Shape
     Dim Start_Margin As Double
     Dim Adj_Start_Height As Double
     Dim End_Margin As Double
@@ -262,58 +262,118 @@ Sub MoveLine(matchingIdShp As String)
     Dim Change_Start_shp_Top As Double
     Dim Change_End_shp_Left As Double
     Dim Change_End_shp_Top As Double
-    
+
+    Dim FromShpName As String
+    Dim ToShpName As String
+
+    FromShpName = Datash_GetValueOfSearchValue(matchingIdShp, "From_shp_Name")
+    ToShpName = Datash_GetValueOfSearchValue(matchingIdShp, "To_shp_Name")
+
     Start_Margin = Datash_GetValueOfSearchValue(matchingIdShp, "Start_Margin")
     Adj_Start_Height = Datash_GetValueOfSearchValue(matchingIdShp, "Adj_Start_Height")
     End_Margin = Datash_GetValueOfSearchValue(matchingIdShp, "End_Margin")
     Adj_End_Height = Datash_GetValueOfSearchValue(matchingIdShp, "Adj_End_Height")
-    
-    ' FromShp���擾�iNull�`�F�b�N�ǉ��j
-    Set FromShp = FindShapeByName(Datash_GetValueOfSearchValue(matchingIdShp, "From_shp_Name"))
+
+    ' FromShpを取得（Nullチェック追加）
+    Set FromShp = FindShapeByName(FromShpName)
     If FromShp Is Nothing Then
         Debug.Print "FromShp not found for: "; matchingIdShp
         Exit Sub
     End If
-    Debug.Print "FromShp"; FromShp.Name
 
-    ' ToShp���擾�iNull�`�F�b�N�ǉ��j
-    Set ToShp = FindShapeByName(Datash_GetValueOfSearchValue(matchingIdShp, "To_shp_Name"))
+    ' ToShpを取得（Nullチェック追加）
+    Set ToShp = FindShapeByName(ToShpName)
     If ToShp Is Nothing Then
         Debug.Print "ToShp not found for: "; matchingIdShp
         Exit Sub
     End If
-    Debug.Print "ToShp"; ToShp.Name
 
-    ' Time_Level���r: FromShp��ToShp���E�ɂ���ꍇ�A���W�v�Z�𔽓]
+    ' Time_Level比較: FromShpがToShpより右にある場合、Dataシートを更新
     Dim FromTimeLevel As Double
     Dim ToTimeLevel As Double
     FromTimeLevel = Datash_GetValueOfSearchValue(FromShp.Name, "Time_Level")
     ToTimeLevel = Datash_GetValueOfSearchValue(ToShp.Name, "Time_Level")
 
     If FromTimeLevel > ToTimeLevel Then
-        ' FromShp��ToShp���E�i��j�ɂ���: Start/End���W�v�Z���t�]
-        ' Start = FromShp�̍����iEnd�ʒu�j, End = ToShp�̉E���iStart�ʒu�j
-        Change_Start_shp_Left = CalculateCoordinates("End", FromShp, Start_Margin, Adj_Start_Height)(0)
-        Change_Start_shp_Top = CalculateCoordinates("End", FromShp, Start_Margin, Adj_Start_Height)(1)
-        Change_End_shp_Left = CalculateCoordinates("Start", ToShp, End_Margin, Adj_End_Height)(0)
-        Change_End_shp_Top = CalculateCoordinates("Start", ToShp, End_Margin, Adj_End_Height)(1)
-    Else
-        ' 従来の処理: FromShpはToShpの左
-        Change_Start_shp_Left = CalculateCoordinates("Start", FromShp, Start_Margin, Adj_Start_Height)(0)
-        Change_Start_shp_Top = CalculateCoordinates("Start", FromShp, Start_Margin, Adj_Start_Height)(1)
-        Change_End_shp_Left = CalculateCoordinates("End", ToShp, End_Margin, Adj_End_Height)(0)
-        Change_End_shp_Top = CalculateCoordinates("End", ToShp, End_Margin, Adj_End_Height)(1)
+        ' From/Toを入れ替え（Dataシートを更新）
+        Call SwapFromToInDataSheet(matchingIdShp, FromShpName, ToShpName)
+
+        ' 変数も入れ替え
+        Dim tempShp As Shape
+        Set tempShp = FromShp
+        Set FromShp = ToShp
+        Set ToShp = tempShp
+
+        ' Marginも入れ替え
+        Dim tempMargin As Double, tempHeight As Double
+        tempMargin = Start_Margin
+        Start_Margin = End_Margin
+        End_Margin = tempMargin
+        tempHeight = Adj_Start_Height
+        Adj_Start_Height = Adj_End_Height
+        Adj_End_Height = tempHeight
     End If
-    
-    ' shp�ƂȂ�matchingIdShp��shp���擾�iNull�`�F�b�N�ǉ��j
+
+    ' 通常の座標計算（From→To の順序が正しい状態）
+    Change_Start_shp_Left = CalculateCoordinates("Start", FromShp, Start_Margin, Adj_Start_Height)(0)
+    Change_Start_shp_Top = CalculateCoordinates("Start", FromShp, Start_Margin, Adj_Start_Height)(1)
+    Change_End_shp_Left = CalculateCoordinates("End", ToShp, End_Margin, Adj_End_Height)(0)
+    Change_End_shp_Top = CalculateCoordinates("End", ToShp, End_Margin, Adj_End_Height)(1)
+
+    ' 矢印図形を取得（Nullチェック追加）
     Set shp = FindShapeByName(matchingIdShp)
     If shp Is Nothing Then
         Debug.Print "Line shape not found: "; matchingIdShp
         Exit Sub
     End If
-    
-    ' shp�̈ʒu��ύX
+
+    ' 矢印の位置を変更
     Call MoveLineNewPosition(shp, Change_Start_shp_Left, Change_Start_shp_Top, Change_End_shp_Left, Change_End_shp_Top)
+End Sub
+
+'=============================================================================
+' SwapFromToInDataSheet - DataシートのFrom_shp_NameとTo_shp_Nameを入れ替える
+'=============================================================================
+Sub SwapFromToInDataSheet(ByVal lineId As String, ByVal fromName As String, ByVal toName As String)
+    Dim wsData As Worksheet
+    Dim fromCell As Range, toCell As Range
+    Dim startMarginCell As Range, endMarginCell As Range
+    Dim adjStartCell As Range, adjEndCell As Range
+    Dim tempVal As Variant
+
+    Set wsData = ThisWorkbook.Sheets("Data")
+
+    ' From/Toセルを取得
+    Set fromCell = GetWriteCellFromValue_typeAndshp_IDorItem(wsData, "From_shp_Name", lineId)
+    Set toCell = GetWriteCellFromValue_typeAndshp_IDorItem(wsData, "To_shp_Name", lineId)
+
+    If Not fromCell Is Nothing And Not toCell Is Nothing Then
+        ' From/Toを入れ替え
+        fromCell.Value = toName
+        toCell.Value = fromName
+    End If
+
+    ' Start_Margin/End_Marginも入れ替え
+    Set startMarginCell = GetWriteCellFromValue_typeAndshp_IDorItem(wsData, "Start_Margin", lineId)
+    Set endMarginCell = GetWriteCellFromValue_typeAndshp_IDorItem(wsData, "End_Margin", lineId)
+
+    If Not startMarginCell Is Nothing And Not endMarginCell Is Nothing Then
+        tempVal = startMarginCell.Value
+        startMarginCell.Value = endMarginCell.Value
+        endMarginCell.Value = tempVal
+    End If
+
+    ' Adj_Start_Height/Adj_End_Heightも入れ替え
+    Set adjStartCell = GetWriteCellFromValue_typeAndshp_IDorItem(wsData, "Adj_Start_Height", lineId)
+    Set adjEndCell = GetWriteCellFromValue_typeAndshp_IDorItem(wsData, "Adj_End_Height", lineId)
+
+    If Not adjStartCell Is Nothing And Not adjEndCell Is Nothing Then
+        tempVal = adjStartCell.Value
+        adjStartCell.Value = adjEndCell.Value
+        adjEndCell.Value = tempVal
+    End If
+
+    Debug.Print "Swapped From/To for: "; lineId; " ("; fromName; " <-> "; toName; ")"
 End Sub
 
 '=============================================================================
