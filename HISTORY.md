@@ -57,6 +57,55 @@ Claude Code再起動時やPC再起動時に：
 
 ---
 
+## 2025-12-29: 追加機能実装（未テスト）
+
+### 実装内容
+
+#### 1. レベル調整時の矢印始点・終点修正 (Module_adj_Box_level.bas)
+- **問題**: 図形AがBより前→後に移動した際、矢印の始点・終点が不正になる
+- **修正**: `MoveLine`関数にTime_Level比較ロジックを追加
+  - FromTimeLevel > ToTimeLevelの場合：
+    - 始点 = FromShp右側中点（End座標）
+    - 終点 = ToShp左側中点（Start座標）
+  - 従来（FromTimeLevel <= ToTimeLevel）：
+    - 始点 = FromShp右側中点（Start座標）
+    - 終点 = ToShp左側中点（End座標）
+
+#### 2. 連動チェックボックス (UserForm_Box_level_Change + Module_adj_Box_level.bas)
+- **機能**: 選択した図形より右側の図形を一括移動
+- **新規コントロール**:
+  - `CheckBox_Sync`: 連動機能ON/OFF
+  - `OptionButton_SyncSameAndRight`: 同列以上(>=)を移動
+  - `OptionButton_SyncRightOnly`: 右側のみ(>)を移動（暗黙）
+- **新規関数**: `MoveRightSideShapes(baseTimeLevel, changeLeft, changeTop, includeSameLevel, excludeShpName)`
+  - 基準Time_Level以上/超の全図形を移動
+  - 自分自身は除外
+
+#### 3. Box追加の2選択時対応 (UserForm_AddBox.frm)
+- **機能**: 2つの図形を選択した状態でBox追加可能
+- **モード**:
+  - `OptionButton_InsertBetween`: 2図形の間に挿入（中間Time_Level）
+  - 移動挿入: 右側図形をシフトして挿入
+- **新規関数**:
+  - `AddBoxWith2Shapes()`: 2選択時のメイン処理
+  - `ShiftShapesRight(DataWs, baseTimeLevel, shiftAmount)`: 右側図形のシフト
+  - `CreateLineForNewBox(shp_ID)`: 線作成の共通処理
+
+### テスト状況
+- [ ] 横型図での矢印始点・終点修正テスト
+- [ ] 連動チェックボックス動作テスト
+- [ ] Box追加2選択時テスト（間に挿入）
+- [ ] Box追加2選択時テスト（シフト挿入）
+- [ ] 縦型図でのテスト（後回し）
+
+### 更新ファイル
+- `VBA_Backup/Module_adj_Box_level.bas` - MoveLine修正 + MoveRightSideShapes追加
+- `VBA_Backup/UserForm_Box_level_Change.frm` - 連動チェックボックス追加
+- `VBA_Backup/UserForm_Box_level_Change.frx` - フォームコントロール定義
+- `VBA_Backup/UserForm_AddBox.frm` - 2選択時対応追加
+
+---
+
 ## 2025-12-29: バグ修正・ツールバー改善
 
 ### 修正内容

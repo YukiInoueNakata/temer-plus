@@ -55,6 +55,7 @@ End Sub
 Private Sub Close_UserForm_AddBox_Click()
     Unload Me
 End Sub
+
 Private Sub Add_Box_Click()
     Dim dict As Object
     Set dict = dic_fig_type("Box", 2)            ' この関数がDictionaryを返す
@@ -89,33 +90,46 @@ Private Sub Add_Box_Click()
     
 
     
-    '選択されている図形が1以上か確認
-    If get_count_selected_shape() = 1 Then
-        
-        '選択されている図形が0以上か確認
-    ElseIf get_count_selected_shape() = 0 Then
-        MsgBox "図形が選択されていません。"
-        Exit Sub
-    Else
-        MsgBox "2つ以上の図形が選択されています．選択されている図形を1つにしてください。"
-        Exit Sub
-    End If
+    '選択されている図形の数を確認
+    Dim shapeCount As Integer
+    shapeCount = get_count_selected_shape()
     
+    Select Case shapeCount
+        Case 0
+            MsgBox "図形が選択されていません。"
+            Exit Sub
+        
+        Case 1
+            ' 従来の処理: 1つ選択時
+            Call AddBoxWith1Shape(DataWs, dict)
+        
+        Case 2
+            ' 新機能: 2つ選択時
+            Call AddBoxWith2Shapes(DataWs, dict)
+        
+        Case Else
+            MsgBox "3つ以上の図形が選択されています。1つまたは2つの図形を選択してください。"
+            Exit Sub
+    End Select
+                    
+
+   
+End Sub
+
+' 1つの図形が選択されている場合の処理（従来のロジック）
+Private Sub AddBoxWith1Shape(DataWs As Worksheet, dict As Object)
     Dim TargetShp As shape
     Set TargetShp = Selection.ShapeRange(1)
+    
     ' CheckIfRectangle関数を使用して四角形かどうかを確認
-    If CheckIfRectangle(TargetShp) Then
-    Else
+    If Not CheckIfRectangle(TargetShp) Then
         MsgBox "選択された図形は四角形ではありません。", vbExclamation
         Exit Sub
     End If
     
-    
     'Box作成のために，新しいBoxの情報をDataシートに入力
     Dim TargetTimeLevel As Double
-    
     TargetTimeLevel = Datash_GetValueOfSearchValue(TargetShp.Name, "Time_Level")
-    'debug.print TargetTimeLevel
     
     Dim lastRow As Long
     lastRow = DataWs.Cells(DataWs.Rows.count, FindItemColumn(DataWs, "ID")).End(xlUp).row + 1
@@ -141,19 +155,15 @@ Private Sub Add_Box_Click()
     Dim shp_ID As String
     shp_ID = DataWs.Cells(lastRow, FindItemColumn(DataWs, "ID")).value
     
-    'Boxを作る（元のMake_Boxに戻す）
+    'Boxを作る
     Call Make_Box(shp_ID)
-    
     
     '線をつくる
     Dim FigWs As Worksheet
-        
-    ' アクティブなシートを設定
     Set FigWs = Sheets("MakeFig")
            
     ' 対象シェイプを選択
     If Me.before_Button = True Then
-                
         FigWs.Shapes(shp_ID).Select
         TargetShp.Select Replace:=False
     Else
@@ -161,13 +171,103 @@ Private Sub Add_Box_Click()
         FigWs.Shapes(shp_ID).Select Replace:=False
     End If
 
+    ' 線を作成
+    Call CreateLineForNewBox(shp_ID)
+End Sub
+
+' 2つの図形が選択されている場合の処理（新機能）
+Private Sub AddBoxWith2Shapes(DataWs As Worksheet, dict As Object)
+    Dim Shp1 As shape, Shp2 As shape
+    Dim LeftShp As shape, RightShp As shape
+    Dim TL1 As Double, TL2 As Double
+    Dim NewTimeLevel As Double
     
+    Set Shp1 = Selection.ShapeRange(1)
+    Set Shp2 = Selection.ShapeRange(2)
+    
+    ' 両方とも四角形か確認
+    If Not CheckIfRectangle(Shp1) Or Not CheckIfRectangle(Shp2) Then
+        MsgBox "選択された図形は両方とも四角形である必要があります。", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Time_Levelを取得
+    TL1 = Datash_GetValueOfSearchValue(Shp1.Name, "Time_Level")
+    TL2 = Datash_GetValueOfSearchValue(Shp2.Name, "Time_Level")
+    
+    ' 左右を判定
+    If TL1 < TL2 Then
+        Set LeftShp = Shp1
+        Set RightShp = Shp2
+    Else
+        Set LeftShp = Shp2
+        Set RightShp = Shp1
+        ' TL1とTL2を入れ替え
+        Dim tempTL As Double
+        tempTL = TL1
+        TL1 = TL2
+        TL2 = tempTL
+    End If
+    
+    ' モード判定
+    On Error Resume Next
+    Dim isInsertBetween As Boolean
+    isInsertBetween = Me.OptionButton_InsertBetween.value
+    On Error GoTo 0
+    
+    If isInsertBetween Then
+        ' 間に挿入: 中間のTime_Levelに作成
+        NewTimeLevel = (TL1 + TL2) / 2
+    Else
+        ' 移動して挿入: 右側の図形をシフト
+        NewTimeLevel = TL1 + 1
+        Call ShiftShapesRight(DataWs, TL1, 1)
+    End If
+    
+    ' 新しいBoxをDataシートに追加
+    Dim lastRow As Long
+    lastRow = DataWs.Cells(DataWs.Rows.count, FindItemColumn(DataWs, "ID")).End(xlUp).row + 1
+    DataWs.Cells(lastRow, FindItemColumn(DataWs, "Type")) = ComboBox_BoxType.value
+    DataWs.Cells(lastRow, FindItemColumn(DataWs, "Text")) = AddBox_Text.value
+    DataWs.Cells(lastRow, FindItemColumn(DataWs, "Time_Level")) = NewTimeLevel
+    DataWs.Cells(lastRow, FindItemColumn(DataWs, "Item_Level")) = Vertical_level_Box.value
+    DataWs.Cells(lastRow, FindItemColumn(DataWs, "Height")) = TextBox_Height.value
+    DataWs.Cells(lastRow, FindItemColumn(DataWs, "Width")) = TextBox_Width.value
+    
+    'IDをふる
+    Call ID_Named
+    
+    Dim shp_ID As String
+    shp_ID = DataWs.Cells(lastRow, FindItemColumn(DataWs, "ID")).value
+    
+    'Boxを作る
+    Call Make_Box(shp_ID)
+    
+    ' 線を作成（左シェイプ→新Box→右シェイプ）
+    Dim FigWs As Worksheet
+    Set FigWs = Sheets("MakeFig")
+    
+    ' 左シェイプと新Boxを選択して線を作成
+    LeftShp.Select
+    FigWs.Shapes(shp_ID).Select Replace:=False
+    Call CreateLineForNewBox(shp_ID)
+    
+    ' 新Boxと右シェイプを選択して線を作成
+    FigWs.Shapes(shp_ID).Select
+    RightShp.Select Replace:=False
+    Call CreateLineForNewBox(shp_ID)
+    
+    MsgBox "2つの図形の間に新しいBoxを作成しました。", vbInformation
+End Sub
+
+' 線を作成する共通処理
+Private Sub CreateLineForNewBox(shp_ID As String)
     Dim Line_Type As Integer
     Dim Start_Margin As Integer
     Dim End_Margin As Integer
     Dim Adj_Start_Height As Integer
     Dim Adj_End_Height As Integer
-    Dim Add_data  As Boolean
+    Dim Add_data As Boolean
     
     If Real_Line_Button.value = True Then
         Line_Type = 1
@@ -189,9 +289,42 @@ Private Sub Add_Box_Click()
     Call Arrow_Connect_box(Line_Type, Add_data, _
                            Start_Margin, End_Margin, _
                            Adj_Start_Height, Adj_End_Height)
-                    
+End Sub
 
-   
+' 右側の図形をシフトする処理
+Private Sub ShiftShapesRight(DataWs As Worksheet, baseTimeLevel As Double, shiftAmount As Double)
+    Dim lastRow As Long, row As Long
+    Dim timeLevelCol As Integer, idCol As Integer
+    Dim shpTimeLevel As Double, shpName As String
+    Dim FigWs As Worksheet
+    Dim rectWidth As Double
+    Dim shiftPixels As Double
+    
+    Set FigWs = ThisWorkbook.Sheets("MakeFig")
+    
+    timeLevelCol = FindItemColumn(DataWs, "Time_Level")
+    idCol = FindItemColumn(DataWs, "ID")
+    
+    rectWidth = Val(GetValueOfSearchValue("ItemBox_Width", GetDimensionValue()))
+    shiftPixels = shiftAmount * (Func_time_level_size() + rectWidth)
+    
+    lastRow = DataWs.Cells(DataWs.Rows.count, idCol).End(xlUp).row
+    
+    For row = 2 To lastRow
+        shpTimeLevel = Val(DataWs.Cells(row, timeLevelCol).value)
+        
+        If shpTimeLevel > baseTimeLevel Then
+            shpName = CStr(DataWs.Cells(row, idCol).value)
+            
+            ' Dataシートを更新
+            DataWs.Cells(row, timeLevelCol).value = shpTimeLevel + shiftAmount
+            
+            ' 図形を移動
+            On Error Resume Next
+            FigWs.Shapes(shpName).Left = FigWs.Shapes(shpName).Left + shiftPixels
+            On Error GoTo 0
+        End If
+    Next row
 End Sub
 
 
