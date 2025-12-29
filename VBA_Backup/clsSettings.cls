@@ -59,29 +59,29 @@ Public Sub Initialize()
 
     If m_wsSetting Is Nothing Then Exit Sub
 
-    lastRow = m_wsSetting.Cells(m_wsSetting.Rows.Count, 1).End(xlUp).Row
-    lastCol = m_wsSetting.Cells(1, m_wsSetting.Columns.Count).End(xlToLeft).Column
+    lastRow = m_wsSetting.Cells(m_wsSetting.Rows.count, 1).End(xlUp).row
+    lastCol = m_wsSetting.Cells(1, m_wsSetting.Columns.count).End(xlToLeft).Column
 
     ' ÂÖ®Ë®≠ÂÆö„ÇíËæûÊõ∏„Å´Ê†ºÁ¥ç
     For row = 2 To lastRow
-        itemName = CStr(m_wsSetting.Cells(row, 1).Value)
+        itemName = CStr(m_wsSetting.Cells(row, 1).value)
         If itemName <> "" Then
             Set innerDict = CreateObject("Scripting.Dictionary")
 
             For col = 2 To lastCol
-                colName = CStr(m_wsSetting.Cells(1, col).Value)
+                colName = CStr(m_wsSetting.Cells(1, col).value)
                 If colName <> "" Then
-                    innerDict(colName) = m_wsSetting.Cells(row, col).Value
+                    innerDict.Add colName, m_wsSetting.Cells(row, col).value
                 End If
             Next col
 
-            m_SettingDict(itemName) = innerDict
+            m_SettingDict.Add itemName, innerDict
         End If
     Next row
 
     ' „É¨„Ç§„Ç¢„Ç¶„ÉàÊñπÂêë„ÇíÂà§ÂÆö
     m_IsVertical = DetermineLayoutDirection()
-    m_DimensionValue = IIf(m_IsVertical, "Vertical", "Horizontal")
+    m_DimensionValue = IIf(m_IsVertical, "Vertical_Value", "Horizontal_Value")
 
     m_IsInitialized = True
 End Sub
@@ -167,11 +167,11 @@ Public Property Get DimensionValue() As String
 End Property
 
 Public Property Get VerticalLevelSize() As Double
-    VerticalLevelSize = Val(GetValue("Vertical_level_size", m_DimensionValue))
+    VerticalLevelSize = Val(GetValue("vertical_level_size", "Value"))
 End Property
 
 Public Property Get TimeLevelSize() As Double
-    TimeLevelSize = Val(GetValue("Time_level_size", m_DimensionValue))
+    TimeLevelSize = Val(GetValue("time_level_size", "Value"))
 End Property
 
 '=============================================================================
@@ -191,20 +191,22 @@ End Property
 '=============================================================================
 
 '@description("„É¨„Ç§„Ç¢„Ç¶„ÉàÊñπÂêë„ÇíÂà§ÂÆö")
+'@description("ÉåÉCÉAÉEÉgï˚å¸ÇîªíË")
 Private Function DetermineLayoutDirection() As Boolean
-    Dim layoutValue As Variant
-
-    If m_SettingDict.Exists("Layout_Direction") Then
+    Dim isHorizontal As Variant
+    
+    If m_SettingDict.Exists("drawing_facing_is_horizontal") Then
         Dim innerDict As Object
-        Set innerDict = m_SettingDict("Layout_Direction")
+        Set innerDict = m_SettingDict("drawing_facing_is_horizontal")
         If innerDict.Exists("Value") Then
-            layoutValue = innerDict("Value")
+            isHorizontal = innerDict("Value")
         End If
     End If
-
-    ' "Vertical"„Åæ„Åü„ÅØ"Á∏¶"„Å™„ÇâTrue
-    DetermineLayoutDirection = (CStr(layoutValue) = "Vertical" Or CStr(layoutValue) = "Á∏¶")
+    
+    ' TrueÇ»ÇÁHorizontal(â°å¸Ç´)ÅAFalseÇ»ÇÁVertical(ècå¸Ç´)
+    DetermineLayoutDirection = Not CBool(isHorizontal)
 End Function
+
 
 '=============================================================================
 ' „É™„Éï„É¨„ÉÉ„Ç∑„É•

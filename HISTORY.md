@@ -41,6 +41,8 @@ Claude Code再起動時やPC再起動時に：
   - [x] Module_Make_Box.bas - 最適化版関数追加
   - [x] Edit_Line.bas - 最適化版関数追加
   - [x] Edit_SD_SG.bas - 最適化版関数追加
+- [x] clsSettings修正（General_Settingシートとの互換性）
+- [x] Make_Box_Optimized動作確認
 
 ---
 
@@ -238,6 +240,8 @@ Main_making_TEM_Fig_from_data()  ← DataシートからTEM図を生成
 | 2025-12-29 | VBAクラスモジュール4つ作成 | ✅ 完了 |
 | 2025-12-29 | Excel VBEにクラスインポート・動作確認 | ✅ 完了 |
 | 2025-12-29 | 既存モジュール修正（最適化版関数追加） | ✅ 完了 |
+| 2025-12-29 | clsSettings修正（Dictionary.Add使用、列名修正） | ✅ 完了 |
+| 2025-12-29 | Make_Box_Optimized動作テスト成功 | ✅ 完了 |
 
 ---
 
