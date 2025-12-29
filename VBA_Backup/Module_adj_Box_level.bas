@@ -327,9 +327,9 @@ Sub MoveRightSideShapes(ByVal baseTimeLevel As Double, ByVal changeLeft As Doubl
                         ByVal excludeShpName As String)
     Dim wsData As Worksheet, wsFig As Worksheet
     Dim lastRow As Long, Row As Long
-    Dim shpTimeLevel As Double, shpName As String
+    Dim shpTimeLevel As Double, shpName As String, shpType As String
     Dim shouldMove As Boolean
-    Dim idCol As Integer, timeLevelCol As Integer
+    Dim idCol As Integer, timeLevelCol As Integer, typeCol As Integer
     Dim shp As Shape
 
     Set wsData = ThisWorkbook.Sheets("Data")
@@ -338,6 +338,7 @@ Sub MoveRightSideShapes(ByVal baseTimeLevel As Double, ByVal changeLeft As Doubl
     ' Find columns
     idCol = FindItemColumn(wsData, "ID")
     timeLevelCol = FindItemColumn(wsData, "Time_Level")
+    typeCol = FindItemColumn(wsData, "Type")
 
     lastRow = wsData.Cells(wsData.Rows.Count, idCol).End(xlUp).Row
 
@@ -368,4 +369,44 @@ Sub MoveRightSideShapes(ByVal baseTimeLevel As Double, ByVal changeLeft As Doubl
         End If
 NextRow:
     Next Row
+
+    ' After moving all boxes, update connected lines
+    For Row = 2 To lastRow
+        shpName = CStr(wsData.Cells(Row, idCol).Value)
+        shpType = CStr(wsData.Cells(Row, typeCol).Value)
+        shpTimeLevel = Val(wsData.Cells(Row, timeLevelCol).Value)
+
+        ' Check if this is a Line and was affected by the shift
+        If (shpType Like "*Arrow*" Or shpType Like "*Line*" Or _
+            InStr(shpType, ChrW(&H5B9F)) > 0) Then
+
+            If includeSameLevel Then
+                shouldMove = (shpTimeLevel >= baseTimeLevel)
+            Else
+                shouldMove = (shpTimeLevel > baseTimeLevel)
+            End If
+
+            If shouldMove Then
+                On Error Resume Next
+                Call MoveLine(shpName)
+                On Error GoTo 0
+            End If
+        End If
+    Next Row
+
+    ' (����) Move Labels/SubLabels with affected shapes
+    ' For Row = 2 To lastRow
+    '     shpName = CStr(wsData.Cells(Row, idCol).Value)
+    '     shpTimeLevel = Val(wsData.Cells(Row, timeLevelCol).Value)
+    '
+    '     If includeSameLevel Then
+    '         shouldMove = (shpTimeLevel >= baseTimeLevel)
+    '     Else
+    '         shouldMove = (shpTimeLevel > baseTimeLevel)
+    '     End If
+    '
+    '     If shouldMove Then
+    '         Call MoveLabelsWithParent(shpName, changeLeft, changeTop)
+    '     End If
+    ' Next Row
 End Sub
