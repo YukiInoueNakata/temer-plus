@@ -57,6 +57,59 @@ Claude Code再起動時やPC再起動時に：
 
 ---
 
+## 2025-12-29: データ列ずれ問題の修正
+
+### 問題
+ツールバーの「図作成」ボタンを押しても作図されない
+
+### 原因
+Dataシートのデータが1列左にずれていた：
+- **現在の状態（間違い）**: ID列にType、Type列にText、Text列にTime_Level...
+- **正しい状態**: ID列は空（自動付与）、Type列にType、Text列にText...
+
+### 修正
+`Module_FixDataColumns.bas`を作成
+- `FixDataColumns`マクロを実行するとA列に空列を挿入
+- データが正しい列位置に移動
+- その後「図作成」ボタンでIDが自動付与され作図される
+
+### テスト結果
+- ✅ 図作成成功（横型図）
+
+### 更新ファイル
+- `C:\Temp\FixDataColumns.bas` - データ列修正モジュール
+- `VBA_Backup/Module_FixDataColumns.bas` - バックアップ
+
+---
+
+## 2025-12-29: 矢印始点終点修正・文字エンコーディング修正
+
+### テスト結果
+- **単純な場合**: 矢印始点終点修正は正常動作
+- **連動時**: 位置ずれが発生（今後の課題）
+
+### 文字エンコーディング問題の修正
+Module_adj_Box_level.basで日本語文字列がインポート時に文字化けする問題を修正：
+```vba
+' 修正前（文字化け）
+If (cellValue = "実線矢印" Or cellValue = "点線矢印") Then
+
+' 修正後（ChrW使用）
+If (cellValue = ChrW(&H5B9F) & ChrW(&H7DDA) & ChrW(&H77E2) & ChrW(&H5370) Or _
+    cellValue = ChrW(&H70B9) & ChrW(&H7DDA) & ChrW(&H77E2) & ChrW(&H5370)) Then
+```
+
+### 今後の課題
+1. **連動時の位置ずれ**: 右移動→左移動でズレが発生
+2. **2図形の高さ入れ替え機能**: 高さを維持するか入れ替えるか選択可能に
+3. **縦型図の作成問題**: 現在は横型図のみ成功、縦型図は未対応
+
+### 更新ファイル
+- `C:\Temp\Module_adj_Box_level.bas` - 文字エンコーディング修正版
+- `VBA_Backup/Module_adj_Box_level.bas` - バックアップ
+
+---
+
 ## 2025-12-29: 追加機能実装（セットアップ必要）
 
 ### 実装内容
