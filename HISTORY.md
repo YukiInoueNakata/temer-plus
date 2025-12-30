@@ -195,6 +195,34 @@ End Sub
 - `VBA_Backup/Module_adj_Box_level.bas` - MoveRightSideShapes関数修正
 - `HISTORY.md` - 本記録
 
+### VBAインポート完了（2025-12-30 11:30）
+
+修正したVBAコードのExcelへのインポートが完了しました。
+
+#### 実施内容
+1. **UserForm_AddBox1のエクスポート**: 手作業で作成したUI要素を含むUserForm_AddBox1をExcelからエクスポート
+2. **.frmファイル名前変更**: sedコマンドで全ての`UserForm_AddBox1`を`UserForm_AddBox`に置換
+   - `UserForm_AddBox_NEW.frm`として保存
+   - `UserForm_AddBox_NEW.frx`も同時にコピー
+3. **PowerShellスクリプトでインポート**:
+   - ExcelファイルをC:\Tempにコピー（OneDriveパス問題回避）
+   - VBAファイルもC:\Tempにコピー
+   - PowerShellでUserForm_AddBox1削除→UserForm_AddBox_NEWインポート
+   - Module_adj_Box_level削除→新版インポート
+   - 更新したExcelを元の場所に戻す
+
+#### 問題と解決
+- **問題**: PowerShellからOneDriveパスのExcelファイルを開けない
+- **解決**: 一時フォルダ（C:\Temp）経由でインポート作業を実施
+
+#### 更新されたファイル
+- `最新版/TEMerPlus_202512301018.xlsm` - UserForm_AddBoxとModule_adj_Box_levelが更新版に置換
+- `VBA_Backup/UserForm_AddBox_NEW.frm` - 名前修正済みUserForm
+- `VBA_Backup/UserForm_AddBox_NEW.frx` - 対応するバイナリUIファイル
+
+#### 次のステップ
+- [ ] 修正後のテスト実施（シフト挿入、連動移動）
+
 ---
 
 ## 2025-12-29: データ列ずれ問題の修正
