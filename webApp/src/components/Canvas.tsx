@@ -512,7 +512,10 @@ function TimeArrowOverlay() {
         fontSize={arrow.fontSize * zoom}
         textAnchor="middle"
         fill="#222"
-        style={{ writingMode: layout === 'vertical' ? 'vertical-rl' : undefined }}
+        style={{
+          writingMode: layout === 'vertical' ? 'vertical-rl' : undefined,
+          textOrientation: layout === 'vertical' ? 'upright' : undefined,
+        }}
       >
         {arrow.label}
       </text>

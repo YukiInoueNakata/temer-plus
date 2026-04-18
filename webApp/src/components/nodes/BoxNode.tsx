@@ -65,7 +65,8 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
 
   const textStyle: React.CSSProperties = {
     writingMode: isTextVertical ? 'vertical-rl' : 'horizontal-tb',
-    textOrientation: isTextVertical ? 'mixed' : undefined,
+    // upright: 半角英数も縦向き（各文字を上下に積む）、ー も縦向き|形に
+    textOrientation: isTextVertical ? 'upright' : undefined,
     textAlign: isTextVertical ? 'left' : (textAlign as 'left' | 'center' | 'right'),
   };
 
@@ -121,7 +122,7 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         color: '#222',
         fontWeight: 700,
         writingMode: 'vertical-rl',
-        textOrientation: 'mixed',
+        textOrientation: 'upright',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
       }
