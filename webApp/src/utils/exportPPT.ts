@@ -4,8 +4,9 @@
 // ============================================================================
 
 import PptxGenJS from 'pptxgenjs';
-import type { Box, Line, SDSG, Sheet, TimeArrowSettings, LayoutDirection } from '../types';
+import type { Box, Line, SDSG, Sheet, TimeArrowSettings, LegendSettings, LayoutDirection } from '../types';
 import { computeTimeArrow } from './timeArrow';
+import { computeLegendItems } from './legend';
 
 const EMU_PER_PX = 1 / 96;
 const pxToInch = (px: number) => px * EMU_PER_PX;
@@ -20,6 +21,8 @@ export interface PPTXExportOptions {
   layout?: LayoutDirection;
   timeArrowSettings?: TimeArrowSettings;
   includeTimeArrow?: boolean;
+  legendSettings?: LegendSettings;
+  includeLegend?: boolean;
 }
 
 export async function exportToPPTX(
@@ -85,6 +88,11 @@ export async function exportToPPTX(
     }
   }
 
+  // 凡例を描画
+  if (opts.includeLegend && opts.sheet && opts.legendSettings) {
+    renderLegend(pres, slide, opts.sheet, opts.legendSettings);
+  }
+
   for (const b of boxes) {
     await renderBox(pres, slide, b);
   }
@@ -123,6 +131,115 @@ export async function exportToPPTX(
   }
 
   await pres.writeFile({ fileName: filename });
+}
+
+function renderLegend(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  sheet: Sheet,
+  settings: LegendSettings,
+) {
+  const items = computeLegendItems(sheet, settings);
+  if (items.length === 0) return;
+
+  const rowHeightPx = settings.fontSize * 2.2;
+  const padding = 10;
+  const iconWidth = 40;
+  const headerHeight = settings.fontSize * 1.8;
+  const totalHeight = headerHeight + items.length * rowHeightPx + padding * 2;
+  const totalWidth = Math.max(settings.minWidth, 240);
+
+  const x = settings.position.x;
+  const y = settings.position.y;
+
+  // 枠
+  slide.addShape(pres.ShapeType.rect, {
+    x: pxToInch(x),
+    y: pxToInch(y),
+    w: pxToInch(totalWidth),
+    h: pxToInch(totalHeight),
+    fill: { color: 'FFFFFF' },
+    line: { color: '999999', width: 1 },
+  });
+
+  // タイトル
+  slide.addText(settings.title, {
+    x: pxToInch(x + padding),
+    y: pxToInch(y + padding),
+    w: pxToInch(totalWidth - padding * 2),
+    h: pxToInch(headerHeight),
+    fontSize: settings.fontSize * 1.15,
+    bold: true,
+    color: '222222',
+  });
+
+  // 各項目
+  items.forEach((item, idx) => {
+    const itemY = y + padding + headerHeight + idx * rowHeightPx;
+    const iconX = x + padding;
+    const textX = iconX + iconWidth + 6;
+
+    // アイコン描画
+    if (item.category === 'box') {
+      const dash = item.key === 'P-EFP' || item.key === 'P-2nd-EFP' || item.key === 'annotation' ? 'dash' : 'solid';
+      const width = item.key === 'OPP' ? 3 : item.key === 'EFP' || item.key === '2nd-EFP' ? 2 : 1;
+      slide.addShape(pres.ShapeType.rect, {
+        x: pxToInch(iconX),
+        y: pxToInch(itemY + rowHeightPx * 0.15),
+        w: pxToInch(iconWidth),
+        h: pxToInch(rowHeightPx * 0.7),
+        fill: { color: 'FFFFFF' },
+        line: { color: '222222', width, dashType: dash as 'dash' | 'solid' },
+      });
+    } else if (item.category === 'line') {
+      slide.addShape(pres.ShapeType.line, {
+        x: pxToInch(iconX),
+        y: pxToInch(itemY + rowHeightPx / 2),
+        w: pxToInch(iconWidth),
+        h: 0.001,
+        line: {
+          color: '222222',
+          width: 1.5,
+          dashType: item.key === 'XLine' ? 'dash' : 'solid',
+          endArrowType: 'triangle',
+        },
+      });
+    } else if (item.category === 'sdsg') {
+      slide.addShape(pres.ShapeType.pentagon, {
+        x: pxToInch(iconX),
+        y: pxToInch(itemY + rowHeightPx * 0.15),
+        w: pxToInch(iconWidth),
+        h: pxToInch(rowHeightPx * 0.7),
+        fill: { color: item.key === 'SD' ? 'FFE8E8' : 'E8F0FF' },
+        line: { color: item.key === 'SD' ? 'AA3333' : '3333AA', width: 1 },
+      });
+    } else if (item.category === 'timeArrow') {
+      slide.addShape(pres.ShapeType.line, {
+        x: pxToInch(iconX),
+        y: pxToInch(itemY + rowHeightPx / 2),
+        w: pxToInch(iconWidth),
+        h: 0.001,
+        line: {
+          color: '222222',
+          width: 2.5,
+          endArrowType: 'triangle',
+        },
+      });
+    }
+
+    // ラベル + 説明
+    slide.addText([
+      { text: item.label, options: { bold: true, fontSize: settings.fontSize } },
+      { text: `\n${item.description}`, options: { fontSize: settings.fontSize * 0.85, color: '666666' } },
+    ], {
+      x: pxToInch(textX),
+      y: pxToInch(itemY),
+      w: pxToInch(totalWidth - padding - iconWidth - 12),
+      h: pxToInch(rowHeightPx),
+      valign: 'middle',
+      color: '222222',
+    });
+  });
 }
 
 async function renderSDSG(

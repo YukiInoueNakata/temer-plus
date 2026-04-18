@@ -241,6 +241,20 @@ export interface SnapSettings {
   gridPx: number;
 }
 
+export interface LegendSettings {
+  autoGenerate: boolean;              // シートから使用記号を自動抽出
+  alwaysVisible: boolean;             // 編集中も表示（エクスポートは別制御）
+  includeInExport: boolean;           // エクスポート時に含める
+  position: { x: number; y: number }; // 世界座標、ドラッグで移動可
+  includeBoxes: boolean;
+  includeLines: boolean;
+  includeSDSG: boolean;
+  includeTimeArrow: boolean;
+  title: string;
+  fontSize: number;
+  minWidth: number;
+}
+
 export interface TimeArrowSettings {
   autoInsert: boolean;                 // エクスポート時に自動挿入するか（＋キャンバス表示）
   alwaysVisible: boolean;              // 編集中も常時表示
@@ -270,6 +284,7 @@ export interface ProjectSettings {
   paperGuides: PaperGuide[];
   uiFontSize: number;                  // UI全体のフォントサイズ（px）
   timeArrow: TimeArrowSettings;
+  legend: LegendSettings;
 }
 
 // ----------------------------------------------------------------------------

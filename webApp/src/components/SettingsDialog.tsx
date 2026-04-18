@@ -4,7 +4,7 @@
 
 import { useTEMStore } from '../store/store';
 import { produce } from 'immer';
-import type { TimeArrowSettings } from '../types';
+import type { TimeArrowSettings, LegendSettings } from '../types';
 
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const doc = useTEMStore((s) => s.doc);
@@ -121,6 +121,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
 
           <TimeArrowSettingsSection />
 
+          <LegendSettingsSection />
+
           <section className="settings-section">
             <h4>時期ラベル</h4>
             <div className="setting-row">
@@ -156,6 +158,80 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         </div>
       </div>
     </div>
+  );
+}
+
+function LegendSettingsSection() {
+  const doc = useTEMStore((s) => s.doc);
+  const lg = doc.settings.legend;
+
+  const update = (patch: Partial<LegendSettings>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        d.settings.legend = { ...d.settings.legend, ...patch };
+      }),
+    }));
+  };
+
+  return (
+    <section className="settings-section">
+      <h4>凡例</h4>
+      <div className="setting-row">
+        <label>自動生成（使用記号を抽出）</label>
+        <input type="checkbox" checked={lg.autoGenerate} onChange={(e) => update({ autoGenerate: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>編集中も表示</label>
+        <input type="checkbox" checked={lg.alwaysVisible} onChange={(e) => update({ alwaysVisible: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>エクスポートに含める</label>
+        <input type="checkbox" checked={lg.includeInExport} onChange={(e) => update({ includeInExport: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>Box 種別を含む</label>
+        <input type="checkbox" checked={lg.includeBoxes} onChange={(e) => update({ includeBoxes: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>Line 種別を含む</label>
+        <input type="checkbox" checked={lg.includeLines} onChange={(e) => update({ includeLines: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>SD/SG を含む</label>
+        <input type="checkbox" checked={lg.includeSDSG} onChange={(e) => update({ includeSDSG: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>非可逆的時間を含む</label>
+        <input type="checkbox" checked={lg.includeTimeArrow} onChange={(e) => update({ includeTimeArrow: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>タイトル</label>
+        <input type="text" value={lg.title} onChange={(e) => update({ title: e.target.value })} style={{ width: 140 }} />
+      </div>
+      <div className="setting-row">
+        <label>フォントサイズ</label>
+        <input
+          type="number"
+          min={8}
+          max={30}
+          value={lg.fontSize}
+          onChange={(e) => update({ fontSize: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>最小幅 (px)</label>
+        <input
+          type="number"
+          min={100}
+          max={500}
+          value={lg.minWidth}
+          onChange={(e) => update({ minWidth: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <p className="hint">凡例はキャンバス上でドラッグして位置調整できます</p>
+    </section>
   );
 }
 

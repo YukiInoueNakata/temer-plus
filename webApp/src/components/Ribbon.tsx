@@ -433,6 +433,8 @@ function ViewTab() {
   const togglePropertyPanel = useTEMStore((s) => s.togglePropertyPanel);
   const toggleCommentMode = useTEMStore((s) => s.toggleCommentMode);
   const toggleBoxIds = useTEMStore((s) => s.toggleBoxIds);
+  const toggleLegend = useTEMStore((s) => s.toggleLegend);
+  const legendVisible = useTEMStore((s) => s.doc.settings.legend.alwaysVisible);
 
   return (
     <>
@@ -441,6 +443,7 @@ function ViewTab() {
         <RibbonButton label={view.snapEnabled ? 'スナップ ✓' : 'スナップ'} icon="⊡" onClick={toggleSnap} />
         <RibbonButton label={view.showPaperGuides ? '用紙枠 ✓' : '用紙枠'} icon="▭" onClick={togglePaperGuides} />
         <RibbonButton label={view.showBoxIds ? 'ID ✓' : 'ID'} icon="🏷" onClick={toggleBoxIds} />
+        <RibbonButton label={legendVisible ? '凡例 ✓' : '凡例'} icon="📋" onClick={toggleLegend} />
       </RibbonGroup>
       <RibbonGroup title="パネル">
         <RibbonButton label={view.dataSheetVisible ? 'データ ✓' : 'データ'} icon="🗂" onClick={toggleDataSheet} />
@@ -485,6 +488,8 @@ function OutputTab() {
         layout: doc.settings.layout,
         timeArrowSettings: doc.settings.timeArrow,
         includeTimeArrow: doc.settings.timeArrow.autoInsert,
+        legendSettings: doc.settings.legend,
+        includeLegend: doc.settings.legend.includeInExport,
       });
     } catch (e) {
       alert('PPTX出力に失敗しました: ' + (e as Error).message);

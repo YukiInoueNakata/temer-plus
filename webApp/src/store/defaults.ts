@@ -46,6 +46,19 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     strokeWidth: 2.5,
     fontSize: 14,
   },
+  legend: {
+    autoGenerate: true,
+    alwaysVisible: true,
+    includeInExport: true,
+    position: { x: 0, y: 0 },
+    includeBoxes: true,
+    includeLines: true,
+    includeSDSG: true,
+    includeTimeArrow: true,
+    title: '凡例',
+    fontSize: 11,
+    minWidth: 200,
+  },
 };
 
 export const DEFAULT_VIEW_STATE: ViewState = {

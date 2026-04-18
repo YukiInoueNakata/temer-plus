@@ -143,6 +143,7 @@ interface Actions {
   togglePaperGuides: () => void;
   toggleCommentMode: () => void;
   toggleBoxIds: () => void;
+  toggleLegend: () => void;
   setCanvasMode: (mode: 'move' | 'select') => void;
   setDataSheetWidth: (width: number) => void;
   setGridSnap: (enabled: boolean) => void;
@@ -933,6 +934,9 @@ export const useTEMStore = create<Store>()(
       togglePaperGuides: () => set((state) => ({ view: { ...state.view, showPaperGuides: !state.view.showPaperGuides } })),
       toggleCommentMode: () => set((state) => ({ view: { ...state.view, commentMode: !state.view.commentMode } })),
       toggleBoxIds: () => set((state) => ({ view: { ...state.view, showBoxIds: !state.view.showBoxIds } })),
+      toggleLegend: () => set((state) => ({
+        doc: produce(state.doc, (d) => { d.settings.legend.alwaysVisible = !d.settings.legend.alwaysVisible; }),
+      })),
       setCanvasMode: (canvasMode) => set((state) => ({ view: { ...state.view, canvasMode } })),
       setDataSheetWidth: (dataSheetWidth) => set((state) => ({ view: { ...state.view, dataSheetWidth } })),
       setGridSnap: (enabled) => set((state) => ({

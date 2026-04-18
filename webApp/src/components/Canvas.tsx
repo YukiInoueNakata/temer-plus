@@ -25,6 +25,7 @@ import { BoxNode, type BoxNodeData } from './nodes/BoxNode';
 import { SDSGNode, type SDSGNodeData } from './nodes/SDSGNode';
 import { LEVEL_PX, MINOR_TICK_PX } from '../store/defaults';
 import { computeTimeArrow } from '../utils/timeArrow';
+import { LegendOverlay } from './LegendOverlay';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
 
@@ -292,6 +293,7 @@ function CanvasInner() {
             {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
             {showPaperGuides && <PaperGuideOverlay />}
             <TimeArrowOverlay />
+            <LegendOverlay />
             <Controls />
           </ReactFlow>
           <CustomWheelHandler layout={layout} />
