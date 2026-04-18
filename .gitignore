@@ -24,3 +24,25 @@ ehthumbs.db
 最新版/
 TEMerPlus/
 .claude/
+.tmp/
+
+# 旧版プロジェクト資産（Web版開発では参照のみ）
+old_file/**/*.xlsm
+old_file/**/*.pptx
+old_file/**/*.pdf
+old_file/2024TEA学会シンポ/
+
+# Node / Web開発
+node_modules/
+webApp/node_modules/
+webApp/dist/
+webApp/*.tsbuildinfo
+*.log
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# CSV データ（個人情報を含む可能性）
+中田_2024_TEMシンポ*.csv

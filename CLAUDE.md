@@ -1,126 +1,164 @@
-# CLAUDE.md - TEMerPlus
+# CLAUDE.md - TEMer (Web版)
 
-TEM（複線径路等至性モデル）の作図ツール「TEMerPlus」の開発プロジェクトです。
+TEM（複線径路等至性モデル: Trajectory Equifinality Model）の作図支援ツール「TEMer」のWebアプリ版開発プロジェクトです。
 
 ---
 
 ## プロジェクト概要
 
-### TEMerPlusとは
-- TEM（Trajectory Equifinality Model：複線径路等至性モデル）の作図支援ツール
-- ExcelのVBAで実装
-- Dataシートのデータを基にMakefigシートに再現性のある図を作成
+### 移行の経緯
+旧版（Excel VBA: TEMerPlus）は使い勝手に課題があったため、クロスプラットフォーム対応のWebアプリとして再設計しました。
 
-### ファイル構成
+- 旧版資産: `old_file/` 配下に全て退避済み（VBAソース、過去のpptx資料、卒論データ等）
+- 新規開発: `webApp/` 配下で進行
 
-| ファイル | 説明 |
-|---------|------|
-| `最新版/TEMerPlus_202400715.xlsm` | メインのExcelファイル（VBAマクロ付き） |
-| `CLAUDE.md` | 本ファイル（プロジェクト指示） |
-| `HISTORY.md` | 開発履歴・VBA構造・問題追跡 |
+### 設計方針
+
+| 項目 | 方針 |
+|---|---|
+| プラットフォーム | Web（ブラウザベース）、将来Tauriデスクトップ化も視野 |
+| OS対応 | Win / Mac どちらでも動作 |
+| インストール | 原則不要（URLで起動）、PWA化も可 |
+| データ保存 | `.tem` ファイル（JSON）中心 + IndexedDB自動バックアップ |
+| エクスポート | pptx（PptxGenJS） / PNG（html-to-image） |
+| 推奨ブラウザ | Chrome / Edge（File System Access APIでネイティブ並みの上書き保存） |
+
+---
+
+## ディレクトリ構成
+
+```
+TEMerPlus/
+├── CLAUDE.md        # このファイル（プロジェクト指示）
+├── HISTORY.md       # 開発履歴
+├── TODO.md          # 残タスク・チェックリスト
+├── webApp/          # Web版アプリ（開発中）
+│   ├── package.json
+│   ├── src/
+│   │   ├── components/   # DataSheet, DiagramView, Toolbar
+│   │   ├── store/        # Zustand ストア
+│   │   ├── utils/        # エクスポート・インポート処理
+│   │   ├── types.ts      # Box/Line/SDSG 型定義
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   └── README.md
+└── old_file/        # 旧版VBA資産（凍結）
+    ├── VBA_Backup/
+    ├── TEMerPlus/
+    ├── 最新版/
+    ├── CLAUDE.md    # 旧プロジェクト指示
+    └── HISTORY.md   # 旧開発履歴
+```
+
+---
+
+## 技術スタック
+
+| 層 | 採用技術 |
+|---|---|
+| 言語 | TypeScript |
+| フレームワーク | React 18 |
+| ビルド | Vite |
+| 状態管理 | Zustand |
+| 作図 | React Flow |
+| データシート | （プロトタイプは自前、将来 Handsontable 検討） |
+| PPT出力 | PptxGenJS |
+| 画像出力 | html-to-image |
+| スタイル | CSS Modules（シンプル） |
 
 ---
 
 ## 開発ルール
 
 ### 変更管理
-1. **すべての変更はHISTORY.mdに記録**
-2. **未確認・未実装事項はチェックリスト形式で管理**
-3. **VBAコードの変更前に必ずバックアップ**
+1. 全ての変更は `HISTORY.md` に追記記録
+2. 未実装事項・判断保留事項は `TODO.md` にチェックリスト形式で管理
+3. 大きな構造変更は Issue / Plan を立ててから着手
 
-### テスト再開コマンド
-```
-@HISTORY.md テスト再開
-@HISTORY.md 開発再開
-@HISTORY.md 状況報告
-```
+### コーディング
+- TypeScript の型を厳格に（`any` 原則禁止）
+- コンポーネントは Props 型を必ず明示
+- 純関数で座標計算・データ変換（テストしやすさ優先）
 
----
+### コミット
+- 節目ごとに commit（機能単位 / 構造単位）
+- メッセージは日本語可、先頭にプレフィックス（`feat:` `fix:` `refactor:` `docs:` 等）
 
-## 許可されている操作
-
-このフォルダ（D:\OneDrive\01プログラム作成\TEMerPlus\）では以下の操作が許可されています：
-- Edit（ファイル編集）
-- Read（ファイル読み取り）
-- Write（ファイル書き込み）
-- Bash（コマンド実行）
-- mcp_*（MCPツール使用）
+### 起動確認
+- UI変更は `npm run dev` でブラウザ確認まで行う
+- 型チェック / ビルドは `npm run build` で検証
 
 ---
 
-## VBA開発のポイント
+## 旧版（VBA）からの移植方針
 
-### Excel VBE MCPの使用
-VBAコードの読み取り・編集には `mcp__excel-vbe__*` ツールを使用：
-- `get_form_code` - UserFormのコード取得
-- `set_form_code` - UserFormのコード設定
-- `execute_vba` - VBAコード実行
+### データスキーマ（旧Dataシートの列をそのまま移植）
 
-### 注意事項
-1. **トラストセンター設定が必要**
-   - Excel → ファイル → オプション → トラストセンター
-   - 「VBAプロジェクトオブジェクトモデルへのアクセスを信頼する」を有効化
+| 分類 | プロパティ |
+|---|---|
+| 共通 | id, type, text, itemLevel, timeLevel |
+| Box | width, height, subtype (normal/double/dotted/OPP/BFP/EFP/P-EFP) |
+| Line | from, to, style (solid/dashed), startMargin, endMargin, adjStartHeight, adjEndHeight |
+| SD/SG | from, direction, itemAdj, timeAdj |
 
-2. **Excelファイルを開いた状態で作業**
-   - MCPツールは開いているワークブックに対して操作
+詳細は `old_file/HISTORY.md` および `old_file/VBA_Backup/` 配下を参照。
+
+### 段階的移植計画
+1. **Phase 1（最小プロトタイプ）**: Box（3種）+ Line（2種）+ 表編集 + pptx/画像出力 ✅
+2. **Phase 2**: SD/SG、5種Box全対応、**2nd EFP/P-2nd EFP、番号採番、注釈ノード、凡例、時期ラベル**、設定画面、.temファイル入出力
+3. **Phase 3**: 自動レイアウト（レベル調整、矢印始点終点修正、連動移動）
+4. **Phase 4**: CSV インポート、旧xlsmファイルからのマイグレーション
+5. **Phase 5**: TLMG、促進的記号、統合TEM図、縦型、色カスタマイズ
+
+### 参考文献
+TEM/TEA文献の詳細調査は `docs/literature/RESEARCH_REPORT.md` を参照。主要文献PDFは `docs/literature/` に格納済み。
+
+現状は **Phase 1** に着手。
 
 ---
 
-## 現在の開発状況
+## pptx エクスポート仕様
 
-### 実装済み機能（手動テスト未完了）
+ECMA-376 準拠で以下を忠実に再現:
 
-| 機能 | 説明 | テスト状況 |
-|------|------|-----------|
-| ツールバー | MakeFigシートでフローティングツールバー表示 | ✅ 横型図OK |
-| 図作成 | ツールバーから一括図作成 | ✅ 横型図OK |
-| Box追加 | 1選択・2選択対応 | ⏳ 未テスト |
-| 線追加 | ツールバーから線追加 | ✅ 横型図OK |
-| SD/SG作成 | ツールバーからSD/SG作成 | ✅ 横型図OK |
-| レベル調整 | 矢印始点終点自動修正 | ⏳ 未テスト |
-| 連動移動 | 右側図形の一括移動 | ⚙️ セットアップ必要 |
+| TEM要素 | pptxの表現 |
+|---|---|
+| 二重線Box（OPP等） | `line.compound: 'dbl'` |
+| 点線Box（P-EFP等） | `line.dashType: 'dash'` |
+| 実線矢印 | `line + arrowEnd` |
+| 点線矢印 | `line.dashType: 'dashDot'` + `arrowEnd` |
+| SD/SG | Pentagon 図形 |
 
-### セットアップが必要な機能
+---
 
-**連動チェックボックス**を使用するには:
-1. `VBA_Backup/Module_SetupUserForm.bas`をExcelにインポート
-2. VBAエディタで`AddSyncControlsToBoxLevelForm`を実行
-3. UserFormに連動コントロールが追加される
+## Notion連携
 
-### 次の開発・テスト項目
-
-#### 進行中の開発
-1. **図形移動時のLine/SD/SG連動修正**（2025-12-30）
-   - ShiftShapesRight関数修正（UserForm_AddBox.frm）
-   - MoveRightSideShapes関数修正（Module_adj_Box_level.bas）
-   - 修正方針: 3パスアプローチで既存のMoveLine関数を再利用
-   - 詳細: HISTORY.md「2025-12-30: 図形移動時のLine/SD/SG連動修正」参照
-
-#### 未テスト項目
-1. **レベル調整（矢印始点・終点修正）**
-   - 図形Aを図形Bの後ろ（右）に移動した際、矢印が正しく接続されるか
-   - Dataシートが自動更新されるか確認
-
-2. **連動チェックボックス**（セットアップ後）
-   - ONにして図形を移動した際、右側の図形も連動するか
-   - 「同列以上」「右側のみ」の動作確認
-
-3. **Box追加2選択時**
-   - 2図形選択→間に挿入
-   - 2図形選択→シフト挿入
-   - **修正後再テスト**: シフト挿入時にLine/SD/SGも連動移動するか
-
-4. **縦型図テスト**（後回し）
-
-#### 将来実装予定
-- **Label/SubLabel機能**: Box/Lineに付随するラベル表示
-  - パターンB（親図形プロパティ管理）を採用予定
-  - 連動移動対応のためのコードは既に準備済み（コメントアウト）
+- **notion_page_id**: `3449e987-30be-818d-9dbc-fc9771589b23`
+- **プロジェクト名(Notion)**: TEMerPlus
+- **データベース**: プロジェクト一覧 (ClaudeCodeManagement)
 
 ---
 
 ## 関連ドキュメント
 
-- [HISTORY.md](./HISTORY.md) - VBA構造解析・開発履歴・問題追跡
-- [親プロジェクトのCLAUDE.md](../CLAUDE.md) - 全体のプロジェクト構成
-- [修正計画](C:\Users\YIN\.claude\plans\whimsical-coalescing-ladybug.md) - 図形移動時のLine/SD/SG連動修正の詳細計画
+### プロジェクト管理
+- [SPEC.md](./SPEC.md) - **機能仕様書**（全機能の詳細仕様）
+- [ROADMAP.md](./ROADMAP.md) - **Phase別実装計画**
+- [HISTORY.md](./HISTORY.md) - 開発履歴・意思決定の経緯
+- [TODO.md](./TODO.md) - タスクリスト
+
+### 調査資料
+- [docs/OLD_FEATURES.md](./docs/OLD_FEATURES.md) - 旧版VBAの機能棚卸し
+- [docs/SURVEY_ANALYSIS.md](./docs/SURVEY_ANALYSIS.md) - **TEM研究者46名のアンケート分析（機能要望）**
+- [docs/SURVEY_OPEN_RESPONSES.md](./docs/SURVEY_OPEN_RESPONSES.md) - 調査オープン回答の詳細
+- [docs/literature/INDEX.md](./docs/literature/INDEX.md) - TEM文献一覧
+- [docs/literature/RESEARCH_REPORT.md](./docs/literature/RESEARCH_REPORT.md) - 文献調査（基礎）
+- [docs/literature/RESEARCH_REPORT_DEEP.md](./docs/literature/RESEARCH_REPORT_DEEP.md) - 文献調査（深掘り）
+- [docs/literature/RESEARCH_REPORT_VISUAL.md](./docs/literature/RESEARCH_REPORT_VISUAL.md) - 文献調査（視覚確認）
+- [docs/literature/OLD_VS_LITERATURE.md](./docs/literature/OLD_VS_LITERATURE.md) - 旧実装と文献標準の照合
+
+### アプリ
+- [webApp/README.md](./webApp/README.md) - Webアプリの起動方法
+
+### 旧版
+- [old_file/HISTORY.md](./old_file/HISTORY.md) - 旧版VBAの開発履歴（参照用）

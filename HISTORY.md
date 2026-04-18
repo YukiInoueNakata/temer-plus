@@ -1,670 +1,390 @@
-# HISTORY.md - TEMerPlus 開発履歴
+# HISTORY.md - TEMer (Web版) 開発履歴
 
-## 概要
-
-TEMerPlus（TEM作図ツール）のVBA構造解析、開発履歴、問題追跡を記録します。
+このファイルはTEMer Web版の開発履歴を記録します。
+旧版VBAの履歴は `old_file/HISTORY.md` を参照してください。
 
 ---
 
-## テスト再開方法
+## 2026-04-18: プロジェクト再出発（Web版へ移行）
 
-Claude Code再起動時やPC再起動時に：
+### 背景
+- 旧版 TEMerPlus（Excel VBA実装）は使い勝手に課題
+- クロスプラットフォーム対応・WYSIWYG編集・双方向データ同期を目指して Web版として再設計
+
+### 決定事項
+1. **アーキテクチャ**: React + Vite + TypeScript、作図は React Flow、状態は Zustand
+2. **データ保存**: `.tem` ファイル（JSON）中心、IndexedDBは自動バックアップ用途
+3. **エクスポート**: PptxGenJS（pptxの二重線は `compound: 'dbl'` でネイティブ出力）、PNGは html-to-image
+4. **対象ブラウザ**: Chrome / Edge を推奨（File System Access API 活用）、Safari/Firefoxは基本機能のみ保証
+5. **旧版は `old_file/` に全退避**して凍結（参照用）
+
+### pptx 二重線対応の調査結果
+- DrawingML `<a:ln cmpd="...">` 属性が公式サポート: `sng` / `dbl` / `thickThin` / `thinThick` / `tri`
+- PptxGenJS でも `compound` プロパティで指定可能
+- → **二重線枠はpptxネイティブで再現可能**（矩形重ね描きは不要）
+
+### 旧版機能棚卸し（Explore agent経由）
+旧VBAソース約5,200行を調査、主要要素を整理:
+
+| 分類 | 要素 |
+|---|---|
+| Box種別 | 通常 / OPP（二重線）/ BFP / EFP / P-EFP（点線）/ 注釈用点線枠 |
+| Line種別 | RLine（実線+矢印） / XLine（点線+矢印） |
+| SD/SG | Pentagon、方向指定あり |
+| Dataシート列 | ID, Type, Text, Item_Level, Time_Level, Width, Height, From_shp_Name, To_shp_Name, 各種マージン/高さ調整, Font, SDSG位置オフセット |
+| UI | ツールバー6ボタン、UserForm 6種 |
+| 自動処理 | レベル調整、矢印始点終点自動修正、図形移動時連動 |
+| 設定 | レイアウト方向、Box種別ごとのサイズ、フォント、レベル間隔等 |
+
+詳細は `old_file/VBA_Backup/` 及び `old_file/HISTORY.md` を参照。
+
+### 実施内容（2026-04-18）
+- [x] `old_file/` ディレクトリ作成、旧成果物を全退避
+- [x] 新 CLAUDE.md / HISTORY.md / TODO.md 作成
+- [x] `webApp/` 最小プロトタイプ作成
+  - Vite + React 18 + TypeScript + React Flow + Zustand
+  - Box 3種（通常/二重線/点線）、Line 2種（実線/点線+矢印）
+  - データシート↔作図ビューの双方向同期
+  - PNG出力（html-to-image）、PPTX出力（PptxGenJS）
+  - `npm install` 成功（139 packages）
+  - `npm run build` 成功（型チェック通過）
+
+### 設計変更
+- **矢印は必ず直線**とする（React Flow の `type: 'straight'`）。曲線(bezier)は使わない
+
+### TEM/TEA 文献調査（2026-04-18 追加・3段階）
+
+`docs/literature/` 配下に公開PDF 7本を取得、以下3つの調査レポートを格納:
+
+- `RESEARCH_REPORT.md` — 基礎調査
+- `RESEARCH_REPORT_DEEP.md` — 深掘り（TLMG詳細、競合分析、最新動向、戦略的示唆）
+- `RESEARCH_REPORT_VISUAL.md` — 視覚確認（PDFを画像化して実図を検証）
+
+また PyMuPDF でPDFを全ページPNG化し `docs/literature/figures/` に保存（77ページ分）。
+
+**視覚確認で確定した表記ルール:**
+- **EFP = 二重線長方形**（右端配置）
+- **P-EFP = 点線長方形**（EFPの対）
+- **OPP = 太線長方形**
+- **BFP = 実線長方形 または 楕円**
+- 通常Box = 細線長方形
+- **SD = 下向き五角形、図の上部配置**（径路を上から妨害）
+- **SG = 上向き五角形、図の下部配置**（径路を下から支援）
+- 径路: 実線=実現、点線=未実現
+- 非可逆的時間軸: 図端の長い右向き矢印
+
+**重要な訂正:**
+- Arakawa 2012 の描き方は **8ステップ**（前調査の「7」は誤り）
+
+**旧実装照合結果（`docs/literature/OLD_VS_LITERATURE.md` 参照）:**
+
+`Module_Make_Box.bas` の `ApplyLineStyles` を確認した結果、**致命的なマッピングの誤りを発見**:
+
+| | EFP | OPP |
+|---|---|---|
+| **文献標準** | **二重線** | 太線（単線） |
+| **旧実装** | 太線（単線） | **二重線** |
+
+→ **旧TEMerPlusはEFPとOPPの線種が逆転している**。TEMで最も重要な2要素の表記が文献と食い違う。
+
+**Web版（TEMer）での決定（2026-04-18 ユーザ確認済）:**
+- **文献標準を採用**（EFP=二重線、OPP=太線）
+- 過去に旧実装の誤り表記のまま論文・資料は出していない → **互換モード不要**
+- BFPのデフォルト形状は**長方形**（楕円はオプションとして将来検討）
+- 旧xlsmからインポート時は自動修正 + 修正内容サマリ表示
+
+### UX方針の決定（2026-04-18）
+
+**データシート中心から「プロパティパネル中心」へ転換**。ユーザ確認事項:
+
+1. **研究室内共有**: A（ファイル共有 = OneDrive等のクラウド経由）に決定。リアルタイム共同編集は不要。
+2. **データシートの位置づけ**: **初期のBox一括作成専用**。以降の編集は「図形クリック→プロパティパネル」で個別/一括編集する Figma/PowerPoint 風UX。
+3. **コメント**: Box/Line単位、Figma風（図形上にピン止め可能な注釈）。
+4. **統合TEM図**: 検討中（Phase 4以降）。
+5. **TLMG連携**: 将来的に（Phase 4以降）。
+6. **チュートリアル**: A+B+C 全採用（初回ウォークスルー + マニュアルページ + 動画リンク）。
+7. **多言語（日英）**: **A+B のみ**（UIラベル + エラー/凡例）。Boxテキストは単一フィールドで管理（自動翻訳・併記フィールドは当面不要）。
+8. **矢印の接続点**（2026-04-18 追加指示）: Line には2つの接続モードを用意。
+   - **中点→中点**（右辺中点 → 左辺中点）: **標準・既定**
+   - **水平接続**（右辺の同一Y → 左辺の同一Y）: オプション
+   - Lineプロパティで切替可能
+9. **重要な哲学的前提**（2026-04-18 確認）: **サトウタツヤ先生はTEM表記の画一化・標準化には反対の立場**。TEMerPlus は「標準化を強制する」ツールではなく、**「研究者が自分の表記選択を明文化するのを支援する」ツール**として設計する。
+   - 文献標準（Arakawa 2012等）は**デフォルト提供**のみ
+   - カスタマイズは完全に自由
+   - 「必須」「強制」「規格準拠」という方向は避ける
+   - 機能名: 「必須報告事項」→「**表記方針の明文化**」等に変更
+   - 戦略: 「TEMerPlus標準」として固定せず、**多様性を可視化・記録**する
+
+10. **論文報告エクスポート機能**（2026-04-18 追加指示）:
+    - **出力フォーマット**: Word (.docx) + pptx付録スライド
+    - **チェック強度**: **任意**（強制も警告もなし、リマインドのみ）
+    - **Box/Line説明**: 任意だが論文用エクスポート時にリマインド。「説明不要（自明）」チェックで例外化可能
+    - **含める報告項目**（ユーザが入力した範囲で出力）:
+      1. 使用した記号体系（Arakawa 2012 / 独自拡張 / カスタム）
+      2. 協力者情報（人数、属性、HSI=招待の論理）
+      3. インタビュー期間・回数・方法
+      4. 横軸（Time_Level）間隔の意味
+      5. 矢印の角度の意味
+      6. 縦軸（Item_Level）位置の意味
+      7. 色の意味（使用時）
+      8. 線の太さの意味（標準以外を使用時）
+      9. Box/Line/SD/SG の個別説明
+
+18. **アプリ全体方針の決定**（2026-04-18 ユーザ確認）:
+    - **アプリ名**: **TEMer Plus**（旧VBA版も同名だったが、Web版もこの名で）
+    - **著者**: 中田友貴
+    - **初回起動体験**: **スタート画面**（新規作成 / 最近のファイル / サンプル図 / チュートリアル）
+    - **配布方法**: **PWA（オフライン対応）+ Tauri デスクトップ版（.exe/.dmg）** 並行配布
+    - **ライセンス**: **PolyForm Noncommercial 1.0.0 + 個別商用契約**方式で進める方針
+      - 非商用（研究・教育・個人）: 無料、ソースコード公開
+      - 商用利用: 著者（中田友貴）or 立命館大学産学連携窓口経由で個別契約
+      - ※ 正式採用は実装着手前に最終確定
+    - **PowerPoint からのインポート**: 将来課題として B+C（画像取り込み + OCR/shape解析）
+    - **パフォーマンス目標**: **Box 200個まで**保証（統合TEM図含む）
+    - **編集履歴**: **ファイル内に最新50件の編集履歴**を保存
+    - **協力者メタデータ表示**: **Box/矢印の下部に協力者IDを小さく表記**（標準）+ 色分け識別
+    - **凡例カスタマイズ**: **全部カスタマイズ可能**（タイトル/説明文/レイアウト/位置/表示項目）
+    - **透かし**: なし
+
+17. **視覚デザイン・運用の決定**（2026-04-18 ユーザ確認）:
+    - **配色テーマ**: 多色対応だが**標準はモノクロ**（文献の主流に合わせる）
+    - **デフォルトフォント**: システムフォント（OS依存、日本語は Noto Sans / Hiragino / Yu Gothic を自動選択）
+    - **その他の視覚細部（Box デフォルトサイズ、グリッド間隔、スナップ閾値等）**: 実装しながら調整
+    - **エラー・警告**: 基本はトースト通知（画面下から柔らかく）、致命的なもののみダイアログ
+    - **旧 `.xlsm` マイグレーション**: **不要**（旧版は未リリース）→ ROADMAPから削除
+
+16. **細部仕様の決定**（2026-04-18 ユーザ確認）:
+    - **ファイル保存**: **明示保存のみ**（Ctrl+S）。正式な保存はこれだけ
+    - **IndexedDB自動バックアップ**: **30秒ごと + 次回起動時の復元確認ダイアログ**（PowerPoint「自動回復」相当）
+    - **拡張子**: `.tem`
+    - **1ファイル=1プロジェクト**（複数シート含む）
+    - **外部リソース（画像、逐語録）**: `.tem` ファイル内に**内部埋め込み**（Base64等）
+    - **マグネット吸着**: 通常時ON、**リボンにもON/OFF切替ボタン**を配置
+      - ソフトスナップ + 整列ガイドライン（PowerPoint方式）
+      - 整列ガイド（他のBoxとの揃い）/ 距離スナップ / グリッドスナップ の3種を個別ON/OFF
+      - Alt キー押下中は一時無効化
+    - **ラベル編集**: プロパティパネル入力 **+ ダブルクリックでインライン編集**（両方サポート）
+    - **図形の重なり順**: 基本は重ならない想定だが、**調整可能**
+      - 右クリックメニュー: 前面へ / 背面へ / 最前面 / 最背面
+      - Home リボンにボタン
+      - ショートカット: `]` 前面 / `[` 背面 / `Shift+]` 最前面 / `Shift+[` 最背面
+
+15. **追加仕様の決定**（2026-04-18 ユーザ確認）:
+    - **データシート列**: 最低限（ID・種別・ラベル・Item_Level・Time_Level）でOK。**複数Box選択コピペ**も想定。
+    - **シート間コピー**: Sheet1→Sheet2 への Box/Line/SD/SG コピペ対応
+    - **統合シート**: 手動で作成（自動生成は Phase 6 以降）
+    - **新規Box の配置モード**（3種併用、デフォルト=D）:
+      - **B**: 最後に選択した Box の隣に配置
+      - **C**: Insert ボタン押下 → クリックで配置位置指定
+      - **D**: 次の Time_Level に自動配置（旧版踏襲）← **デフォルト**
+    - **コメント機能UI**: A+B 両方
+      - **A**: Box/Line 右クリック → コメント追加
+      - **B**: ツールバー「コメント」ボタンON → Box クリックで追加
+    - **テンプレートの中身**: 後日検討
+    - **用紙サイズの扱い**（重要な設計転換）:
+      - **編集時**: ガイドライン（点線枠）として A4/A3/PPT サイズを背景に表示、**はみ出しは気にせず自由に作図**
+      - **エクスポート時**: 用紙サイズを指定 → **自動で矢印・Box等が縮尺調整されて収まる**（または分割）
+      - 編集中の「ここからはみ出す」という警告ではなく、**「最終出力で勝手に調整」**する方針
+
+13. **UI詳細仕様の追加決定**（2026-04-18 ユーザ確認）:
+    - **上部リボンUI** (PowerPoint風): 作図機能はリボンタブで整理
+    - **データシート・プロパティパネル**は**ワンクリックで最小化⇔展開**（アイコン状態でも識別可能）
+    - **画面下部のシートタブ** (Excel風): 複数人のTEM図を1ファイル内で管理、タブで切替
+    - **曲線矢印を許可**: デフォルトは直線、オプションで曲線
+    - **縦書き対応は絶対必要**（Phase 2 に昇格）
+    - **スペルチェックは優先度低下**（Phase 4以降）
+    - **逐語録メンションは優先度低下**（逐語録フォーマット設計が必要、Phase 4以降）
+    - **LLM API連携**（ChatGPT/Claude/Gemini）: **新規追加、優先度低**。APIキー設定で作図支援機能
+    - **テストユーザー候補へのコンタクトは現時点では不要**
+
+14. **TEM作図アンケート調査結果の反映**（2026-04-18 追加）:
+    - 46名の TEM 研究者の回答を分析 → `docs/SURVEY_ANALYSIS.md`
+    - 回答者の61%が**3年未満の初学者**、61%が **PowerPoint 利用**
+    - **98% が専用ツールを希望**（45/46） → 市場ニーズ確認済み
+    - 既存SPECの方向性は調査で裏付けられた
+    - **新規追加機能（調査から発見）:**
+      - **用紙サイズ収納チェック**（A4/A3/カスタム、はみ出し警告）
+      - **スペルチェック機能**
+      - **本文カテゴリー名 ↔ 図中ラベルの自動同期**（キラー機能候補）
+      - **逐語録メンション機能**（Box ごとに原文発話へリンク）
+      - **Box位置の入れ替えUI**（隣のBoxと←/→で入れ替え）
+      - **Word/PPT貼り付け互換性**（SVG ペースト）
+      - **BFPから両経路の自動生成**
+      - **縦書き対応（長音記号の向き）** ※特殊要件
+      - **曲線矢印の対応**（将来検討、現仕様「直線のみ」の再検討）
+      - **付箋的UI**（概念選択→自動書式）
+    - 調査データは `中田_2024_TEMシンポ_2026年4月18日_14.19.csv`（原データ）と `docs/SURVEY_OPEN_RESPONSES.md`（オープン回答抽出）
+
+11. **横分割エクスポート**（2026-04-18 追加指示）:
+   - 横に長すぎてpptxスライド幅に収まらない図を、**任意位置で2/3/N分割**して単一pptxの複数スライドとして出力
+   - **分割フォーマット**: 単一pptxに複数スライド
+   - **オーバーラップ**: 設定可能（デフォルト 50px 程度、ユーザ指定可能）
+   - **Boxが分割線をまたぐ場合**: 両方のスライドに表示（複製配置）
+   - **矢印が分割線をまたぐ場合**: 左端「→続」、右端「続→」の続きマーカー表示
+   - **凡例**: 全スライドに表示
+   - **時間軸矢印**: 各スライドに部分的に描画（全体で1つの時間軸を構成）
+
+### UI レイアウト再設計
 
 ```
-@HISTORY.md テスト再開
-@HISTORY.md 開発再開
-@HISTORY.md 状況報告
+┌────────────────────────────────────────────────────────┐
+│ [File] [Edit] [View] [Templates]         [日本語▼] [保存] │
+├─────┬──────────────────────────────────┬───────────────┤
+│ 📋  │                                  │  ▼ Properties │
+│ Data│                                  │  ID: Item1    │
+│ 折り│        Canvas (React Flow)       │  種別: EFP    │
+│ 畳み│                                  │  ラベル: ___  │
+│     │  [Box1]→[Box2]═══[EFP]           │  W: __  H: __ │
+│     │                                  │  フォント:__  │
+│     │                                  │  太字 ☐       │
+│     │                                  │  ─────        │
+│     │                                  │  💬 コメント   │
+└─────┴──────────────────────────────────┴───────────────┘
 ```
 
----
+- **メイン**: 作図キャンバス（React Flow）
+- **右サイドバー**: プロパティパネル（選択中の図形のプロパティを個別/一括編集）
+- **左サイドバー（折りたたみ式）**: データシート（初期作成時のみ開く）
+- **上部**: メニュー・ツールバー
 
-## 未完了タスク
+**戦略的発見（深掘り調査）:**
+1. **TEM専用作図ツールは世界的に存在しない** — TEMerPlusは事実上の「世界初」
+2. **TLMG標準表記は未確立** — TEMerPlusで事実上の標準を提示できる立場
+3. **カタログTEA (2023) が最重要の作図レシピ集** — 書籍入手を推奨
+4. **看護分野が最大の応用領域**
+5. **Springer 2026 国際展開書籍**に合わせた英語UI対応で国際市場参入可能
 
-### 解析タスク
-- [x] VBAモジュール構造の把握
-- [x] Dataシートのデータ構造の把握
-- [x] Makefigシートの作図ロジックの把握
-- [x] 主要プロシージャの役割の特定
+**主要な発見:**
+1. **現行 TEMerPlus の基本セットは文献上の Must have をほぼ網羅**
+   - EFP（二重線）/ P-EFP（点線）/ OPP（太線）/ BFP（実線）/ SD・SG（五角形）/ 径路の実線・点線
+2. **要検証**: 文献では EFP=二重線 / OPP=太線 が主流。現行実装と**線種マッピングの再確認が必要**
+3. **追加で必要な要素（Should have）**:
+   - 2nd EFP / P-2nd EFP（キャリア・健康分野で独立要素化）
+   - OPP / BFP の自動番号採番（OPP-1, BFP-2 等）
+   - 吹き出し・注釈ノード（看護・スポーツ分野で多用）
+   - 凡例（Legend）の自動生成（英語論文で標準装備）
+   - 時期ラベル（時間軸上の離散ラベル）
+   - 径路のグループ化・領域ハイライト
+4. **将来検討（Nice to have）**:
+   - TLMG 3層スイムレーン
+   - 促進的記号（Promoter Sign: 星型・雲型等）
+   - 統合TEM図ビュー（1/4/9/16の法則に対応）
+   - 縦型図、ブロック矢印、色カスタマイズ
 
-### 機能追加タスク
-- [x] Phase 1: clsShapeData（図形データキャッシュ）
-- [x] Phase 2: clsDataAccess（データアクセス一元化）
-- [x] Phase 3: clsFigureFactory（図形生成統一）
-- [x] Phase 4: clsSettings（設定値管理）
-- [ ] Phase 5: Label/SubLabel機能（将来実装予定）
+**最重要参考文献:**
+- 荒川・安田・サトウ (2012)「TEM図の描き方の一例」立命館人間科学研究（**描き方の7ステップ**）
+- Hosaka et al. (2026) Geriatrics & Gerontology International（**記号表が最も明示的な英語論文**）
+- カタログTEA (2023) 新曜社（図のバリエーション見本帳）
 
-### リファクタリングタスク
-- [x] Git初期化・.gitignore作成
-- [x] VBAクラスモジュール4つを作成
-- [x] Excel VBEにクラスモジュールをインポート
-- [x] 動作テスト（全クラス正常動作確認）
-- [x] 既存モジュールの修正（3ファイル）
-  - [x] Module_Make_Box.bas - 最適化版関数追加
-  - [x] Edit_Line.bas - 最適化版関数追加
-  - [x] Edit_SD_SG.bas - 最適化版関数追加
-- [x] clsSettings修正（General_Settingシートとの互換性）
-- [x] Make_Box_Optimized動作確認
-- [x] Make_Line_by_ID_Optimized動作確認
-- [x] MakeArrowCalloutByID_Optimized動作確認
-- [x] Main_making_TEM_Fig_Optimized動作確認
-- [x] MakeFigシートのボタン割り当て更新
-- [x] clsFigureFactory内部関数を最適化版に移行
-- [x] UserForm_AddBoxを最適化版に移行
-- [x] フローティングツールバー実装
-  - [x] frmToolbar UserForm作成
-  - [x] MakeFigシートにイベントコード追加
-  - [x] ヘルパー関数追加（Module_MakeFig_sh）
-  - [x] 動作テスト完了
-
-### バグ修正・機能改善タスク
-- [ ] ShiftShapesRight修正（Line/SD/SG連動移動）
-- [ ] MoveRightSideShapes修正（Line/SD/SG連動移動）
-- [ ] テスト実施（横型図）
-- [ ] 縦型図対応（後回し）
+### 実装上の発見・調整
+- **PptxGenJS v3.12 は `cmpd` 属性を公式APIで出力しない**ことが判明
+  - 事前調査では ECMA-376 が `cmpd="dbl"` 等を定義しており、pptx自体は二重線をネイティブサポート
+  - しかしPptxGenJSの出力XMLを確認したところ `<a:ln>` に `cmpd` 属性を含めない実装
+  - **暫定対応**: 二重線Boxは「外枠 + 内枠（4pxインセット）」の2矩形重ね描きで表現
+  - PowerPointで開いた時の見た目は問題なし
+  - 将来対応: ①PptxGenJSにPR ②生成後のXMLポストプロセス ③自前pptx生成へ置換 のいずれか（TODO.mdに記録）
 
 ---
 
-## 2025-12-30: 図形移動時のLine/SD/SG連動修正
+## 2026-04-18 (後半): Phase 2 大規模実装 + UIフィードバック対応
 
-### 問題
-- **シフト挿入時**: UserForm_AddBoxの「シフト挿入」モード使用時、Boxのみが移動し、Line（矢印）とSD/SG図形が取り残される
-- **連動移動時**: MoveRightSideShapes（連動チェックボックス機能）でも同様にBoxのみ移動
-- **将来実装**: Label/SubLabel機能でも同じ問題が発生する可能性
+### Phase 2 実装完了分（初期）
+- [x] LICENSE (PolyForm Noncommercial 1.0.0) + COMMERCIAL.md
+- [x] 依存パッケージ追加: zundo/i18next/idb-keyval/immer/docx/jspdf
+- [x] データモデル全面刷新（複数シート、Participants、ProjectSettings、HistoryEntry、Resources）
+- [x] Zustand ストア再設計（複数シート、temporal undo/redo、controlled selection、drag中pause）
+- [x] UIレイアウト刷新: リボン/パネル/シートタブ/ステータスバー
+- [x] Box 6種を文献標準線種で実装（EFP=二重、OPP=太線、P-EFP=点線 等）
 
-### 原因分析
-コードベース全体を調査した結果、図形移動関数は以下の2種類に分類される：
+### UIフィードバック対応 (計8回の反復改善)
 
-#### 正しく実装されている関数
-- `AdjustBoxOnItemAndTimeLevel`: Box移動後に`adj_relation_SDSG_Line()`を呼び出し、LineとSD/SGも自動更新
-- `MoveLine`: Line端点を再計算し、必要に応じてFrom/Toを自動Swap
-- `MoveSDSG`: SD/SG図形の位置を親Box/Lineに追従
-- `adj_relation_SDSG_Line`: 接続されたLineとSD/SGを一括更新
+**第1弾**: ファイルタブ横並び、共有→出力、annotation→潜在経験、BFP差別化、データシート追加・挿入・ソート・フィルタ、軸目盛、設定画面、編集グループ、Design→View統合
 
-#### 問題がある関数（Boxのみ移動）
-1. **ShiftShapesRight** (UserForm_AddBox.frm:295-328)
-   - シフト挿入時に右側のBoxのみを移動
-   - LineとSD/SGは無視
+**第2弾**: 選択保持（controlled selection）、複数選択サイズ編集、Shift+モード切替、順次接続、軸メモリ改善、レベル単位（100px=1Level）、ID編集、フォント選択
 
-2. **MoveRightSideShapes** (Module_adj_Box_level.bas:325-371)
-   - 連動移動機能だがBoxのみフィルタリング（CheckIfRectangle）
-   - LineとSD/SGは対象外
+**第3弾**: 全体フォントサイズ変更、バッジにID表示、サブラベル（協力者ID等、位置調整）
 
-### 修正方針
+**第4弾**: 選択バグ、UI全体スケール、スナップ/用紙枠/グリッド機能化、スクロール挙動、IDバッジ、文字配置、ショートカット（Ctrl+Z/Y/A/C/V/D/N/S, Delete, Esc等）
 
-**3パスアプローチ**（既存の検証済み関数を再利用）:
-1. **Pass 1**: Dataシートの全図形のTime_Levelを更新
-2. **Pass 2**: 全図形の.Leftプロパティを移動
-3. **Pass 3**: 影響を受けたすべてのLineに対して`MoveLine()`を呼び出し、端点を再計算
-4. **Pass 4**（将来）: Label/SubLabel実装時に`MoveLabelsWithParent()`を呼び出し
+**第5弾**: Shift選択、スクロールパン、IDバッジ詳細（位置・サイズ調整）、Excelマクロ準拠の自動命名（Item1, BFP1, EFP1, P_EFP1, OPP1, Latent1...）、undo挙動修正（ドラッグ中pause）、レイアウト切替時にx/y swap
 
-### 修正内容
+**第6弾**: IDバッジ位置戻し、種別タグ位置入替、レイアウトベースの位置（textOrientationではなく）、スクロール修正、Shift選択修正、縦型時に矢印が上下方向
 
-#### 1. ShiftShapesRight関数の改修 (UserForm_AddBox.frm)
+**第7弾**: 独自wheelハンドラ（pan/zoom切替）、独自スクロールバー、controlled selection + onNodeClick、縦型種別タグを縦書き・背景なし、レイアウト切替でwidth/height swap
 
-**修正前** (Lines 295-328):
-```vba
-Private Sub ShiftShapesRight(DataWs As Worksheet, baseTimeLevel As Double, shiftAmount As Double)
-    ' Boxのみを移動
-    For row = 2 To lastRow
-        If shpTimeLevel > baseTimeLevel Then
-            DataWs.Cells(row, timeLevelCol).value = shpTimeLevel + shiftAmount
-            FigWs.Shapes(shpName).Left = FigWs.Shapes(shpName).Left + shiftPixels
-        End If
-    Next row
-End Sub
+**第8弾**: 複製時ID規則（Excelマクロ準拠）、Box角を直角、ホーム→編集、順次接続を挿入タブへ、2選択間に挿入ダイアログ（2モード）
+
+**入れ替え機能の2種類**:
+- 順序入替(直接): 位置swap + A↔B直接Lineだけ反転
+- 順序入替(全リンク): 位置swap + 全Line/SDSG/Commentの参照交換
+
+**挿入ロジック改修**:
+- 実線/点線矢印ボタンが2選択時に機能するように
+- 単純挿入も A→B 矢印を A→C→B に自動分割
+- expand-shiftモード: deltaAtoC / deltaCtoB 指定、内側1レベル、B以降自動シフト
+- 新規「以降シフト」機能: 基準Boxより後ろの全Boxを任意レベルシフト
+
+### 技術スタック確定
+- React 18 + Vite 5 + TypeScript 5.6
+- React Flow 11（カスタムノード・エッジ、選択制御、カスタムwheel）
+- Zustand 4 + zundo 2（温度管理undo/redo）
+- Immer 10（不変更新）
+- i18next 24（導入済み、Phase 3で活用）
+- PptxGenJS 3.12（既存）
+- html-to-image 1.11（既存）
+- docx 9 / jspdf 2.5（Phase 3で活用）
+- idb-keyval 6（Phase 3で自動バックアップ）
+
+### ファイル構成
+```
+webApp/src/
+├── types.ts                     - 全データモデル定義
+├── App.tsx / App.css            - 全体レイアウト、CSS em相対化
+├── main.tsx                     - React root
+├── store/
+│   ├── defaults.ts              - 既定値、BOX_RENDER_SPECS、LEVEL_PX=100、genBoxIdByType
+│   └── store.ts                 - Zustand + zundo、シート・選択・アクション実装
+└── components/
+    ├── Ribbon.tsx               - リボンUI (6タブ)
+    ├── Canvas.tsx               - 独自wheel/scrollbar/ruler実装
+    ├── DataSheet.tsx            - 列リサイズ、Excel複数行貼付、ソート/フィルタ
+    ├── PropertyPanel.tsx        - Figma風単一/複数選択編集
+    ├── SettingsDialog.tsx       - UI全体フォントサイズ等
+    ├── InsertBetweenDialog.tsx  - 2選択間挿入（2モード）
+    ├── SheetTabs.tsx            - Excel風タブ
+    ├── StatusBar.tsx            - 下部状態表示
+    └── nodes/
+        └── BoxNode.tsx          - Box描画（種別タグ・ID・サブラベル）
 ```
 
-**修正後**:
-- Pass 1: 全図形のTime_Level更新
-- Pass 2: 全図形の.Left移動
-- Pass 3: 影響を受けたLineに対してMoveLine()呼び出し
-- Pass 4（コメントアウト）: Label/SubLabel移動用コード準備
-
-#### 2. MoveRightSideShapes関数の改修 (Module_adj_Box_level.bas)
-
-**修正前** (Lines 325-371):
-```vba
-Private Sub MoveRightSideShapes(...)
-    For Each shp In FigWs.Shapes
-        If CheckIfRectangle(shp) Then  ' Boxのみフィルタリング
-            ' 移動処理
-        End If
-    Next shp
-End Sub
-```
-
-**修正後**:
-- Box移動ロジックは維持
-- 移動後、影響を受けたすべてのLineに対してMoveLine()呼び出し
-- SD/SGは自動的にLineの端点変更で連動するため追加処理不要
-- Label/SubLabel移動用コード（コメントアウト）追加
-
-### 将来実装への対応（Label/SubLabel）
-
-**パターンB: 親図形プロパティ管理**を採用:
-- Label/SubLabelは親図形（BoxまたはLine）のプロパティとして管理
-- 図形名: `親図形名_Label`, `親図形名_SubLabel`
-- Dataシート: 親図形の行に`Label_Text`, `Label_OffsetX`, `Label_OffsetY`列を追加
-
-**MoveLabelsWithParent関数** (将来実装):
-```vba
-Private Sub MoveLabelsWithParent(parentShapeName As String, deltaX As Double, deltaY As Double)
-    Dim labelName As String
-    Dim subLabelName As String
-
-    labelName = parentShapeName & "_Label"
-    subLabelName = parentShapeName & "_SubLabel"
-
-    On Error Resume Next
-    FigWs.Shapes(labelName).Left = FigWs.Shapes(labelName).Left + deltaX
-    FigWs.Shapes(labelName).Top = FigWs.Shapes(labelName).Top + deltaY
-
-    FigWs.Shapes(subLabelName).Left = FigWs.Shapes(subLabelName).Left + deltaX
-    FigWs.Shapes(subLabelName).Top = FigWs.Shapes(subLabelName).Top + deltaY
-    On Error GoTo 0
-End Sub
-```
-
-### テスト予定
-
-1. **シフト挿入テスト**:
-   - 2Box間に新Box挿入（Time_Level 1.0と3.0の間に2.0を挿入）
-   - 右側のすべての図形（Box、Line、SD/SG）が移動することを確認
-
-2. **連動移動テスト**（同列以上）:
-   - Box移動時、同じTime_Level以上のすべての図形が連動
-
-3. **連動移動テスト**（右側のみ）:
-   - Box移動時、より大きいTime_Levelの図形のみが連動
-
-4. **エッジケース**:
-   - Line端点のBoxが逆転する場合（MoveLine内のSwapFromTo機能）
-   - 存在しない図形名への参照（Null check）
-
-### 技術的考慮事項
-
-1. **Null Checkの重要性**: `MoveLine`関数には既にNull check実装済み（Lines 217-227）
-2. **Line端点の自動Swap**: FromTimeLevel > ToTimeLevelの場合、自動的にFrom/Toを入れ替え
-3. **SD/SG自動連動**: LineのMoveLine呼び出し時に`adj_relation_SDSG_Line`経由で自動移動
-
-### 参照ドキュメント
-- 詳細な実装計画: `C:\Users\YIN\.claude\plans\whimsical-coalescing-ladybug.md`
-
-### 更新予定ファイル
-- `VBA_Backup/UserForm_AddBox.frm` - ShiftShapesRight関数修正
-- `VBA_Backup/Module_adj_Box_level.bas` - MoveRightSideShapes関数修正
-- `HISTORY.md` - 本記録
-
-### VBAインポート完了（2025-12-30 11:30）
-
-修正したVBAコードのExcelへのインポートが完了しました。
-
-#### 実施内容
-1. **UserForm_AddBox1のエクスポート**: 手作業で作成したUI要素を含むUserForm_AddBox1をExcelからエクスポート
-2. **.frmファイル名前変更**: sedコマンドで全ての`UserForm_AddBox1`を`UserForm_AddBox`に置換
-   - `UserForm_AddBox_NEW.frm`として保存
-   - `UserForm_AddBox_NEW.frx`も同時にコピー
-3. **PowerShellスクリプトでインポート**:
-   - ExcelファイルをC:\Tempにコピー（OneDriveパス問題回避）
-   - VBAファイルもC:\Tempにコピー
-   - PowerShellでUserForm_AddBox1削除→UserForm_AddBox_NEWインポート
-   - Module_adj_Box_level削除→新版インポート
-   - 更新したExcelを元の場所に戻す
-
-#### 問題と解決
-- **問題**: PowerShellからOneDriveパスのExcelファイルを開けない
-- **解決**: 一時フォルダ（C:\Temp）経由でインポート作業を実施
-
-#### 更新されたファイル
-- `最新版/TEMerPlus_202512301018.xlsm` - UserForm_AddBoxとModule_adj_Box_levelが更新版に置換
-- `VBA_Backup/UserForm_AddBox_NEW.frm` - 名前修正済みUserForm
-- `VBA_Backup/UserForm_AddBox_NEW.frx` - 対応するバイナリUIファイル
-
-#### 次のステップ
-- [ ] 修正後のテスト実施（シフト挿入、連動移動）
-
----
-
-## 2025-12-29: データ列ずれ問題の修正
-
-### 問題
-ツールバーの「図作成」ボタンを押しても作図されない
-
-### 原因
-Dataシートのデータが1列左にずれていた：
-- **現在の状態（間違い）**: ID列にType、Type列にText、Text列にTime_Level...
-- **正しい状態**: ID列は空（自動付与）、Type列にType、Text列にText...
-
-### 修正
-`Module_FixDataColumns.bas`を作成
-- `FixDataColumns`マクロを実行するとA列に空列を挿入
-- データが正しい列位置に移動
-- その後「図作成」ボタンでIDが自動付与され作図される
-
-### テスト結果
-- ✅ 図作成成功（横型図）
-
-### 更新ファイル
-- `C:\Temp\FixDataColumns.bas` - データ列修正モジュール
-- `VBA_Backup/Module_FixDataColumns.bas` - バックアップ
-
----
-
-## 2025-12-29: 矢印始点終点修正・文字エンコーディング修正
-
-### テスト結果
-- **単純な場合**: 矢印始点終点修正は正常動作
-- **連動時**: 位置ずれが発生（今後の課題）
-
-### 文字エンコーディング問題の修正
-Module_adj_Box_level.basで日本語文字列がインポート時に文字化けする問題を修正：
-```vba
-' 修正前（文字化け）
-If (cellValue = "実線矢印" Or cellValue = "点線矢印") Then
-
-' 修正後（ChrW使用）
-If (cellValue = ChrW(&H5B9F) & ChrW(&H7DDA) & ChrW(&H77E2) & ChrW(&H5370) Or _
-    cellValue = ChrW(&H70B9) & ChrW(&H7DDA) & ChrW(&H77E2) & ChrW(&H5370)) Then
-```
-
-### 今後の課題
-1. **連動時の位置ずれ**: 右移動→左移動でズレが発生
-2. **2図形の高さ入れ替え機能**: 高さを維持するか入れ替えるか選択可能に
-3. **縦型図の作成問題**: 現在は横型図のみ成功、縦型図は未対応
-
-### 更新ファイル
-- `C:\Temp\Module_adj_Box_level.bas` - 文字エンコーディング修正版
-- `VBA_Backup/Module_adj_Box_level.bas` - バックアップ
-
----
-
-## 2025-12-29: 追加機能実装（セットアップ必要）
-
-### 実装内容
-
-#### 1. レベル調整時の矢印始点・終点修正 (Module_adj_Box_level.bas)
-- **問題**: 図形AがBより前→後に移動した際、矢印の始点・終点が不正になる
-- **修正**: `MoveLine`関数を改修
-  - FromTimeLevel > ToTimeLevelの場合、**Dataシートを更新**
-  - `SwapFromToInDataSheet`関数を新規追加
-    - From_shp_Name ↔ To_shp_Name を入れ替え
-    - Start_Margin ↔ End_Margin を入れ替え
-    - Adj_Start_Height ↔ Adj_End_Height を入れ替え
-  - これにより図を再生成しても矢印の方向が正しく維持される
-
-#### 2. 連動チェックボックス (UserForm_Box_level_Change + Module_adj_Box_level.bas)
-- **機能**: 選択した図形より右側の図形を一括移動
-- **バックエンド実装済み**:
-  - `MoveRightSideShapes(baseTimeLevel, changeLeft, changeTop, includeSameLevel, excludeShpName)`
-  - 基準Time_Level以上/超の全図形を移動
-  - 自分自身は除外
-- **フロントエンド（UserFormコントロール）**: セットアップが必要
-  - `Module_SetupUserForm.bas`をインポート
-  - `AddSyncControlsToBoxLevelForm`を一度実行
-
-#### 3. Box追加の2選択時対応 (UserForm_AddBox.frm)
-- **機能**: 2つの図形を選択した状態でBox追加可能
-- **モード**:
-  - `OptionButton_InsertBetween`: 2図形の間に挿入（中間Time_Level）
-  - 移動挿入: 右側図形をシフトして挿入
-- **新規関数**:
-  - `AddBoxWith2Shapes()`: 2選択時のメイン処理
-  - `ShiftShapesRight(DataWs, baseTimeLevel, shiftAmount)`: 右側図形のシフト
-  - `CreateLineForNewBox(shp_ID)`: 線作成の共通処理
-
-### セットアップ手順
-
-**連動チェックボックスを有効にするには:**
-
-1. `VBA_Backup/Module_SetupUserForm.bas`をExcelにインポート
-2. VBAエディタで`AddSyncControlsToBoxLevelForm`を実行
-3. UserForm_Box_level_Changeに以下のコントロールが追加される:
-   - `CheckBox_Sync`: 連動ON/OFF
-   - `OptionButton_SyncSameAndRight`: 同列以上を移動
-   - `OptionButton_SyncRightOnly`: 右側のみを移動
-
-### テスト状況
-- [ ] 横型図での矢印始点・終点修正テスト
-- [ ] 連動チェックボックス動作テスト（セットアップ後）
-- [ ] Box追加2選択時テスト（間に挿入）
-- [ ] Box追加2選択時テスト（シフト挿入）
-- [ ] 縦型図でのテスト（後回し）
-
-### 更新ファイル
-- `VBA_Backup/Module_adj_Box_level.bas` - MoveLine修正 + SwapFromToInDataSheet追加
-- `VBA_Backup/Module_SetupUserForm.bas` - 新規（連動コントロール追加用）
-- `VBA_Backup/UserForm_AddBox.frm` - 2選択時対応追加
-
----
-
-## 2025-12-29: バグ修正・ツールバー改善
-
-### 修正内容
-
-1. **MoveLine sub Nullチェック追加** (Module_adj_Box_level)
-   - 問題: レベル調整時に`ToShp.Name`でエラー発生
-   - 原因: `FindShapeByName`が図形を見つけられない場合にNothingを返すが、チェックがなかった
-   - 修正: FromShp, ToShp, shpのNullチェックを追加し、見つからない場合はExit Sub
-
-2. **UserForm_AddBox修正**
-   - 問題: Box追加の位置がおかしい
-   - 原因: `Make_Box_Optimized`を使用していた
-   - 修正: オリジナルの`Make_Box`に戻す
-
-3. **ツールバー（toolbar）修正**
-   - フォーム名を`toolbar`に統一
-   - ボタンイベントを`Main_making_TEM_Fig_from_data`に変更（Optimized版から戻す）
-   - Nullチェック付きのエラーハンドリング
-
-### 更新ファイル
-- `VBA_Backup/Module_adj_Box_level.bas` - MoveLine修正
-- `VBA_Backup/UserForm_AddBox.frm` - Make_Boxに戻す
-- `VBA_Backup/toolbar.frm` - 新規ツールバー
-- `VBA_Backup/CreateToolbarForm.bas` - ツールバー作成用コード
-
----
-
-## 2025-12-29: フローティングツールバー実装
-
-### 目的
-MakeFigシートでよく使う機能をワンクリックで実行できるようにする
-
-### 実装内容
-1. **frmToolbar** - フローティングツールバー UserForm
-   - 6つのボタン: 図作成、Box追加、線追加、SD/SG、設定、レベル調整
-   - モードレスで表示（他の操作を妨げない）
-
-2. **Sheet4 (MakeFig) イベント**
-   - `Worksheet_Activate`: ツールバーを表示
-   - `Worksheet_Deactivate`: ツールバーを非表示（Unload）
-
-3. **Module_MakeFig_sh ヘルパー関数**
-   - `IsUserFormLoaded()`: UserFormがロードされているか確認
-   - `ShowToolbar()`: ツールバーを表示
-   - `HideToolbar()`: ツールバーをアンロード
-
-### 動作確認
-- MakeFigシートに移動 → ツールバー表示: OK
-- 別のシートに移動 → ツールバー非表示: OK
-
-### 新規ファイル
-- `VBA_Backup/frmToolbar.frm`
-- `VBA_Backup/Sheet4_MakeFig.cls`
-- `VBA_Backup/Module_MakeFig_sh.bas` (更新)
-
----
-
-## 2025-12-29: VBA解析完了
-
-### 作業内容
-- [x] CLAUDE.md 作成
-- [x] HISTORY.md 作成
-- [x] settings.json に許可設定追加
-- [x] VBAコード取得・解析
-- [x] VBAモジュールをVBA_Backupフォルダにエクスポート
-
-### 対象ファイル
-`D:\OneDrive\01プログラム作成\TEMerPlus\最新版\TEMerPlus_202400715.xlsm`
-
-### エクスポート先
-`D:\OneDrive\01プログラム作成\TEMerPlus\VBA_Backup\`
-
----
-
-## VBA構造
-
-### シート構成
-| シート名 | 役割 |
-|---------|------|
-| Data | 入力データ格納（ID, Type, Text, Item_Level, Time_Level等） |
-| MakeFig | 作図出力先シート |
-| デモ用 | デモンストレーション用 |
-| デモ2 | デモンストレーション用2 |
-| General_Setting | 一般設定（レイアウト方向、サイズ等） |
-| Setting1 | 追加設定 |
-| dic_fig_type | 図形タイプの辞書（Type→ID名のマッピング） |
-
-### モジュール一覧
-
-#### 標準モジュール（Standard Modules）
-| モジュール名 | 主な役割 |
-|-------------|---------|
-| **Module_Make_Box** | Box作成のメイン処理 |
-| **Data_Cleaning** | IDの自動付与、辞書機能 |
-| **Edit_Line** | 線（矢印・コネクタ）の作成・接続 |
-| **Edit_SD_SG** | SD（分岐先駆け）/SG（分岐後）図形の作成 |
-| **Module_General_setting** | 軸ラベル作成、レイアウト設定 |
-| **Module_adj_Box_level** | Box位置（レベル）の調整 |
-| **Module_MakeFig_sh** | 作図シートの管理、ボタン処理 |
-| **Module_userform** | UserForm用ユーティリティ |
-| **Module_debug** | デバッグ用機能 |
-| **Module_よく使う** | 汎用ユーティリティ関数 |
-| Module1 | 雑多な機能 |
-| TestModule1 | テスト用 |
-
-#### UserForm（フォーム）
-| フォーム名 | 役割 |
-|-----------|------|
-| UserForm_AddBox | Box追加ダイアログ |
-| UserForm_Make_Line | 線/矢印作成ダイアログ |
-| UserForm_Make_SD_SG | SD/SG図形作成ダイアログ |
-| UserForm_Box_level_Change | Box位置調整ダイアログ |
-| UserForm_General_Setting | 一般設定ダイアログ |
-
----
-
-### 主要プロシージャ
-
-#### メイン処理フロー
-```
-Main_making_TEM_Fig_from_data()  ← DataシートからTEM図を生成
-    ├── ID_Named()              ← 各行にID自動付与
-    ├── Make_Box()              ← 各Boxを作成
-    ├── Make_Line_by_ID()       ← 線/矢印を作成
-    ├── MakeArrowCalloutByID()  ← SD/SG図形を作成
-    └── MakeAxisLabel()         ← 軸ラベルを作成
-```
-
-#### Box作成関連 (Module_Make_Box)
-| 関数名 | 説明 |
-|--------|------|
-| `Main_making_TEM_Fig_from_data()` | Dataシートから図全体を作成 |
-| `Make_Box(shp_ID)` | 指定IDのBoxを作成 |
-| `CalculateBoxPosition()` | Box位置を計算 |
-| `ApplyShapeStyle()` | Box見た目を適用 |
-| `ApplyLineStyles()` | Box線スタイルを適用 |
-
-#### ID・辞書関連 (Data_Cleaning)
-| 関数名 | 説明 |
-|--------|------|
-| `ID_Named()` | TypeからIDを自動生成 |
-| `dic_fig_type(ItemORAll, Value_col)` | dic_fig_typeシートから辞書を作成 |
-| `ExtractRowsWithSubstring(Fig_Type)` | 指定Typeの既存ID番号を抽出 |
-| `GetNextAvailableRow(dict)` | 次の利用可能番号を取得 |
-
-#### 線・矢印関連 (Edit_Line)
-| 関数名 | 説明 |
-|--------|------|
-| `Make_Line_by_ID(shp_ID)` | IDで線を作成 |
-| `Arrow_Connect_box()` | 2つのBoxを矢印で接続 |
-| `CreateAndConfigureConnector()` | コネクタを作成・設定 |
-| `CalculateCoordinates()` | 始点・終点座標を計算 |
-
-#### SD/SG関連 (Edit_SD_SG)
-| 関数名 | 説明 |
-|--------|------|
-| `MakeArrowCalloutByID(shp_ID)` | IDでSD/SG図形を作成 |
-| `CreateArrowCalloutBasedOnSelectedShape()` | 選択図形からSD/SG作成 |
-| `CalculateNewShapePosition()` | SD/SG位置を計算 |
-| `ConfigureSDSGShapeProperties()` | SD/SG見た目を設定 |
-
-#### 設定・軸関連 (Module_General_setting)
-| 関数名 | 説明 |
-|--------|------|
-| `MakeAxisLabel()` | 軸ラベルを作成 |
-| `InsertNumLabelShape()` | 番号ラベルを挿入 |
-| `Func_vertical_level_size()` | 縦方向サイズを取得 |
-| `Func_time_level_size()` | 時間方向サイズを取得 |
-| `is_type_vertical_or_horizontal()` | レイアウト方向を判定 |
-
-#### ユーティリティ (Module_よく使う)
-| 関数名 | 説明 |
-|--------|------|
-| `FindShapeByName(shp_Name)` | 名前で図形を検索 |
-| `GetShapeByID(shp_Name)` | IDで図形を取得 |
-| `Datash_GetValueOfSearchValue()` | Dataシートから値を検索 |
-| `GetValueOfSearchValue()` | General_Settingから値を取得 |
-| `get_count_selected_shape()` | 選択図形数を取得 |
-| `CheckIfRectangle()` | 四角形かどうか判定 |
-| `GetWriteCellFromValue_typeAndshp_IDorItem()` | 書き込みセルを取得 |
-
----
-
-### データ構造
-
-#### Dataシートの列構成
-| 列名 | 説明 |
-|------|------|
-| ID | 図形の一意識別子（例: Item1, OPP2, Arrow_Item1_OPP1_1） |
-| Type | 図形タイプ（Item, OPP, BFP, EFP, SD, SG, 実線矢印, 点線矢印） |
-| Text | 表示テキスト |
-| Item_Level | 縦方向位置（数値） |
-| Time_Level | 時間方向位置（数値） |
-| Height | 図形の高さ |
-| Width | 図形の幅 |
-| From_shp_Name | 矢印の始点図形名 |
-| To_shp_Name | 矢印の終点図形名 |
-| Start_Margin | 矢印始点のマージン |
-| End_Margin | 矢印終点のマージン |
-| Adj_Start_Height | 始点高さ調整 |
-| Adj_End_Height | 終点高さ調整 |
-| SDSG_Item_Adj | SD/SGのItem方向調整 |
-| SDSG_Time_Adj | SD/SGのTime方向調整 |
-
-#### dic_fig_typeシートの構成
-| 列 | 説明 |
-|----|------|
-| 1列目 | Type（例: Item, OPP, BFP） |
-| 2列目 | ID接頭辞（例: Item, OPP, BFP） |
-| 3列目 | カテゴリ（例: Box） |
-
----
-
-### ワークフロー
-
-1. **データ入力**: DataシートにType, Text, Level等を入力
-2. **ID自動付与**: `ID_Named()`でTypeに基づくIDを自動生成
-3. **図形生成**: `Main_making_TEM_Fig_from_data()`で：
-   - 各行のTypeに応じてBox/Line/SD/SGを作成
-   - 位置はItem_Level/Time_Levelから計算
-   - 矢印はFrom/To_shp_Nameで接続
-4. **手動調整**: UserFormを使って追加・位置調整
-
----
-
-## 問題・課題の追跡
-
-### 現在の問題
-（なし）
-
-### 解決済みの問題
-| 問題 | 解決方法 |
-|------|----------|
-| VBAコード取得困難 | execute_vbaでFileSystemObject使用しファイルエクスポート |
-| UTF-16エンコーディング | エクスポートファイルは読み取り可能 |
-
----
-
-## 変更履歴
-
-| 日付 | 変更内容 | 結果 |
-|------|----------|------|
-| 2025-12-29 | CLAUDE.md, HISTORY.md 作成 | ✅ 完了 |
-| 2025-12-29 | settings.json 許可設定追加 | ✅ 完了 |
-| 2025-12-29 | VBAモジュールエクスポート | ✅ 完了 |
-| 2025-12-29 | VBA構造解析完了 | ✅ 完了 |
-| 2025-12-29 | Class化リファクタリング計画策定 | ✅ 完了 |
-| 2025-12-29 | Git初期化・refactor/classブランチ作成 | ✅ 完了 |
-| 2025-12-29 | VBAクラスモジュール4つ作成 | ✅ 完了 |
-| 2025-12-29 | Excel VBEにクラスインポート・動作確認 | ✅ 完了 |
-| 2025-12-29 | 既存モジュール修正（最適化版関数追加） | ✅ 完了 |
-| 2025-12-29 | clsSettings修正（Dictionary.Add使用、列名修正） | ✅ 完了 |
-| 2025-12-29 | Make_Box_Optimized動作テスト成功 | ✅ 完了 |
-| 2025-12-29 | Make_Line_by_ID_Optimized動作テスト成功 | ✅ 完了 |
-| 2025-12-29 | MakeArrowCalloutByID_Optimized動作テスト成功 | ✅ 完了 |
-| 2025-12-29 | Main_making_TEM_Fig_Optimized動作テスト成功 | ✅ 完了 |
-| 2025-12-29 | 全最適化関数のテスト完了 | ✅ 完了 |
-| 2025-12-29 | Make_Fig_Buttonを最適化版に変更 | ✅ 完了 |
-| 2025-12-29 | clsFigureFactory内部関数を最適化版に移行 | ✅ 完了 |
-| 2025-12-29 | UserForm_AddBoxを最適化版に移行 | ✅ 完了 |
-| 2025-12-29 | **全移行完了** | ✅ 完了 |
-
----
-
-## 2025-12-29: 全最適化関数テスト完了
-
-### テスト結果
-
-| 関数名 | テスト結果 | 備考 |
-|--------|-----------|------|
-| `Make_Box_Optimized` | ✅ 成功 | Item1で動作確認 |
-| `Make_Line_by_ID_Optimized` | ✅ 成功 | RLine_Item1_Item2_1で動作確認 |
-| `MakeArrowCalloutByID_Optimized` | ✅ 成功 | SD_RLine_Item1_Item2_1_1で動作確認 |
-| `Main_making_TEM_Fig_Optimized` | ✅ 成功 | 全図形一括生成（Box: 63, Line: 30, SDSG: 12） |
-
-### 作成された図形数
-- Box: 63個
-- Line: 30個
-- SD/SG: 12個
-
-### ボタン割り当て変更
-`Make_Fig_Button`を最適化版に更新済み：
-- 変更前: `Main_making_TEM_Fig_from_data`
-- 変更後: `Main_making_TEM_Fig_Optimized`
-
-### 使用可能な状態
-全ての最適化関数が正常動作し、本番運用可能。
-
----
-
-## 2025-12-29: 既存モジュールの最適化
-
-### 追加した最適化関数
-
-| モジュール | 追加関数 | 効果 |
-|-----------|---------|------|
-| Module_Make_Box | `Main_making_TEM_Fig_Optimized()` | clsFigureFactoryで統一生成 |
-| Module_Make_Box | `Make_Box_Optimized()` | clsShapeData+clsSettingsで8回→1回 |
-| Edit_Line | `Make_Line_by_ID_Optimized()` | clsShapeDataで6回→1回 |
-| Edit_SD_SG | `MakeArrowCalloutByID_Optimized()` | clsShapeDataで7回→1回 |
-
-### 使用方法
-既存の関数と並行して使用可能。段階的に移行するため、旧関数は残してあります。
-
----
-
-## 2025-12-29: Class化リファクタリング計画
-
-### 問題点の特定
-| 問題 | 影響度 | 発生箇所 |
-|------|--------|----------|
-| Datash_GetValueOfSearchValue重複呼び出し | 高 | 32回/3モジュール |
-| 同一データの繰り返し取得（キャッシュなし） | 高 | Make_Box, Edit_Line |
-| 3重For Eachループ（Main_making） | 中 | Module_Make_Box |
-
-### 提案するClass構成
-```
-clsShapeData       # 図形データのキャッシュ・アクセス
-clsDataAccess      # Dataシートへの読み書き
-clsSettings        # 設定値の一元管理
-clsFigureFactory   # 図形生成の統一インターフェース
-```
-
-### 期待効果
-- **コード行数**: 約150行削減（28%減）
-- **関数呼び出し**: 32→4回（87%減）
-- **ループ回数**: 3→1回（67%減）
-
-### Git管理計画
-- リポジトリ: `D:\OneDrive\01プログラム作成\TEMerPlus\`
-- ブランチ: main（安定版）、refactor/class（作業用）
+### 未実装（次のフェーズ）
+- #26 Line接続モード `horizontal` の実装
+- #27 SD/SG 作成UI + 非可逆的時間矢印の自動挿入
+- #30 ファイル保存/読込 + IndexedDB自動バックアップ
+- #31 エクスポート機能刷新（用紙自動縮尺、横分割、論文用レポート）
+- 時期ラベルUI / 凡例自動生成 / 2nd EFP UI露出 / OPP-BFP自動番号採番
+
+## 移植ロードマップ
+
+### Phase 1: 最小プロトタイプ（現在）
+- Box 3種（通常 / 二重 / 点線）
+- Line 2種（実線 / 点線）+ 矢印
+- 表UIとの双方向同期
+- pptx / PNG エクスポート
+- ドラッグ移動で座標更新
+
+### Phase 2: 機能拡充
+- SD/SG（Pentagon）対応
+- Box種別 5種フル対応（OPP/BFP/EFP/P-EFP）
+- 設定画面（レイアウト方向、フォント、サイズ）
+- `.tem` ファイル入出力（File System Access API）
+- IndexedDB自動バックアップ
+
+### Phase 3: 自動レイアウト
+- レベル調整機能
+- 矢印始点終点自動修正
+- 図形移動時の連動（右側シフト等）
+
+### Phase 4: データ連携
+- CSV インポート
+- 旧 `.xlsm` からのマイグレーションツール（Dataシートを読み取り .tem へ変換）
