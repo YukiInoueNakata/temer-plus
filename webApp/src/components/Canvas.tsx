@@ -22,9 +22,11 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useTEMStore, useActiveSheet } from '../store/store';
 import { BoxNode, type BoxNodeData } from './nodes/BoxNode';
+import { SDSGNode, type SDSGNodeData } from './nodes/SDSGNode';
 import { LEVEL_PX, MINOR_TICK_PX } from '../store/defaults';
+import { computeTimeArrow } from '../utils/timeArrow';
 
-const nodeTypes = { box: BoxNode };
+const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
 
 const PAPER_SIZES: Record<string, { w: number; h: number }> = {
   'A4-landscape': { w: 1123, h: 794 },
@@ -50,6 +52,8 @@ function CanvasInner() {
   const setSelection = useTEMStore((s) => s.setSelection);
   const storeBoxIds = useTEMStore((s) => s.selection.boxIds);
   const storeLineIds = useTEMStore((s) => s.selection.lineIds);
+  const storeSdsgIds = useTEMStore((s) => s.selection.sdsgIds);
+  const updateSDSG = useTEMStore((s) => s.updateSDSG);
   const canvasMode = useTEMStore((s) => s.view.canvasMode);
   const showGrid = useTEMStore((s) => s.view.showGrid);
   const showPaperGuides = useTEMStore((s) => s.view.showPaperGuides);
@@ -60,7 +64,7 @@ function CanvasInner() {
   const dragging = useRef(false);
 
   // Controlled selection via `selected` prop on nodes/edges
-  const nodes: Node<BoxNodeData>[] = useMemo(() => {
+  const boxNodes: Node<BoxNodeData>[] = useMemo(() => {
     if (!sheet) return [];
     const selBoxIds = new Set(storeBoxIds);
     return sheet.boxes.map((b) => ({
@@ -91,6 +95,42 @@ function CanvasInner() {
     }));
   }, [sheet, storeBoxIds]);
 
+  // SDSG nodes - 位置は attachedTo Box + offset から計算
+  const sdsgNodes: Node<SDSGNodeData>[] = useMemo(() => {
+    if (!sheet) return [];
+    const selSdsgIds = new Set(storeSdsgIds);
+    return sheet.sdsg.map((sg) => {
+      const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      if (!attached) return null;
+      const isH = layout === 'horizontal';
+      const timeOff = sg.timeOffset ?? 0;
+      const itemOff = sg.itemOffset ?? 0;
+      // 横型: time=x, item=y / 縦型: time=y, item=x
+      const x = attached.x + (isH ? timeOff : itemOff);
+      const y = attached.y + (isH ? itemOff : timeOff);
+      const w = sg.width ?? 70;
+      const h = sg.height ?? 40;
+      return {
+        id: sg.id,
+        type: 'sdsg',
+        position: { x, y },
+        selected: selSdsgIds.has(sg.id),
+        data: {
+          id: sg.id,
+          type: sg.type,
+          label: sg.label,
+          width: w,
+          height: h,
+          style: sg.style,
+        } as SDSGNodeData,
+        style: { width: w, height: h, zIndex: sg.zIndex ?? 0 },
+        draggable: true,
+      };
+    }).filter((n): n is NonNullable<typeof n> => n !== null);
+  }, [sheet, storeSdsgIds, layout]);
+
+  const nodes = useMemo(() => [...boxNodes, ...sdsgNodes], [boxNodes, sdsgNodes]);
+
   const edges: Edge[] = useMemo(() => {
     if (!sheet) return [];
     const selLineIds = new Set(storeLineIds);
@@ -117,6 +157,7 @@ function CanvasInner() {
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      if (!sheet) return;
       const temporal = useTEMStore.temporal.getState();
       for (const ch of changes) {
         if (ch.type === 'position' && ch.position) {
@@ -133,11 +174,25 @@ function CanvasInner() {
             x = Math.round(x / gridPx) * gridPx;
             y = Math.round(y / gridPx) * gridPx;
           }
-          updateBox(ch.id, { x, y });
+          // SDSG node か Box node か判別
+          const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
+          if (sdsgItem) {
+            const attached = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
+            if (attached) {
+              const isH = layout === 'horizontal';
+              const dx = x - attached.x;
+              const dy = y - attached.y;
+              const timeOff = isH ? dx : dy;
+              const itemOff = isH ? dy : dx;
+              updateSDSG(ch.id, { timeOffset: timeOff, itemOffset: itemOff });
+            }
+          } else {
+            updateBox(ch.id, { x, y });
+          }
         }
       }
     },
-    [updateBox, snapEnabled, gridPx]
+    [sheet, updateBox, updateSDSG, snapEnabled, gridPx, layout]
   );
 
   const onConnect = useCallback(
@@ -152,14 +207,25 @@ function CanvasInner() {
   // ---- Custom click handlers for Shift+multi-select ----
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
-      const { boxIds } = useTEMStore.getState().selection;
+      const { boxIds, sdsgIds } = useTEMStore.getState().selection;
+      const isSDSG = node.type === 'sdsg';
       if (event.shiftKey) {
         event.stopPropagation();
-        const already = boxIds.includes(node.id);
-        const next = already ? boxIds.filter((id) => id !== node.id) : [...boxIds, node.id];
-        setSelection(next, []);
+        if (isSDSG) {
+          const already = sdsgIds.includes(node.id);
+          const nextSdsg = already ? sdsgIds.filter((id) => id !== node.id) : [...sdsgIds, node.id];
+          setSelection(boxIds, [], nextSdsg);
+        } else {
+          const already = boxIds.includes(node.id);
+          const next = already ? boxIds.filter((id) => id !== node.id) : [...boxIds, node.id];
+          setSelection(next, [], sdsgIds);
+        }
       } else {
-        setSelection([node.id], []);
+        if (isSDSG) {
+          setSelection([], [], [node.id]);
+        } else {
+          setSelection([node.id], [], []);
+        }
       }
     },
     [setSelection]
@@ -225,6 +291,7 @@ function CanvasInner() {
           >
             {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
             {showPaperGuides && <PaperGuideOverlay />}
+            <TimeArrowOverlay />
             <Controls />
           </ReactFlow>
           <CustomWheelHandler layout={layout} />
@@ -385,6 +452,69 @@ function VerticalScrollbar() {
         }}
       />
     </div>
+  );
+}
+
+// ============================================================================
+// TimeArrow Overlay - 非可逆的時間矢印をキャンバス上に描画
+// ============================================================================
+
+function TimeArrowOverlay() {
+  const sheet = useActiveSheet();
+  const layout = useTEMStore((s) => s.doc.settings.layout);
+  const settings = useTEMStore((s) => s.doc.settings.timeArrow);
+  const transform = useReactFlowStore((s) => s.transform);
+
+  if (!sheet || !settings.alwaysVisible) return null;
+  const arrow = computeTimeArrow(sheet, layout, settings);
+  if (!arrow) return null;
+
+  const [panX, panY, zoom] = transform;
+  const sx = arrow.startX * zoom + panX;
+  const sy = arrow.startY * zoom + panY;
+  const ex = arrow.endX * zoom + panX;
+  const ey = arrow.endY * zoom + panY;
+  const lx = arrow.labelX * zoom + panX;
+  const ly = arrow.labelY * zoom + panY;
+
+  return (
+    <svg
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 1,
+        overflow: 'visible',
+      }}
+    >
+      <defs>
+        <marker id="time-arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#222" />
+        </marker>
+      </defs>
+      <line
+        x1={sx}
+        y1={sy}
+        x2={ex}
+        y2={ey}
+        stroke="#222"
+        strokeWidth={arrow.strokeWidth * zoom}
+        markerEnd="url(#time-arrow-head)"
+      />
+      <text
+        x={lx}
+        y={ly}
+        fontSize={arrow.fontSize * zoom}
+        textAnchor="middle"
+        fill="#222"
+        style={{ writingMode: layout === 'vertical' ? 'vertical-rl' : undefined }}
+      >
+        {arrow.label}
+      </text>
+    </svg>
   );
 }
 

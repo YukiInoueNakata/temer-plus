@@ -4,7 +4,8 @@
 // ============================================================================
 
 import PptxGenJS from 'pptxgenjs';
-import type { Box, Line } from '../types';
+import type { Box, Line, SDSG, Sheet, TimeArrowSettings, LayoutDirection } from '../types';
+import { computeTimeArrow } from './timeArrow';
 
 const EMU_PER_PX = 1 / 96;
 const pxToInch = (px: number) => px * EMU_PER_PX;
@@ -13,13 +14,76 @@ function lineDashType(type: Line['type']): 'solid' | 'dashDot' {
   return type === 'XLine' ? 'dashDot' : 'solid';
 }
 
-export async function exportToPPTX(boxes: Box[], lines: Line[], filename = 'TEMer.pptx') {
+export interface PPTXExportOptions {
+  filename?: string;
+  sheet?: Sheet;
+  layout?: LayoutDirection;
+  timeArrowSettings?: TimeArrowSettings;
+  includeTimeArrow?: boolean;
+}
+
+export async function exportToPPTX(
+  boxes: Box[],
+  lines: Line[],
+  optionsOrFilename: PPTXExportOptions | string = 'TEMer.pptx',
+) {
+  const opts: PPTXExportOptions = typeof optionsOrFilename === 'string'
+    ? { filename: optionsOrFilename }
+    : optionsOrFilename;
+  const filename = opts.filename ?? 'TEMer.pptx';
+
   const pres = new PptxGenJS();
   pres.defineLayout({ name: 'TEMER', width: 13.333, height: 7.5 });
   pres.layout = 'TEMER';
 
   const slide = pres.addSlide();
   slide.background = { color: 'FFFFFF' };
+
+  // 非可逆的時間矢印（オプション）
+  if (opts.includeTimeArrow && opts.sheet && opts.layout && opts.timeArrowSettings) {
+    const arrow = computeTimeArrow(opts.sheet, opts.layout, opts.timeArrowSettings);
+    if (arrow) {
+      const dx = arrow.endX - arrow.startX;
+      const dy = arrow.endY - arrow.startY;
+      slide.addShape(pres.ShapeType.line, {
+        x: pxToInch(Math.min(arrow.startX, arrow.endX)),
+        y: pxToInch(Math.min(arrow.startY, arrow.endY)),
+        w: pxToInch(Math.max(1, Math.abs(dx))),
+        h: pxToInch(Math.max(1, Math.abs(dy))),
+        line: {
+          color: '222222',
+          width: arrow.strokeWidth,
+          endArrowType: 'triangle',
+        },
+        flipH: dx < 0,
+        flipV: dy < 0,
+      });
+      slide.addText(arrow.label, {
+        x: pxToInch(arrow.labelX - 100),
+        y: pxToInch(arrow.labelY - arrow.fontSize),
+        w: pxToInch(200),
+        h: pxToInch(arrow.fontSize + 4),
+        fontSize: arrow.fontSize,
+        align: 'center',
+        valign: 'middle',
+        color: '222222',
+      });
+    }
+
+    // SDSG五角形も描画
+    if (opts.sheet.sdsg.length > 0) {
+      for (const sg of opts.sheet.sdsg) {
+        const attached = opts.sheet.boxes.find((b) => b.id === sg.attachedTo);
+        if (!attached) continue;
+        const isH = opts.layout === 'horizontal';
+        const sgX = attached.x + (isH ? (sg.timeOffset ?? 0) : (sg.itemOffset ?? 0));
+        const sgY = attached.y + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
+        const sgW = sg.width ?? 70;
+        const sgH = sg.height ?? 40;
+        await renderSDSG(pres, slide, sg, sgX, sgY, sgW, sgH, opts.layout);
+      }
+    }
+  }
 
   for (const b of boxes) {
     await renderBox(pres, slide, b);
@@ -59,6 +123,42 @@ export async function exportToPPTX(boxes: Box[], lines: Line[], filename = 'TEMe
   }
 
   await pres.writeFile({ fileName: filename });
+}
+
+async function renderSDSG(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  sg: SDSG,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  layout: LayoutDirection,
+) {
+  const isSD = sg.type === 'SD';
+  const isH = layout === 'horizontal';
+  // 簡易: 五角形ペンタゴン形状（レイアウト・種別で rotate 調整）
+  slide.addShape(pres.ShapeType.pentagon, {
+    x: pxToInch(x),
+    y: pxToInch(y),
+    w: pxToInch(w),
+    h: pxToInch(h),
+    fill: { color: isSD ? 'FFE8E8' : 'E8F0FF' },
+    line: { color: isSD ? 'AA3333' : '3333AA', width: 1.5 },
+    rotate: isH ? (isSD ? 180 : 0) : (isSD ? 90 : 270),
+  });
+  slide.addText(sg.label, {
+    x: pxToInch(x),
+    y: pxToInch(y),
+    w: pxToInch(w),
+    h: pxToInch(h),
+    fontSize: sg.style?.fontSize ?? 11,
+    bold: sg.style?.bold ?? true,
+    align: 'center',
+    valign: 'middle',
+    color: '222222',
+  });
+  void isH;
 }
 
 async function renderBox(pres: PptxGenJS, slide: PptxGenJS.Slide, b: Box) {

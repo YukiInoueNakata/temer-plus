@@ -51,3 +51,6 @@ webApp/*.tsbuildinfo
 CLAUDE.md
 HISTORY.md
 TODO.md
+
+# docs/（調査資料・文献PDF・画像はローカル保持）
+docs/

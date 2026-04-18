@@ -35,6 +35,17 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     { enabled: false, size: 'A4-landscape', color: '#ff6b6b' },
   ],
   uiFontSize: 13,
+  timeArrow: {
+    autoInsert: true,
+    alwaysVisible: true,
+    timeStartExtension: -1,
+    timeEndExtension: 1,
+    itemReference: 'min',
+    itemOffset: -2,
+    label: '非可逆的時間',
+    strokeWidth: 2.5,
+    fontSize: 14,
+  },
 };
 
 export const DEFAULT_VIEW_STATE: ViewState = {

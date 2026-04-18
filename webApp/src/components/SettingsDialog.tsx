@@ -3,6 +3,8 @@
 // ============================================================================
 
 import { useTEMStore } from '../store/store';
+import { produce } from 'immer';
+import type { TimeArrowSettings } from '../types';
 
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const doc = useTEMStore((s) => s.doc);
@@ -117,18 +119,16 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
             <p className="hint">※ 詳細設定はPhase 2後半で実装</p>
           </section>
 
+          <TimeArrowSettingsSection />
+
           <section className="settings-section">
-            <h4>時間軸</h4>
+            <h4>時期ラベル</h4>
             <div className="setting-row">
-              <label>自動挿入</label>
-              <input type="checkbox" checked={doc.settings.timelineAutoInsert} readOnly />
-            </div>
-            <div className="setting-row">
-              <label>日本語ラベル</label>
+              <label>日本語</label>
               <input type="text" value={doc.settings.timelineLabel.ja} readOnly style={{ width: 180 }} />
             </div>
             <div className="setting-row">
-              <label>英語ラベル</label>
+              <label>English</label>
               <input type="text" value={doc.settings.timelineLabel.en} readOnly style={{ width: 180 }} />
             </div>
           </section>
@@ -156,5 +156,111 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         </div>
       </div>
     </div>
+  );
+}
+
+function TimeArrowSettingsSection() {
+  const doc = useTEMStore((s) => s.doc);
+  const ta = doc.settings.timeArrow;
+
+  const update = (patch: Partial<TimeArrowSettings>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        d.settings.timeArrow = { ...d.settings.timeArrow, ...patch };
+      }),
+    }));
+  };
+
+  return (
+    <section className="settings-section">
+      <h4>非可逆的時間矢印</h4>
+      <div className="setting-row">
+        <label>エクスポート時に自動挿入</label>
+        <input
+          type="checkbox"
+          checked={ta.autoInsert}
+          onChange={(e) => update({ autoInsert: e.target.checked })}
+        />
+      </div>
+      <div className="setting-row">
+        <label>編集中も常時表示</label>
+        <input
+          type="checkbox"
+          checked={ta.alwaysVisible}
+          onChange={(e) => update({ alwaysVisible: e.target.checked })}
+        />
+      </div>
+      <div className="setting-row">
+        <label>開始レベル拡張（minTimeLevel に加算）</label>
+        <input
+          type="number"
+          step="0.5"
+          value={ta.timeStartExtension}
+          onChange={(e) => update({ timeStartExtension: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>終了レベル拡張（maxTimeLevel に加算）</label>
+        <input
+          type="number"
+          step="0.5"
+          value={ta.timeEndExtension}
+          onChange={(e) => update({ timeEndExtension: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>Item軸の基準</label>
+        <select
+          value={ta.itemReference}
+          onChange={(e) => update({ itemReference: e.target.value as 'min' | 'max' })}
+        >
+          <option value="min">最小Item_Level（上側）</option>
+          <option value="max">最大Item_Level（下側）</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>基準からのオフセット（±レベル）</label>
+        <input
+          type="number"
+          step="0.5"
+          value={ta.itemOffset}
+          onChange={(e) => update({ itemOffset: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>ラベル</label>
+        <input
+          type="text"
+          value={ta.label}
+          onChange={(e) => update({ label: e.target.value })}
+          style={{ width: 180 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>線の太さ (pt)</label>
+        <input
+          type="number"
+          min={0.5}
+          step="0.5"
+          value={ta.strokeWidth}
+          onChange={(e) => update({ strokeWidth: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>フォントサイズ</label>
+        <input
+          type="number"
+          min={8}
+          max={40}
+          value={ta.fontSize}
+          onChange={(e) => update({ fontSize: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+    </section>
   );
 }

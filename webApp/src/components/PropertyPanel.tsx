@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { useTEMStore, useActiveSheet } from '../store/store';
-import type { Box, BoxType, TextAlign, VerticalAlign } from '../types';
+import type { Box, BoxType, TextAlign, VerticalAlign, SDSG } from '../types';
 import { BOX_TYPE_LABELS, FONT_OPTIONS, LEVEL_PX } from '../store/defaults';
 
 export function PropertyPanel() {
@@ -24,7 +24,8 @@ export function PropertyPanel() {
 
   const selectedBoxes = sheet.boxes.filter((b) => selection.boxIds.includes(b.id));
   const selectedLines = sheet.lines.filter((l) => selection.lineIds.includes(l.id));
-  const hasSelection = selectedBoxes.length > 0 || selectedLines.length > 0;
+  const selectedSDSGs = sheet.sdsg.filter((s) => selection.sdsgIds.includes(s.id));
+  const hasSelection = selectedBoxes.length > 0 || selectedLines.length > 0 || selectedSDSGs.length > 0;
 
   return (
     <div className="property-panel">
@@ -47,6 +48,7 @@ export function PropertyPanel() {
             }))}
           />
         )}
+        {selectedSDSGs.length > 0 && <SDSGProperties sdsgs={selectedSDSGs} />}
       </div>
     </div>
   );
@@ -359,6 +361,92 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
 
       <div className="prop-row">
         <button className="danger-btn" onClick={() => removeBoxes(ids)}>削除</button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SDSG Properties
+// ============================================================================
+function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
+  const updateSDSG = useTEMStore((s) => s.updateSDSG);
+  const removeSDSG = useTEMStore((s) => s.removeSDSG);
+  const isMulti = sdsgs.length > 1;
+  const first = sdsgs[0];
+
+  return (
+    <div className="prop-section">
+      <h4>SD/SG {isMulti && <span className="multi-badge">{sdsgs.length}個</span>}</h4>
+      {!isMulti && (
+        <>
+          <div className="prop-row">
+            <label>ID</label>
+            <input value={first.id} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
+          </div>
+          <div className="prop-row">
+            <label>種別</label>
+            <select
+              value={first.type}
+              onChange={(e) => updateSDSG(first.id, { type: e.target.value as 'SD' | 'SG' })}
+            >
+              <option value="SD">SD (社会的方向づけ)</option>
+              <option value="SG">SG (社会的ガイド)</option>
+            </select>
+          </div>
+          <div className="prop-row">
+            <label>ラベル</label>
+            <input value={first.label} onChange={(e) => updateSDSG(first.id, { label: e.target.value })} />
+          </div>
+          <div className="prop-row">
+            <label>紐付け対象ID</label>
+            <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
+          </div>
+          <div className="prop-row">
+            <label>時間オフセット (px)</label>
+            <input
+              type="number"
+              value={first.timeOffset ?? 0}
+              onChange={(e) => updateSDSG(first.id, { timeOffset: Number(e.target.value) })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>項目オフセット (px)</label>
+            <input
+              type="number"
+              value={first.itemOffset ?? 0}
+              onChange={(e) => updateSDSG(first.id, { itemOffset: Number(e.target.value) })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>サイズ W / H</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                type="number"
+                value={first.width ?? 70}
+                onChange={(e) => updateSDSG(first.id, { width: Number(e.target.value) })}
+              />
+              <input
+                type="number"
+                value={first.height ?? 40}
+                onChange={(e) => updateSDSG(first.id, { height: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <div className="prop-row">
+            <label>フォントサイズ</label>
+            <input
+              type="number"
+              min={6}
+              max={40}
+              value={first.style?.fontSize ?? 11}
+              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontSize: Number(e.target.value) } })}
+            />
+          </div>
+        </>
+      )}
+      <div className="prop-row">
+        <button className="danger-btn" onClick={() => sdsgs.forEach((s) => removeSDSG(s.id))}>削除</button>
       </div>
     </div>
   );

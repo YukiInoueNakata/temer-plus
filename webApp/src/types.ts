@@ -241,6 +241,18 @@ export interface SnapSettings {
   gridPx: number;
 }
 
+export interface TimeArrowSettings {
+  autoInsert: boolean;                 // エクスポート時に自動挿入するか（＋キャンバス表示）
+  alwaysVisible: boolean;              // 編集中も常時表示
+  timeStartExtension: number;          // minTimeLevel からの開始オフセット（既定 -1）
+  timeEndExtension: number;            // maxTimeLevel からの終了オフセット（既定 +1）
+  itemReference: 'min' | 'max';        // 基準: 最小 or 最大 Item_Level（既定 'min'）
+  itemOffset: number;                  // 基準からのオフセット（既定 -2, 'min'で負=上へ, 'max'で正=下へ）
+  label: string;                       // 矢印ラベル（既定: 非可逆的時間）
+  strokeWidth: number;                 // 線の太さ（既定 2.5）
+  fontSize: number;                    // ラベルフォントサイズ（既定 14）
+}
+
 export interface ProjectSettings {
   layout: LayoutDirection;
   locale: Locale;
@@ -257,6 +269,7 @@ export interface ProjectSettings {
   defaultAutoFitBox: boolean;
   paperGuides: PaperGuide[];
   uiFontSize: number;                  // UI全体のフォントサイズ（px）
+  timeArrow: TimeArrowSettings;
 }
 
 // ----------------------------------------------------------------------------

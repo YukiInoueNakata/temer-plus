@@ -13,9 +13,17 @@ type RibbonTab = 'file' | 'home' | 'insert' | 'view' | 'output' | 'help';
 export function Ribbon({
   onOpenSettings,
   onOpenInsertBetween,
+  onSave,
+  onSaveAs,
+  onOpen,
+  onNew,
 }: {
   onOpenSettings: () => void;
   onOpenInsertBetween: () => void;
+  onSave: () => void;
+  onSaveAs: () => void;
+  onOpen: () => void;
+  onNew: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<RibbonTab>('home');
 
@@ -34,10 +42,10 @@ export function Ribbon({
         <div style={{ flex: 1 }} />
         <LayoutToggle />
         <LocaleToggle />
-        <SaveButton />
+        <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} />}
         {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} />}
         {activeTab === 'view' && <ViewTab />}
@@ -100,15 +108,10 @@ function LayoutToggle() {
   );
 }
 
-function SaveButton() {
+function SaveButton({ onSave }: { onSave: () => void }) {
   const dirty = useTEMStore((s) => s.dirty);
-  const markSaved = useTEMStore((s) => s.markSaved);
   return (
-    <button className="ribbon-btn-primary" onClick={() => {
-      // TODO: implement file save via File System Access API
-      alert('保存機能は実装中です（Phase 2後半で追加）。今はクリックで未保存状態をクリアします。');
-      markSaved();
-    }} title="Save (Ctrl+S)">
+    <button className="ribbon-btn-primary" onClick={onSave} title="保存 (Ctrl+S)">
       {dirty ? '● 保存' : '保存'}
     </button>
   );
@@ -116,13 +119,18 @@ function SaveButton() {
 
 // ---------------------------------------------------------------------------
 
-function FileTab() {
+function FileTab({ onSave, onSaveAs, onOpen, onNew }: {
+  onSave: () => void;
+  onSaveAs: () => void;
+  onOpen: () => void;
+  onNew: () => void;
+}) {
   return (
     <RibbonGroup title="ファイル操作">
-      <RibbonButton label="新規" icon="📄" onClick={() => alert('新規作成はPhase 2後半で実装')} />
-      <RibbonButton label="開く" icon="📂" onClick={() => alert('開くはPhase 2後半で実装')} />
-      <RibbonButton label="保存" icon="💾" onClick={() => alert('保存はPhase 2後半で実装')} />
-      <RibbonButton label="名前を付けて保存" icon="💾+" onClick={() => alert('名前を付けて保存はPhase 2後半で実装')} />
+      <RibbonButton label="新規 (Ctrl+N)" icon="📄" onClick={onNew} />
+      <RibbonButton label="開く (Ctrl+O)" icon="📂" onClick={onOpen} />
+      <RibbonButton label="保存 (Ctrl+S)" icon="💾" onClick={onSave} />
+      <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
     </RibbonGroup>
   );
 }
@@ -342,7 +350,18 @@ function InsertTab({ onOpenInsertBetween }: { onOpenInsertBetween: () => void })
   const selection = useTEMStore((s) => s.selection);
   const addLine = useTEMStore((s) => s.addLine);
   const addSequentialLines = useTEMStore((s) => s.addSequentialLines);
+  const addSDSG = useTEMStore((s) => s.addSDSG);
   const boxTypes: BoxType[] = ['normal', 'BFP', 'EFP', 'P-EFP', 'OPP', 'annotation'];
+
+  const handleAddSDSG = (type: 'SD' | 'SG') => {
+    const { boxIds, lineIds } = selection;
+    const attachedTo = boxIds[0] ?? lineIds[0];
+    if (!attachedTo) {
+      alert('Box または Line を1つ選択してください（SD/SGはその要素に紐づきます）');
+      return;
+    }
+    addSDSG({ type, attachedTo, label: type });
+  };
 
   const handleAddLine = (type: 'RLine' | 'XLine') => {
     if (selection.boxIds.length !== 2) {
@@ -382,8 +401,8 @@ function InsertTab({ onOpenInsertBetween }: { onOpenInsertBetween: () => void })
         <RibbonButton label="順次接続(点線)" icon="⇢⇢" onClick={() => handleSequentialArrow('XLine')} />
       </RibbonGroup>
       <RibbonGroup title="SD/SG">
-        <RibbonButton label="SD" icon="▽" onClick={() => alert('SD追加は次のPhaseで実装')} />
-        <RibbonButton label="SG" icon="△" onClick={() => alert('SG追加は次のPhaseで実装')} />
+        <RibbonButton label="SD追加" icon="▽" onClick={() => handleAddSDSG('SD')} />
+        <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} />
       </RibbonGroup>
       <RibbonGroup title="その他">
         <RibbonButton label="時期ラベル" icon="🏷" onClick={() => alert('時期ラベルは次のPhaseで実装')} />
@@ -433,12 +452,51 @@ function ViewTab() {
 }
 
 function OutputTab() {
+  const doc = useTEMStore((s) => s.doc);
+  const getActiveSheet = () => doc.sheets.find((s) => s.id === doc.activeSheetId);
+
+  const handleExportPNG = async () => {
+    try {
+      const { exportToPNG } = await import('../utils/exportImage');
+      const name = doc.metadata.title || 'TEMer';
+      await exportToPNG('diagram-canvas', `${name}.png`, 2);
+    } catch (e) {
+      alert('PNG出力に失敗しました: ' + (e as Error).message);
+    }
+  };
+  const handleExportSVG = async () => {
+    try {
+      const { exportToSVG } = await import('../utils/exportImage');
+      const name = doc.metadata.title || 'TEMer';
+      await exportToSVG('diagram-canvas', `${name}.svg`);
+    } catch (e) {
+      alert('SVG出力に失敗しました: ' + (e as Error).message);
+    }
+  };
+  const handleExportPPTX = async () => {
+    try {
+      const { exportToPPTX } = await import('../utils/exportPPT');
+      const sheet = getActiveSheet();
+      if (!sheet) return;
+      const name = doc.metadata.title || 'TEMer';
+      await exportToPPTX(sheet.boxes, sheet.lines, {
+        filename: `${name}.pptx`,
+        sheet,
+        layout: doc.settings.layout,
+        timeArrowSettings: doc.settings.timeArrow,
+        includeTimeArrow: doc.settings.timeArrow.autoInsert,
+      });
+    } catch (e) {
+      alert('PPTX出力に失敗しました: ' + (e as Error).message);
+    }
+  };
+
   return (
     <>
       <RibbonGroup title="エクスポート">
-        <RibbonButton label="PNG" icon="🖼" onClick={() => alert('PNG出力は次のPhaseで刷新')} />
-        <RibbonButton label="SVG" icon="📐" onClick={() => alert('SVG出力は次のPhaseで実装')} />
-        <RibbonButton label="PPTX" icon="📊" onClick={() => alert('PPTX出力は次のPhaseで刷新')} />
+        <RibbonButton label="PNG" icon="🖼" onClick={handleExportPNG} />
+        <RibbonButton label="SVG" icon="📐" onClick={handleExportSVG} />
+        <RibbonButton label="PPTX" icon="📊" onClick={handleExportPPTX} />
         <RibbonButton label="PDF" icon="📄" onClick={() => alert('PDF出力は次のPhaseで実装')} />
       </RibbonGroup>
       <RibbonGroup title="高度">
