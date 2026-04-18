@@ -81,6 +81,16 @@ export interface Box {
   idOffsetX?: number;                  // デフォルト 0
   idOffsetY?: number;                  // デフォルト 0
   idFontSize?: number;                 // デフォルト 10
+
+  // タイプラベル（種別バッジ）個別スタイル
+  typeLabelFontSize?: number;
+  typeLabelBold?: boolean;
+  typeLabelItalic?: boolean;
+  typeLabelFontFamily?: string;
+
+  // 縦書き時の半角英数の向き: true=upright(縦積み)、false=mixed(横倒し)
+  // 未指定時は true（upright）が既定
+  asciiUpright?: boolean;
 }
 
 export interface LineStyle {
@@ -241,6 +251,16 @@ export interface SnapSettings {
   gridPx: number;
 }
 
+export interface PeriodLabelSettings {
+  alwaysVisible: boolean;              // 編集中の表示
+  includeInExport: boolean;            // エクスポートに含める
+  itemReference: 'min' | 'max';        // 基準: 既定 'max'
+  itemOffset: number;                  // 基準からのオフセット（既定 +2）
+  fontSize: number;
+  showDividers: boolean;               // 縦（横）の区切り線
+  dividerStrokeWidth: number;
+}
+
 export interface LegendSettings {
   autoGenerate: boolean;              // シートから使用記号を自動抽出
   alwaysVisible: boolean;             // 編集中も表示（エクスポートは別制御）
@@ -283,8 +303,10 @@ export interface ProjectSettings {
   defaultAutoFitBox: boolean;
   paperGuides: PaperGuide[];
   uiFontSize: number;                  // UI全体のフォントサイズ（px）
+  levelStep: number;                   // プロパティのLevel調整刻み（既定 0.5）
   timeArrow: TimeArrowSettings;
   legend: LegendSettings;
+  periodLabels: PeriodLabelSettings;
 }
 
 // ----------------------------------------------------------------------------
@@ -362,4 +384,5 @@ export interface ViewState {
   commentMode: boolean;
   canvasMode: CanvasMode;
   dataSheetWidth: number;
+  propertyPanelWidth: number;
 }

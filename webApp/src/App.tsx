@@ -7,6 +7,7 @@ import { SheetTabs } from './components/SheetTabs';
 import { StatusBar } from './components/StatusBar';
 import { SettingsDialog } from './components/SettingsDialog';
 import { InsertBetweenDialog } from './components/InsertBetweenDialog';
+import { PeriodLabelsDialog } from './components/PeriodLabelsDialog';
 import { useTEMStore } from './store/store';
 import {
   saveToFile,
@@ -21,6 +22,7 @@ import './App.css';
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [insertBetweenOpen, setInsertBetweenOpen] = useState(false);
+  const [periodLabelsOpen, setPeriodLabelsOpen] = useState(false);
   const [restoreChecked, setRestoreChecked] = useState(false);
   const uiFontSize = useTEMStore((s) => s.doc.settings.uiFontSize);
   const fileHandleRef = useRef<unknown>(null);
@@ -194,6 +196,7 @@ export default function App() {
       <Ribbon
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenInsertBetween={() => setInsertBetweenOpen(true)}
+        onOpenPeriodLabels={() => setPeriodLabelsOpen(true)}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpen={handleOpen}
@@ -210,6 +213,7 @@ export default function App() {
       <StatusBar />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <InsertBetweenDialog open={insertBetweenOpen} onClose={() => setInsertBetweenOpen(false)} />
+      <PeriodLabelsDialog open={periodLabelsOpen} onClose={() => setPeriodLabelsOpen(false)} />
     </div>
   );
 }

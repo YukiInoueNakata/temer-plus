@@ -4,7 +4,7 @@
 
 import { useTEMStore } from '../store/store';
 import { produce } from 'immer';
-import type { TimeArrowSettings, LegendSettings } from '../types';
+import type { TimeArrowSettings, LegendSettings, PeriodLabelSettings } from '../types';
 
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const doc = useTEMStore((s) => s.doc);
@@ -123,6 +123,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
 
           <LegendSettingsSection />
 
+          <PeriodLabelSettingsSection />
+
           <section className="settings-section">
             <h4>時期ラベル</h4>
             <div className="setting-row">
@@ -158,6 +160,69 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         </div>
       </div>
     </div>
+  );
+}
+
+function PeriodLabelSettingsSection() {
+  const doc = useTEMStore((s) => s.doc);
+  const pl = doc.settings.periodLabels;
+
+  const update = (patch: Partial<PeriodLabelSettings>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        d.settings.periodLabels = { ...d.settings.periodLabels, ...patch };
+      }),
+    }));
+  };
+
+  return (
+    <section className="settings-section">
+      <h4>時期ラベル配置</h4>
+      <div className="setting-row">
+        <label>編集中も表示</label>
+        <input type="checkbox" checked={pl.alwaysVisible} onChange={(e) => update({ alwaysVisible: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>エクスポートに含める</label>
+        <input type="checkbox" checked={pl.includeInExport} onChange={(e) => update({ includeInExport: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>Item軸の基準</label>
+        <select
+          value={pl.itemReference}
+          onChange={(e) => update({ itemReference: e.target.value as 'min' | 'max' })}
+        >
+          <option value="min">最小Item_Level（上側）</option>
+          <option value="max">最大Item_Level（下側）</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>基準からのオフセット</label>
+        <input
+          type="number"
+          step="0.5"
+          value={pl.itemOffset}
+          onChange={(e) => update({ itemOffset: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>区切り線を描画</label>
+        <input type="checkbox" checked={pl.showDividers} onChange={(e) => update({ showDividers: e.target.checked })} />
+      </div>
+      <div className="setting-row">
+        <label>フォントサイズ</label>
+        <input
+          type="number"
+          min={8}
+          max={40}
+          value={pl.fontSize}
+          onChange={(e) => update({ fontSize: Number(e.target.value) })}
+          style={{ width: 70 }}
+        />
+      </div>
+      <p className="hint">時期ラベル自体は「挿入」タブ→「時期ラベル...」で追加編集</p>
+    </section>
   );
 }
 

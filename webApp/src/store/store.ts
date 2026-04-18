@@ -147,8 +147,10 @@ interface Actions {
   toggleCommentMode: () => void;
   toggleBoxIds: () => void;
   toggleLegend: () => void;
+  togglePeriodLabels: () => void;
   setCanvasMode: (mode: 'move' | 'select') => void;
   setDataSheetWidth: (width: number) => void;
+  setPropertyPanelWidth: (width: number) => void;
   setGridSnap: (enabled: boolean) => void;
 
   // Settings
@@ -288,6 +290,15 @@ export const useTEMStore = create<Store>()(
         const sheet = state.doc.sheets.find((s) => s.id === targetSheetId);
         const type = partial?.type ?? 'normal';
         const id = partial?.id ?? (sheet ? genBoxIdByType(type, sheet.boxes.map((b) => b.id)) : genBoxId());
+        // 基準Box: 選択中Boxが優先、なければ最後の Box
+        let refBox: Box | undefined;
+        if (sheet && state.selection.boxIds.length > 0) {
+          const selId = state.selection.boxIds[state.selection.boxIds.length - 1];
+          refBox = sheet.boxes.find((b) => b.id === selId);
+        }
+        if (!refBox && sheet) {
+          refBox = sheet.boxes[sheet.boxes.length - 1];
+        }
         set((s) => {
           const layout = s.doc.settings.layout;
           // 横型レイアウト→縦書きBox (縦長60×100)
@@ -297,13 +308,12 @@ export const useTEMStore = create<Store>()(
           const defaultHeight = layout === 'horizontal' ? 100 : 50;
           return {
             doc: mutateSheet(s.doc, targetSheetId, (sh) => {
-              const last = sh.boxes[sh.boxes.length - 1];
               const defaults: Box = {
                 id,
                 type: 'normal',
                 label: '新規Box',
-                x: last ? last.x + (layout === 'horizontal' ? 150 : 0) : 200,
-                y: last ? last.y + (layout === 'horizontal' ? 0 : 150) : 200,
+                x: refBox ? refBox.x + (layout === 'horizontal' ? 150 : 0) : 200,
+                y: refBox ? refBox.y + (layout === 'horizontal' ? 0 : 150) : 200,
                 width: defaultWidth,
                 height: defaultHeight,
                 textOrientation: defaultTextOrientation,
@@ -358,18 +368,32 @@ export const useTEMStore = create<Store>()(
 
       // --- Line operations ---
       addLine: (from, to, patch) => {
-        const id = patch?.id ?? genLineId();
-        set((state) => ({
-          doc: mutateActiveSheet(state.doc, (sheet) => {
+        const state = get();
+        const sheet = state.doc.sheets.find((s) => s.id === state.doc.activeSheetId);
+        const lineType = patch?.type ?? 'RLine';
+        const prefix = lineType; // RLine / XLine
+        const existingIds = sheet?.lines.map((l) => l.id) ?? [];
+        const pattern = new RegExp(`^${prefix}(\\d+)$`);
+        let maxN = 0;
+        existingIds.forEach((id) => {
+          const m = id.match(pattern);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > maxN) maxN = n;
+          }
+        });
+        const id = patch?.id ?? `${prefix}${maxN + 1}`;
+        set((st) => ({
+          doc: mutateActiveSheet(st.doc, (sh) => {
             const defaults: Line = {
               id,
-              type: 'RLine',
+              type: lineType,
               from,
               to,
               connectionMode: 'center-to-center',
               shape: 'straight',
             };
-            sheet.lines.push({ ...defaults, ...patch, id, from, to });
+            sh.lines.push({ ...defaults, ...patch, id, from, to });
           }),
           dirty: true,
         }));
@@ -414,18 +438,35 @@ export const useTEMStore = create<Store>()(
 
       // --- SDSG operations ---
       addSDSG: (partial) => {
-        const id = partial.id ?? genSDSGId();
-        set((state) => ({
-          doc: mutateActiveSheet(state.doc, (sheet) => {
+        // ID は種別+連番（SD1, SD2, SG1, SG2...）
+        const state = get();
+        const sheet = state.doc.sheets.find((s) => s.id === state.doc.activeSheetId);
+        const existingIds = sheet?.sdsg.map((s) => s.id) ?? [];
+        const prefix = partial.type; // SD / SG
+        const pattern = new RegExp(`^${prefix}(\\d+)$`);
+        let maxN = 0;
+        existingIds.forEach((id) => {
+          const m = id.match(pattern);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > maxN) maxN = n;
+          }
+        });
+        const id = partial.id ?? `${prefix}${maxN + 1}`;
+        set((st) => ({
+          doc: mutateActiveSheet(st.doc, (sh) => {
             const defaults: SDSG = {
               id,
               type: partial.type,
               label: partial.type,
               attachedTo: partial.attachedTo,
+              // SD は上方向（Item負方向）、SG は下方向（Item正方向）
               itemOffset: partial.type === 'SD' ? -80 : 80,
               timeOffset: 0,
+              width: 70,
+              height: 40,
             };
-            sheet.sdsg.push({ ...defaults, ...partial, id });
+            sh.sdsg.push({ ...defaults, ...partial, id });
           }),
           dirty: true,
         }));
@@ -980,8 +1021,12 @@ export const useTEMStore = create<Store>()(
       toggleLegend: () => set((state) => ({
         doc: produce(state.doc, (d) => { d.settings.legend.alwaysVisible = !d.settings.legend.alwaysVisible; }),
       })),
+      togglePeriodLabels: () => set((state) => ({
+        doc: produce(state.doc, (d) => { d.settings.periodLabels.alwaysVisible = !d.settings.periodLabels.alwaysVisible; }),
+      })),
       setCanvasMode: (canvasMode) => set((state) => ({ view: { ...state.view, canvasMode } })),
       setDataSheetWidth: (dataSheetWidth) => set((state) => ({ view: { ...state.view, dataSheetWidth } })),
+      setPropertyPanelWidth: (propertyPanelWidth) => set((state) => ({ view: { ...state.view, propertyPanelWidth } })),
       setGridSnap: (enabled) => set((state) => ({
         doc: produce(state.doc, (d) => { d.settings.snap.gridSnap = enabled; }),
       })),

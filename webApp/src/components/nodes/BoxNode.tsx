@@ -17,7 +17,9 @@ export interface BoxNodeData extends Pick<
   'id' | 'label' | 'type' | 'width' | 'height' | 'shape' | 'textOrientation' | 'style' |
   'number' | 'participantId' |
   'subLabel' | 'subLabelOffsetX' | 'subLabelOffsetY' | 'subLabelFontSize' |
-  'idOffsetX' | 'idOffsetY' | 'idFontSize'
+  'idOffsetX' | 'idOffsetY' | 'idFontSize' |
+  'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' |
+  'asciiUpright'
 > {}
 
 export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
@@ -65,16 +67,27 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
     overflow: 'visible',
   };
 
+  const asciiUpright = data.asciiUpright ?? true;
   const textStyle: React.CSSProperties = {
     writingMode: isTextVertical ? 'vertical-rl' : 'horizontal-tb',
-    // upright: 半角英数も縦向き（各文字を上下に積む）、ー も縦向き|形に
-    textOrientation: isTextVertical ? 'upright' : undefined,
+    // asciiUpright=true: 半角英数も縦向き（各文字を上下に積む）、ー も縦向き|形に
+    // asciiUpright=false: 半角英数は横倒し（伝統的な日本語縦書き）
+    textOrientation: isTextVertical ? (asciiUpright ? 'upright' : 'mixed') : undefined,
     textAlign: isTextVertical ? 'left' : (textAlign as 'left' | 'center' | 'right'),
   };
 
+  // P-EFP / P-2nd-EFP: 二重点線（外枠+内枠を点線で）は outline+border の組み合わせで再現
+  const isPEfp = data.type === 'P-EFP' || data.type === 'P-2nd-EFP';
   const borderStyle: React.CSSProperties = shape === 'ellipse'
     ? { borderRadius: '50%', border: `${spec.borderWidth}px ${spec.borderStyle} ${borderColor}` }
-    : { border: `${spec.borderWidth}px ${spec.borderStyle} ${borderColor}`, borderRadius: 0 };
+    : isPEfp
+      ? {
+          border: `1.5px dashed ${borderColor}`,
+          outline: `1.5px dashed ${borderColor}`,
+          outlineOffset: '2px',
+          borderRadius: 0,
+        }
+      : { border: `${spec.borderWidth}px ${spec.borderStyle} ${borderColor}`, borderRadius: 0 };
 
   // ==========================================================================
   // IDバッジ: Box左上コーナー線上（小さく）、オフセット調整可
@@ -106,8 +119,10 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
   ) : null;
 
   // ==========================================================================
-  // 種別タグ: Layout連動（横型=上辺中央、縦型=左辺中央）、太字、目立つ
-  // 同種別が複数ある場合は自動的に連番/オーディナル（例: "2nd EFP", "OPP-2"）
+  // 種別タグ（タイプラベル）: Layout連動
+  // 同種別が複数ある場合は自動連番/オーディナル
+  // annotation(潜在経験) はタイプラベル表示しない
+  // 通常Box（normal）もタイプラベル表示しない
   // ==========================================================================
   const currentBoxForDisplay: Box = {
     id: data.id,
@@ -115,7 +130,8 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
     label: data.label,
     x: 0, y: 0, width: data.width, height: data.height,
   };
-  const typeTagText = sheet
+  const shouldShowTypeTag = data.type !== 'normal' && data.type !== 'annotation';
+  const typeTagText = shouldShowTypeTag && sheet
     ? computeBoxDisplay(sheet.boxes, sheet.boxes.find((b) => b.id === data.id) ?? currentBoxForDisplay, layout)
     : '';
 
@@ -157,6 +173,7 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
   const subOffsetY = data.subLabelOffsetY ?? 0;
   const subFontSize = data.subLabelFontSize ?? 10;
 
+  // サブラベル: 縦型Layoutでは Box の縦書き設定に合わせる
   const subLabelStyle: React.CSSProperties = isVerticalLayout
     ? {
         position: 'absolute',
@@ -167,7 +184,8 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         color: '#555',
         background: 'rgba(255,255,255,0.85)',
         padding: '0 4px',
-        writingMode: 'horizontal-tb',
+        writingMode: 'vertical-rl',
+        textOrientation: asciiUpright ? 'upright' : 'mixed',
         whiteSpace: 'nowrap',
       }
     : {

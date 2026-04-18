@@ -26,6 +26,7 @@ import { SDSGNode, type SDSGNodeData } from './nodes/SDSGNode';
 import { LEVEL_PX, MINOR_TICK_PX } from '../store/defaults';
 import { computeTimeArrow } from '../utils/timeArrow';
 import { LegendOverlay } from './LegendOverlay';
+import { PeriodLabelsOverlay } from './PeriodLabelsOverlay';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
 
@@ -91,26 +92,49 @@ function CanvasInner() {
         idOffsetX: b.idOffsetX,
         idOffsetY: b.idOffsetY,
         idFontSize: b.idFontSize,
+        asciiUpright: b.asciiUpright,
       } as BoxNodeData,
       style: { width: b.width, height: b.height, zIndex: b.zIndex ?? 0 },
     }));
   }, [sheet, storeBoxIds]);
 
-  // SDSG nodes - 位置は attachedTo Box + offset から計算
+  // SDSG nodes - 位置は attachedTo Box/Line + offset から計算
   const sdsgNodes: Node<SDSGNodeData>[] = useMemo(() => {
     if (!sheet) return [];
     const selSdsgIds = new Set(storeSdsgIds);
     return sheet.sdsg.map((sg) => {
-      const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
-      if (!attached) return null;
+      let anchorX = 0;
+      let anchorY = 0;
+      // Box に attached ?
+      const attachedBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      if (attachedBox) {
+        anchorX = attachedBox.x + attachedBox.width / 2;
+        anchorY = attachedBox.y + attachedBox.height / 2;
+      } else {
+        // Line に attached ?
+        const attachedLine = sheet.lines.find((l) => l.id === sg.attachedTo);
+        if (attachedLine) {
+          const fromBox = sheet.boxes.find((b) => b.id === attachedLine.from);
+          const toBox = sheet.boxes.find((b) => b.id === attachedLine.to);
+          if (fromBox && toBox) {
+            // 線の中点
+            anchorX = (fromBox.x + fromBox.width / 2 + toBox.x + toBox.width / 2) / 2;
+            anchorY = (fromBox.y + fromBox.height / 2 + toBox.y + toBox.height / 2) / 2;
+          } else {
+            return null;
+          }
+        } else {
+          return null;
+        }
+      }
       const isH = layout === 'horizontal';
       const timeOff = sg.timeOffset ?? 0;
       const itemOff = sg.itemOffset ?? 0;
-      // 横型: time=x, item=y / 縦型: time=y, item=x
-      const x = attached.x + (isH ? timeOff : itemOff);
-      const y = attached.y + (isH ? itemOff : timeOff);
       const w = sg.width ?? 70;
       const h = sg.height ?? 40;
+      // SDSG 左上座標 = anchor - (w/2, h/2) + offset
+      const x = anchorX - w / 2 + (isH ? timeOff : itemOff);
+      const y = anchorY - h / 2 + (isH ? itemOff : timeOff);
       return {
         id: sg.id,
         type: 'sdsg',
@@ -135,25 +159,36 @@ function CanvasInner() {
   const edges: Edge[] = useMemo(() => {
     if (!sheet) return [];
     const selLineIds = new Set(storeLineIds);
-    return sheet.lines.map((l) => ({
-      id: l.id,
-      source: l.from,
-      target: l.to,
-      selected: selLineIds.has(l.id),
-      type: l.shape === 'curve' ? 'default' : 'straight',
-      style: {
-        stroke: l.style?.color ?? '#222',
-        strokeWidth: l.style?.strokeWidth ?? 1.5,
-        strokeDasharray: l.type === 'XLine' ? '6 4' : undefined,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: l.style?.color ?? '#222',
-        width: 18,
-        height: 18,
-      },
-      zIndex: l.zIndex,
-    }));
+    return sheet.lines.map((l) => {
+      // 端点が潜在経験(annotation)や両極化等至点(P-EFP/P-2nd-EFP)に
+      // 接続している場合、XLineでなくても点線化
+      const fromBox = sheet.boxes.find((b) => b.id === l.from);
+      const toBox = sheet.boxes.find((b) => b.id === l.to);
+      const dashedEndpointTypes = ['annotation', 'P-EFP', 'P-2nd-EFP'];
+      const connectsToDashedType =
+        (fromBox && dashedEndpointTypes.includes(fromBox.type)) ||
+        (toBox && dashedEndpointTypes.includes(toBox.type));
+      const shouldDash = l.type === 'XLine' || connectsToDashedType;
+      return {
+        id: l.id,
+        source: l.from,
+        target: l.to,
+        selected: selLineIds.has(l.id),
+        type: l.shape === 'curve' ? 'default' : 'straight',
+        style: {
+          stroke: l.style?.color ?? '#222',
+          strokeWidth: l.style?.strokeWidth ?? 1.5,
+          strokeDasharray: shouldDash ? '6 4' : undefined,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: l.style?.color ?? '#222',
+          width: 18,
+          height: 18,
+        },
+        zIndex: l.zIndex,
+      };
+    });
   }, [sheet, storeLineIds]);
 
   const onNodesChange = useCallback(
@@ -178,15 +213,32 @@ function CanvasInner() {
           // SDSG node か Box node か判別
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
           if (sdsgItem) {
-            const attached = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
-            if (attached) {
-              const isH = layout === 'horizontal';
-              const dx = x - attached.x;
-              const dy = y - attached.y;
-              const timeOff = isH ? dx : dy;
-              const itemOff = isH ? dy : dx;
-              updateSDSG(ch.id, { timeOffset: timeOff, itemOffset: itemOff });
+            // anchor を再計算
+            let anchorX = 0, anchorY = 0;
+            const attachedBox = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
+            if (attachedBox) {
+              anchorX = attachedBox.x + attachedBox.width / 2;
+              anchorY = attachedBox.y + attachedBox.height / 2;
+            } else {
+              const attachedLine = sheet.lines.find((l) => l.id === sdsgItem.attachedTo);
+              if (attachedLine) {
+                const fromBox = sheet.boxes.find((b) => b.id === attachedLine.from);
+                const toBox = sheet.boxes.find((b) => b.id === attachedLine.to);
+                if (fromBox && toBox) {
+                  anchorX = (fromBox.x + fromBox.width / 2 + toBox.x + toBox.width / 2) / 2;
+                  anchorY = (fromBox.y + fromBox.height / 2 + toBox.y + toBox.height / 2) / 2;
+                }
+              }
             }
+            const w = sdsgItem.width ?? 70;
+            const h = sdsgItem.height ?? 40;
+            const isH = layout === 'horizontal';
+            // 新規左上座標 → offset へ逆算
+            const dx = x + w / 2 - anchorX;
+            const dy = y + h / 2 - anchorY;
+            const timeOff = isH ? dx : dy;
+            const itemOff = isH ? dy : dx;
+            updateSDSG(ch.id, { timeOffset: timeOff, itemOffset: itemOff });
           } else {
             updateBox(ch.id, { x, y });
           }
@@ -293,6 +345,7 @@ function CanvasInner() {
             {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
             {showPaperGuides && <PaperGuideOverlay />}
             <TimeArrowOverlay />
+            <PeriodLabelsOverlay />
             <LegendOverlay />
             <Controls />
           </ReactFlow>

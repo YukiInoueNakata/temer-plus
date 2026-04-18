@@ -2,6 +2,7 @@
 // PropertyPanel - Right sidebar (Figma-style)
 // ============================================================================
 
+import { useState, useEffect } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
 import type { Box, BoxType, TextAlign, VerticalAlign, SDSG } from '../types';
 import { BOX_TYPE_LABELS, FONT_OPTIONS, LEVEL_PX } from '../store/defaults';
@@ -12,11 +13,34 @@ export function PropertyPanel() {
   const toggle = useTEMStore((s) => s.togglePropertyPanel);
   const selection = useTEMStore((s) => s.selection);
   const sheet = useActiveSheet();
+  const width = useTEMStore((s) => s.view.propertyPanelWidth);
+  const setWidth = useTEMStore((s) => s.setPropertyPanelWidth);
+  const [resizing, setResizing] = useState(false);
+
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: MouseEvent) => {
+      const panel = document.querySelector('.property-panel') as HTMLElement | null;
+      if (!panel) return;
+      const right = panel.getBoundingClientRect().right;
+      const newWidth = Math.max(240, Math.min(600, right - e.clientX));
+      setWidth(newWidth);
+    };
+    const onUp = () => setResizing(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizing, setWidth]);
 
   if (!visible) {
     return (
       <div className="panel-collapsed right" onClick={toggle} title="プロパティを表示">
-        ⚙
+        <span style={{ writingMode: 'vertical-rl', fontWeight: 600, color: '#444', letterSpacing: '0.1em' }}>
+          プロパティ
+        </span>
       </div>
     );
   }
@@ -29,7 +53,12 @@ export function PropertyPanel() {
   const hasSelection = selectedBoxes.length > 0 || selectedLines.length > 0 || selectedSDSGs.length > 0;
 
   return (
-    <div className="property-panel">
+    <div className="property-panel" style={{ width }}>
+      <div
+        className="panel-resizer left"
+        onMouseDown={(e) => { e.preventDefault(); setResizing(true); }}
+        title="幅を調整"
+      />
       <div className="panel-header">
         <span>▼ プロパティ {hasSelection && `(${selectedBoxes.length + selectedLines.length})`}</span>
         <button className="panel-toggle" onClick={toggle} title="最小化">×</button>
@@ -95,6 +124,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
   const removeBoxes = useTEMStore((s) => s.removeBoxes);
   const renameBoxId = useTEMStore((s) => s.renameBoxId);
   const changeBoxType = useTEMStore((s) => s.changeBoxType);
+  const levelStep = useTEMStore((s) => s.doc.settings.levelStep);
 
   const isMulti = boxes.length > 1;
   const first = boxes[0];
@@ -200,14 +230,14 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           <div style={{ display: 'flex', gap: 4 }}>
             <input
               type="number"
-              step="0.1"
+              step={levelStep}
               value={(first.x / LEVEL_PX).toFixed(1)}
               onChange={(e) => updateBox(first.id, { x: Number(e.target.value) * LEVEL_PX })}
               title="Time_Level"
             />
             <input
               type="number"
-              step="0.1"
+              step={levelStep}
               value={(first.y / LEVEL_PX).toFixed(1)}
               onChange={(e) => updateBox(first.id, { y: Number(e.target.value) * LEVEL_PX })}
               title="Item_Level"
@@ -229,6 +259,20 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           <option value="vertical">縦書き</option>
         </select>
       </div>
+
+      {commonOrientation === 'vertical' && (
+        <div className="prop-row">
+          <label>半角英数の向き（縦書き時）</label>
+          <select
+            value={getCommon(boxes, 'asciiUpright') === undefined ? '' : (getCommon(boxes, 'asciiUpright') ? 'upright' : 'mixed')}
+            onChange={(e) => updateBoxes(ids, { asciiUpright: e.target.value === 'upright' })}
+          >
+            {getCommon(boxes, 'asciiUpright') === undefined && <option value="">（混在）</option>}
+            <option value="upright">縦向き（上下に積む）</option>
+            <option value="mixed">横倒し（伝統的）</option>
+          </select>
+        </div>
+      )}
 
       <div className="prop-row">
         <label>水平揃え</label>

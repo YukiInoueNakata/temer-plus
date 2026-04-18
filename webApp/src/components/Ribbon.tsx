@@ -13,6 +13,7 @@ type RibbonTab = 'file' | 'home' | 'insert' | 'view' | 'output' | 'help';
 export function Ribbon({
   onOpenSettings,
   onOpenInsertBetween,
+  onOpenPeriodLabels,
   onSave,
   onSaveAs,
   onOpen,
@@ -20,6 +21,7 @@ export function Ribbon({
 }: {
   onOpenSettings: () => void;
   onOpenInsertBetween: () => void;
+  onOpenPeriodLabels: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -47,8 +49,8 @@ export function Ribbon({
       <div className="ribbon-body">
         {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} />}
         {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} />}
-        {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} />}
-        {activeTab === 'view' && <ViewTab />}
+        {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
+        {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'output' && <OutputTab />}
         {activeTab === 'help' && <HelpTab />}
       </div>
@@ -345,7 +347,7 @@ function AlignButton({ type }: { type: 'left' | 'center-h' | 'right' | 'top' | '
   return <RibbonButton label={label} icon={icon} onClick={handleAlign} />;
 }
 
-function InsertTab({ onOpenInsertBetween }: { onOpenInsertBetween: () => void }) {
+function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBetween: () => void; onOpenPeriodLabels: () => void }) {
   const addBox = useTEMStore((s) => s.addBox);
   const selection = useTEMStore((s) => s.selection);
   const addLine = useTEMStore((s) => s.addLine);
@@ -405,8 +407,7 @@ function InsertTab({ onOpenInsertBetween }: { onOpenInsertBetween: () => void })
         <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} />
       </RibbonGroup>
       <RibbonGroup title="その他">
-        <RibbonButton label="時期ラベル" icon="🏷" onClick={() => alert('時期ラベルは次のPhaseで実装')} />
-        <RibbonButton label="凡例" icon="📋" onClick={() => alert('凡例は次のPhaseで実装')} />
+        <RibbonButton label="時期ラベル..." icon="🏷" onClick={onOpenPeriodLabels} />
       </RibbonGroup>
     </>
   );
@@ -424,7 +425,7 @@ function getIconForBoxType(type: BoxType): string {
   }
 }
 
-function ViewTab() {
+function ViewTab({ onOpenPeriodLabels }: { onOpenPeriodLabels: () => void }) {
   const view = useTEMStore((s) => s.view);
   const toggleGrid = useTEMStore((s) => s.toggleGrid);
   const toggleSnap = useTEMStore((s) => s.toggleSnap);
@@ -435,6 +436,23 @@ function ViewTab() {
   const toggleBoxIds = useTEMStore((s) => s.toggleBoxIds);
   const toggleLegend = useTEMStore((s) => s.toggleLegend);
   const legendVisible = useTEMStore((s) => s.doc.settings.legend.alwaysVisible);
+  const togglePeriodLabels = useTEMStore((s) => s.togglePeriodLabels);
+  const periodLabelsVisible = useTEMStore((s) => s.doc.settings.periodLabels.alwaysVisible);
+  const timeArrowVisible = useTEMStore((s) => s.doc.settings.timeArrow.alwaysVisible);
+  const toggleTimeArrow = () => {
+    useTEMStore.setState((state) => ({
+      doc: {
+        ...state.doc,
+        settings: {
+          ...state.doc.settings,
+          timeArrow: {
+            ...state.doc.settings.timeArrow,
+            alwaysVisible: !state.doc.settings.timeArrow.alwaysVisible,
+          },
+        },
+      },
+    }));
+  };
 
   return (
     <>
@@ -443,7 +461,12 @@ function ViewTab() {
         <RibbonButton label={view.snapEnabled ? 'スナップ ✓' : 'スナップ'} icon="⊡" onClick={toggleSnap} />
         <RibbonButton label={view.showPaperGuides ? '用紙枠 ✓' : '用紙枠'} icon="▭" onClick={togglePaperGuides} />
         <RibbonButton label={view.showBoxIds ? 'ID ✓' : 'ID'} icon="🏷" onClick={toggleBoxIds} />
+      </RibbonGroup>
+      <RibbonGroup title="図要素">
+        <RibbonButton label={timeArrowVisible ? '時間矢印 ✓' : '時間矢印'} icon="→" onClick={toggleTimeArrow} />
         <RibbonButton label={legendVisible ? '凡例 ✓' : '凡例'} icon="📋" onClick={toggleLegend} />
+        <RibbonButton label={periodLabelsVisible ? '時期 ✓' : '時期'} icon="🏷" onClick={togglePeriodLabels} />
+        <RibbonButton label="時期編集..." icon="📝" onClick={onOpenPeriodLabels} />
       </RibbonGroup>
       <RibbonGroup title="パネル">
         <RibbonButton label={view.dataSheetVisible ? 'データ ✓' : 'データ'} icon="🗂" onClick={toggleDataSheet} />

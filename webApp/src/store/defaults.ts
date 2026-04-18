@@ -35,13 +35,14 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     { enabled: false, size: 'A4-landscape', color: '#ff6b6b' },
   ],
   uiFontSize: 13,
+  levelStep: 0.5,
   timeArrow: {
     autoInsert: true,
     alwaysVisible: true,
-    timeStartExtension: -1,
-    timeEndExtension: 1,
-    itemReference: 'min',
-    itemOffset: -2,
+    timeStartExtension: -0.5,
+    timeEndExtension: 0.5,
+    itemReference: 'max',
+    itemOffset: 0.5,
     label: '非可逆的時間',
     strokeWidth: 2.5,
     fontSize: 14,
@@ -58,6 +59,15 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     title: '凡例',
     fontSize: 11,
     minWidth: 200,
+  },
+  periodLabels: {
+    alwaysVisible: true,
+    includeInExport: true,
+    itemReference: 'max',
+    itemOffset: 0.5,
+    fontSize: 13,
+    showDividers: true,
+    dividerStrokeWidth: 1,
   },
 };
 
@@ -76,6 +86,7 @@ export const DEFAULT_VIEW_STATE: ViewState = {
   commentMode: false,
   canvasMode: 'move',
   dataSheetWidth: 360,
+  propertyPanelWidth: 300,
 };
 
 // 1 level = 100px（ユーザ要望で統一）
@@ -245,11 +256,12 @@ export const BOX_RENDER_SPECS: Record<string, BoxRenderSpec> = {
   normal:       { borderStyle: 'solid',  borderWidth: 1.5, defaultShape: 'rect' },
   BFP:          { borderStyle: 'solid',  borderWidth: 2.0, defaultShape: 'rect' },  // 通常より少し太い
   EFP:          { borderStyle: 'double', borderWidth: 3.0, defaultShape: 'rect' },
-  'P-EFP':      { borderStyle: 'dashed', borderWidth: 1.5, defaultShape: 'rect' },
+  // P-EFP: 二重+点線（CSS単体では表現不可なので BoxNode で2重枠を特別描画）
+  'P-EFP':      { borderStyle: 'dashed', borderWidth: 2.5, defaultShape: 'rect' },
   OPP:          { borderStyle: 'solid',  borderWidth: 3.0, defaultShape: 'rect' },
   annotation:   { borderStyle: 'dashed', borderWidth: 1.0, defaultShape: 'rect' },  // 潜在経験: 細めの点線
   '2nd-EFP':    { borderStyle: 'double', borderWidth: 3.0, defaultShape: 'rect' },
-  'P-2nd-EFP':  { borderStyle: 'dashed', borderWidth: 1.5, defaultShape: 'rect' },
+  'P-2nd-EFP':  { borderStyle: 'dashed', borderWidth: 2.5, defaultShape: 'rect' },
 };
 
 export const BOX_TYPE_LABELS: Record<string, { ja: string; en: string; shortJa?: string }> = {

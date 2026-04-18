@@ -41,7 +41,9 @@ export function DataSheet() {
   if (!visible) {
     return (
       <div className="panel-collapsed left" onClick={toggle} title="データシートを表示">
-        🗂
+        <span style={{ writingMode: 'vertical-rl', fontWeight: 600, color: '#444', letterSpacing: '0.1em' }}>
+          データシート
+        </span>
       </div>
     );
   }
