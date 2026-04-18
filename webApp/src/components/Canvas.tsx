@@ -1,0 +1,494 @@
+// ============================================================================
+// Canvas - Main drawing area with scrollbars
+// - 通常スクロール = パン（レイアウト方向）
+// - Shift + スクロール = ズーム
+// - Shift + クリック = 複数選択（controlled selection + カスタムクリック）
+// ============================================================================
+
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
+import ReactFlow, {
+  Background,
+  BackgroundVariant,
+  Controls,
+  MarkerType,
+  useStore as useReactFlowStore,
+  useReactFlow,
+  ReactFlowProvider,
+  type Connection,
+  type Edge,
+  type Node,
+  type NodeChange,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+import { useTEMStore, useActiveSheet } from '../store/store';
+import { BoxNode, type BoxNodeData } from './nodes/BoxNode';
+import { LEVEL_PX, MINOR_TICK_PX } from '../store/defaults';
+
+const nodeTypes = { box: BoxNode };
+
+const PAPER_SIZES: Record<string, { w: number; h: number }> = {
+  'A4-landscape': { w: 1123, h: 794 },
+  'A4-portrait':  { w: 794,  h: 1123 },
+  'A3-landscape': { w: 1587, h: 1123 },
+  'A3-portrait':  { w: 1123, h: 1587 },
+  '16:9':         { w: 1280, h: 720 },
+  '4:3':          { w: 1024, h: 768 },
+};
+
+export function Canvas() {
+  return (
+    <ReactFlowProvider>
+      <CanvasInner />
+    </ReactFlowProvider>
+  );
+}
+
+function CanvasInner() {
+  const sheet = useActiveSheet();
+  const updateBox = useTEMStore((s) => s.updateBox);
+  const addLine = useTEMStore((s) => s.addLine);
+  const setSelection = useTEMStore((s) => s.setSelection);
+  const storeBoxIds = useTEMStore((s) => s.selection.boxIds);
+  const storeLineIds = useTEMStore((s) => s.selection.lineIds);
+  const canvasMode = useTEMStore((s) => s.view.canvasMode);
+  const showGrid = useTEMStore((s) => s.view.showGrid);
+  const showPaperGuides = useTEMStore((s) => s.view.showPaperGuides);
+  const snapEnabled = useTEMStore((s) => s.view.snapEnabled);
+  const gridPx = useTEMStore((s) => s.doc.settings.snap.gridPx);
+  const layout = useTEMStore((s) => s.doc.settings.layout);
+
+  const dragging = useRef(false);
+
+  // Controlled selection via `selected` prop on nodes/edges
+  const nodes: Node<BoxNodeData>[] = useMemo(() => {
+    if (!sheet) return [];
+    const selBoxIds = new Set(storeBoxIds);
+    return sheet.boxes.map((b) => ({
+      id: b.id,
+      type: 'box',
+      position: { x: b.x, y: b.y },
+      selected: selBoxIds.has(b.id),
+      data: {
+        id: b.id,
+        label: b.label,
+        type: b.type,
+        width: b.width,
+        height: b.height,
+        shape: b.shape,
+        textOrientation: b.textOrientation,
+        style: b.style,
+        number: b.number,
+        participantId: b.participantId,
+        subLabel: b.subLabel,
+        subLabelOffsetX: b.subLabelOffsetX,
+        subLabelOffsetY: b.subLabelOffsetY,
+        subLabelFontSize: b.subLabelFontSize,
+        idOffsetX: b.idOffsetX,
+        idOffsetY: b.idOffsetY,
+        idFontSize: b.idFontSize,
+      } as BoxNodeData,
+      style: { width: b.width, height: b.height, zIndex: b.zIndex ?? 0 },
+    }));
+  }, [sheet, storeBoxIds]);
+
+  const edges: Edge[] = useMemo(() => {
+    if (!sheet) return [];
+    const selLineIds = new Set(storeLineIds);
+    return sheet.lines.map((l) => ({
+      id: l.id,
+      source: l.from,
+      target: l.to,
+      selected: selLineIds.has(l.id),
+      type: l.shape === 'curve' ? 'default' : 'straight',
+      style: {
+        stroke: l.style?.color ?? '#222',
+        strokeWidth: l.style?.strokeWidth ?? 1.5,
+        strokeDasharray: l.type === 'XLine' ? '6 4' : undefined,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: l.style?.color ?? '#222',
+        width: 18,
+        height: 18,
+      },
+      zIndex: l.zIndex,
+    }));
+  }, [sheet, storeLineIds]);
+
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const temporal = useTEMStore.temporal.getState();
+      for (const ch of changes) {
+        if (ch.type === 'position' && ch.position) {
+          if (ch.dragging === true && !dragging.current) {
+            dragging.current = true;
+            temporal.pause();
+          } else if (ch.dragging === false && dragging.current) {
+            dragging.current = false;
+            temporal.resume();
+          }
+          let x = ch.position.x;
+          let y = ch.position.y;
+          if (snapEnabled && ch.dragging === false) {
+            x = Math.round(x / gridPx) * gridPx;
+            y = Math.round(y / gridPx) * gridPx;
+          }
+          updateBox(ch.id, { x, y });
+        }
+      }
+    },
+    [updateBox, snapEnabled, gridPx]
+  );
+
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      if (connection.source && connection.target) {
+        addLine(connection.source, connection.target);
+      }
+    },
+    [addLine]
+  );
+
+  // ---- Custom click handlers for Shift+multi-select ----
+  const onNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      const { boxIds } = useTEMStore.getState().selection;
+      if (event.shiftKey) {
+        event.stopPropagation();
+        const already = boxIds.includes(node.id);
+        const next = already ? boxIds.filter((id) => id !== node.id) : [...boxIds, node.id];
+        setSelection(next, []);
+      } else {
+        setSelection([node.id], []);
+      }
+    },
+    [setSelection]
+  );
+
+  const onEdgeClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      const { lineIds } = useTEMStore.getState().selection;
+      if (event.shiftKey) {
+        event.stopPropagation();
+        const already = lineIds.includes(edge.id);
+        const next = already ? lineIds.filter((id) => id !== edge.id) : [...lineIds, edge.id];
+        setSelection([], next);
+      } else {
+        setSelection([], [edge.id]);
+      }
+    },
+    [setSelection]
+  );
+
+  const onPaneClick = useCallback(() => {
+    setSelection([], []);
+  }, [setSelection]);
+
+  if (!sheet) {
+    return <div style={{ padding: 20 }}>シートがありません</div>;
+  }
+
+  const isSelectMode = canvasMode === 'select';
+
+  return (
+    <div id="diagram-canvas" className="canvas-container">
+      <div className="canvas-rulers">
+        <div className="ruler-corner">
+          <span className="ruler-origin">0</span>
+        </div>
+        <TopRuler layout={layout} />
+      </div>
+      <div className="canvas-main">
+        <LeftRuler layout={layout} />
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onPaneClick={onPaneClick}
+            multiSelectionKeyCode={null}
+            selectionKeyCode={null}
+            deleteKeyCode={['Delete', 'Backspace']}
+            panOnDrag={!isSelectMode}
+            selectionOnDrag={isSelectMode}
+            panOnScroll={false}
+            zoomOnScroll={false}
+            zoomOnPinch={true}
+            snapToGrid={snapEnabled}
+            snapGrid={[gridPx, gridPx]}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+          >
+            {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
+            {showPaperGuides && <PaperGuideOverlay />}
+            <Controls />
+          </ReactFlow>
+          <CustomWheelHandler layout={layout} />
+          <HorizontalScrollbar />
+          <VerticalScrollbar />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Custom wheel: pan normally, zoom with Shift
+// ============================================================================
+
+function CustomWheelHandler({ layout }: { layout: 'horizontal' | 'vertical' }) {
+  const rf = useReactFlow();
+
+  useEffect(() => {
+    const el = document.querySelector('#diagram-canvas .react-flow__pane') as HTMLElement | null;
+    if (!el) return;
+
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const vp = rf.getViewport();
+      // Use whichever delta the browser provided (Shift can turn deltaY into deltaX)
+      const primaryDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+
+      if (e.shiftKey) {
+        // Zoom
+        const factor = primaryDelta < 0 ? 1.08 : 1 / 1.08;
+        const newZoom = Math.max(0.1, Math.min(5, vp.zoom * factor));
+        rf.zoomTo(newZoom);
+      } else {
+        // Pan in layout direction
+        const pan = primaryDelta * 0.6;
+        if (layout === 'horizontal') {
+          rf.setViewport({ x: vp.x - pan, y: vp.y, zoom: vp.zoom });
+        } else {
+          rf.setViewport({ x: vp.x, y: vp.y - pan, zoom: vp.zoom });
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handler as EventListener, { passive: false });
+    return () => el.removeEventListener('wheel', handler as EventListener);
+  }, [rf, layout]);
+
+  return null;
+}
+
+// ============================================================================
+// Scrollbars (functional, synced to viewport)
+// ============================================================================
+
+// 仮想ワールドサイズ（スクロール範囲）
+const WORLD_SIZE = 5000;  // -2500 to +2500
+
+function HorizontalScrollbar() {
+  const { getViewport, setViewport } = useReactFlow();
+  const transform = useReactFlowStore((s) => s.transform);
+  const width = useReactFlowStore((s) => s.width);
+  const [dragging, setDragging] = useState(false);
+  const startRef = useRef({ mouseX: 0, vpX: 0 });
+
+  const { panX, zoom } = { panX: transform[0], zoom: transform[2] };
+  const worldWidth = WORLD_SIZE;
+  const worldStart = -worldWidth / 2;
+  // Screen position of world origin
+  const visibleWorldStart = -panX / zoom;
+  const visibleWorldSpan = width / zoom;
+  const thumbLeft = ((visibleWorldStart - worldStart) / worldWidth) * 100;
+  const thumbWidth = (visibleWorldSpan / worldWidth) * 100;
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      const track = document.querySelector('.scrollbar-h') as HTMLElement | null;
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+      const dx = e.clientX - startRef.current.mouseX;
+      const trackWidthPx = rect.width;
+      const worldPerPx = worldWidth / trackWidthPx;
+      const newVpX = startRef.current.vpX - dx * worldPerPx * zoom;
+      const vp = getViewport();
+      setViewport({ x: newVpX, y: vp.y, zoom: vp.zoom });
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragging, zoom, getViewport, setViewport]);
+
+  return (
+    <div className="scrollbar-h">
+      <div
+        className="scrollbar-thumb"
+        style={{ left: `${Math.max(0, Math.min(100 - thumbWidth, thumbLeft))}%`, width: `${Math.max(5, Math.min(100, thumbWidth))}%` }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          startRef.current = { mouseX: e.clientX, vpX: panX };
+          setDragging(true);
+        }}
+      />
+    </div>
+  );
+}
+
+function VerticalScrollbar() {
+  const { getViewport, setViewport } = useReactFlow();
+  const transform = useReactFlowStore((s) => s.transform);
+  const height = useReactFlowStore((s) => s.height);
+  const [dragging, setDragging] = useState(false);
+  const startRef = useRef({ mouseY: 0, vpY: 0 });
+
+  const { panY, zoom } = { panY: transform[1], zoom: transform[2] };
+  const worldHeight = WORLD_SIZE;
+  const worldStart = -worldHeight / 2;
+  const visibleWorldStart = -panY / zoom;
+  const visibleWorldSpan = height / zoom;
+  const thumbTop = ((visibleWorldStart - worldStart) / worldHeight) * 100;
+  const thumbHeight = (visibleWorldSpan / worldHeight) * 100;
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      const track = document.querySelector('.scrollbar-v') as HTMLElement | null;
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+      const dy = e.clientY - startRef.current.mouseY;
+      const trackHeightPx = rect.height;
+      const worldPerPx = worldHeight / trackHeightPx;
+      const newVpY = startRef.current.vpY - dy * worldPerPx * zoom;
+      const vp = getViewport();
+      setViewport({ x: vp.x, y: newVpY, zoom: vp.zoom });
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragging, zoom, getViewport, setViewport]);
+
+  return (
+    <div className="scrollbar-v">
+      <div
+        className="scrollbar-thumb"
+        style={{ top: `${Math.max(0, Math.min(100 - thumbHeight, thumbTop))}%`, height: `${Math.max(5, Math.min(100, thumbHeight))}%` }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          startRef.current = { mouseY: e.clientY, vpY: panY };
+          setDragging(true);
+        }}
+      />
+    </div>
+  );
+}
+
+// ============================================================================
+// Paper Guide
+// ============================================================================
+
+function PaperGuideOverlay() {
+  const transform = useReactFlowStore((s) => s.transform);
+  const [panX, panY, zoom] = transform;
+  const size = PAPER_SIZES['A4-landscape'];
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: panX,
+        top: panY,
+        width: size.w * zoom,
+        height: size.h * zoom,
+        border: `2px dashed #ff6b6b`,
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}
+    >
+      <span style={{ position: 'absolute', top: -18, left: 0, fontSize: 10, color: '#ff6b6b', background: '#fff', padding: '0 4px', fontWeight: 600 }}>
+        A4 横
+      </span>
+    </div>
+  );
+}
+
+// ============================================================================
+// Rulers
+// ============================================================================
+
+function useViewport() {
+  const transform = useReactFlowStore((s) => s.transform);
+  return { x: transform[0], y: transform[1], zoom: transform[2] };
+}
+
+function TopRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
+  const viewport = useViewport();
+  const axisLabel = layout === 'horizontal' ? 'Time →' : 'Item →';
+  const { ticks, minorTicks } = useMemo(() => {
+    const tickMajor: { level: number; x: number }[] = [];
+    const tickMinor: number[] = [];
+    const viewWidth = 3000;
+    const minLevel = Math.floor((-viewport.x) / (LEVEL_PX * viewport.zoom)) - 5;
+    const maxLevel = minLevel + Math.ceil(viewWidth / (LEVEL_PX * viewport.zoom)) + 10;
+    for (let level = minLevel; level <= maxLevel; level++) {
+      const screenX = level * LEVEL_PX * viewport.zoom + viewport.x;
+      tickMajor.push({ level, x: screenX });
+      for (let i = 1; i <= 9; i++) {
+        tickMinor.push(level * LEVEL_PX * viewport.zoom + viewport.x + i * MINOR_TICK_PX * viewport.zoom);
+      }
+    }
+    return { ticks: tickMajor, minorTicks: tickMinor };
+  }, [viewport]);
+
+  return (
+    <div className="ruler-horizontal">
+      <span className="ruler-axis-label">{axisLabel}</span>
+      {minorTicks.map((x, i) => (
+        <div key={`m${i}`} className="ruler-tick-h-minor" style={{ left: x }} />
+      ))}
+      {ticks.map((t) => (
+        <div key={t.level} className={`ruler-tick-h ${t.level === 0 ? 'origin' : ''}`} style={{ left: t.x }}>
+          <span>{t.level}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LeftRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
+  const viewport = useViewport();
+  const axisLabel = layout === 'horizontal' ? 'Item ↓' : 'Time ↓';
+  const { ticks, minorTicks } = useMemo(() => {
+    const tickMajor: { level: number; y: number }[] = [];
+    const tickMinor: number[] = [];
+    const viewHeight = 2000;
+    const minLevel = Math.floor((-viewport.y) / (LEVEL_PX * viewport.zoom)) - 5;
+    const maxLevel = minLevel + Math.ceil(viewHeight / (LEVEL_PX * viewport.zoom)) + 10;
+    for (let level = minLevel; level <= maxLevel; level++) {
+      const screenY = level * LEVEL_PX * viewport.zoom + viewport.y;
+      tickMajor.push({ level, y: screenY });
+      for (let i = 1; i <= 9; i++) {
+        tickMinor.push(level * LEVEL_PX * viewport.zoom + viewport.y + i * MINOR_TICK_PX * viewport.zoom);
+      }
+    }
+    return { ticks: tickMajor, minorTicks: tickMinor };
+  }, [viewport]);
+
+  return (
+    <div className="ruler-vertical">
+      <span className="ruler-axis-label vertical">{axisLabel}</span>
+      {minorTicks.map((y, i) => (
+        <div key={`m${i}`} className="ruler-tick-v-minor" style={{ top: y }} />
+      ))}
+      {ticks.map((t) => (
+        <div key={t.level} className={`ruler-tick-v ${t.level === 0 ? 'origin' : ''}`} style={{ top: t.y }}>
+          <span>{t.level}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
