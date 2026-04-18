@@ -615,6 +615,7 @@ function useViewport() {
 
 function TopRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
   const viewport = useViewport();
+  // 横型: 上ルーラー = Time軸(→+)、縦型: 上ルーラー = Item軸(→+)
   const axisLabel = layout === 'horizontal' ? 'Time →' : 'Item →';
   const { ticks, minorTicks } = useMemo(() => {
     const tickMajor: { level: number; x: number }[] = [];
@@ -649,7 +650,10 @@ function TopRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
 
 function LeftRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
   const viewport = useViewport();
-  const axisLabel = layout === 'horizontal' ? 'Item ↓' : 'Time ↓';
+  // 横型: 左ルーラー = Item軸（上ほど+）→ y 値を反転して表示
+  // 縦型: 左ルーラー = Time軸（下ほど+）→ y 値そのまま
+  const isHorizontal = layout === 'horizontal';
+  const axisLabel = isHorizontal ? 'Item ↑+' : 'Time ↓+';
   const { ticks, minorTicks } = useMemo(() => {
     const tickMajor: { level: number; y: number }[] = [];
     const tickMinor: number[] = [];
@@ -658,13 +662,15 @@ function LeftRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
     const maxLevel = minLevel + Math.ceil(viewHeight / (LEVEL_PX * viewport.zoom)) + 10;
     for (let level = minLevel; level <= maxLevel; level++) {
       const screenY = level * LEVEL_PX * viewport.zoom + viewport.y;
-      tickMajor.push({ level, y: screenY });
+      // 横型 Item 軸は y 反転: 画面y=+100 は Item_Level=-1
+      const displayLevel = isHorizontal ? -level : level;
+      tickMajor.push({ level: displayLevel, y: screenY });
       for (let i = 1; i <= 9; i++) {
         tickMinor.push(level * LEVEL_PX * viewport.zoom + viewport.y + i * MINOR_TICK_PX * viewport.zoom);
       }
     }
     return { ticks: tickMajor, minorTicks: tickMinor };
-  }, [viewport]);
+  }, [viewport, isHorizontal]);
 
   return (
     <div className="ruler-vertical">
@@ -672,8 +678,8 @@ function LeftRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
       {minorTicks.map((y, i) => (
         <div key={`m${i}`} className="ruler-tick-v-minor" style={{ top: y }} />
       ))}
-      {ticks.map((t) => (
-        <div key={t.level} className={`ruler-tick-v ${t.level === 0 ? 'origin' : ''}`} style={{ top: t.y }}>
+      {ticks.map((t, i) => (
+        <div key={i} className={`ruler-tick-v ${t.level === 0 ? 'origin' : ''}`} style={{ top: t.y }}>
           <span>{t.level}</span>
         </div>
       ))}

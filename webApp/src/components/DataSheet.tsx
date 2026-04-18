@@ -8,6 +8,7 @@ import { useTEMStore, useActiveSheet } from '../store/store';
 import type { BoxType } from '../types';
 import { BOX_TYPE_LABELS, LEVEL_PX } from '../store/defaults';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
+import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
 
 type DataTab = 'box' | 'line' | 'sdsg';
 type SortField = 'id' | 'type' | 'label' | 'timeLevel' | 'itemLevel';
@@ -141,6 +142,8 @@ function BoxTable() {
   const removeBoxes = useTEMStore((s) => s.removeBoxes);
   const renameBoxId = useTEMStore((s) => s.renameBoxId);
   const changeBoxType = useTEMStore((s) => s.changeBoxType);
+  const layout = useTEMStore((s) => s.doc.settings.layout);
+  const levelStep = useTEMStore((s) => s.doc.settings.levelStep);
   const [sortField, setSortField] = useState<SortField>('timeLevel');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState('');
@@ -275,17 +278,23 @@ function BoxTable() {
                   <td>
                     <input
                       type="number"
-                      step="0.1"
-                      value={(b.x / LEVEL_PX).toFixed(1)}
-                      onChange={(e) => updateBox(b.id, { x: Number(e.target.value) * LEVEL_PX })}
+                      step={levelStep}
+                      value={xyToTimeLevel(b.x, b.y, layout).toFixed(1)}
+                      onChange={(e) => {
+                        const p = setTimeLevelOnly(b.x, b.y, Number(e.target.value), layout);
+                        updateBox(b.id, p);
+                      }}
                     />
                   </td>
                   <td>
                     <input
                       type="number"
-                      step="0.1"
-                      value={(b.y / LEVEL_PX).toFixed(1)}
-                      onChange={(e) => updateBox(b.id, { y: Number(e.target.value) * LEVEL_PX })}
+                      step={levelStep}
+                      value={xyToItemLevel(b.x, b.y, layout).toFixed(1)}
+                      onChange={(e) => {
+                        const p = setItemLevelOnly(b.x, b.y, Number(e.target.value), layout);
+                        updateBox(b.id, p);
+                      }}
                     />
                   </td>
                   <td>

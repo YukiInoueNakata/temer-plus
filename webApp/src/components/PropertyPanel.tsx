@@ -5,8 +5,9 @@
 import { useState, useEffect } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
 import type { Box, BoxType, TextAlign, VerticalAlign, SDSG } from '../types';
-import { BOX_TYPE_LABELS, FONT_OPTIONS, LEVEL_PX } from '../store/defaults';
+import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
+import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
 
 export function PropertyPanel() {
   const visible = useTEMStore((s) => s.view.propertyPanelVisible);
@@ -125,6 +126,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
   const renameBoxId = useTEMStore((s) => s.renameBoxId);
   const changeBoxType = useTEMStore((s) => s.changeBoxType);
   const levelStep = useTEMStore((s) => s.doc.settings.levelStep);
+  const layout = useTEMStore((s) => s.doc.settings.layout);
 
   const isMulti = boxes.length > 1;
   const first = boxes[0];
@@ -231,16 +233,22 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             <input
               type="number"
               step={levelStep}
-              value={(first.x / LEVEL_PX).toFixed(1)}
-              onChange={(e) => updateBox(first.id, { x: Number(e.target.value) * LEVEL_PX })}
-              title="Time_Level"
+              value={xyToTimeLevel(first.x, first.y, layout).toFixed(1)}
+              onChange={(e) => {
+                const newPos = setTimeLevelOnly(first.x, first.y, Number(e.target.value), layout);
+                updateBox(first.id, newPos);
+              }}
+              title={layout === 'horizontal' ? 'Time_Level (→+)' : 'Time_Level (↓+)'}
             />
             <input
               type="number"
               step={levelStep}
-              value={(first.y / LEVEL_PX).toFixed(1)}
-              onChange={(e) => updateBox(first.id, { y: Number(e.target.value) * LEVEL_PX })}
-              title="Item_Level"
+              value={xyToItemLevel(first.x, first.y, layout).toFixed(1)}
+              onChange={(e) => {
+                const newPos = setItemLevelOnly(first.x, first.y, Number(e.target.value), layout);
+                updateBox(first.id, newPos);
+              }}
+              title={layout === 'horizontal' ? 'Item_Level (↑+)' : 'Item_Level (→+)'}
             />
           </div>
         </div>
