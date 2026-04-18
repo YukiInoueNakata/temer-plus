@@ -7,6 +7,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
 import type { BoxType } from '../types';
 import { BOX_TYPE_LABELS, LEVEL_PX } from '../store/defaults';
+import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 
 type DataTab = 'box' | 'line' | 'sdsg';
 type SortField = 'id' | 'type' | 'label' | 'timeLevel' | 'itemLevel';
@@ -137,6 +138,7 @@ function BoxTable() {
   const addBox = useTEMStore((s) => s.addBox);
   const removeBoxes = useTEMStore((s) => s.removeBoxes);
   const renameBoxId = useTEMStore((s) => s.renameBoxId);
+  const changeBoxType = useTEMStore((s) => s.changeBoxType);
   const [sortField, setSortField] = useState<SortField>('timeLevel');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState('');
@@ -249,8 +251,12 @@ function BoxTable() {
                     />
                   </td>
                   <td>
-                    <select value={b.type} onChange={(e) => updateBox(b.id, { type: e.target.value as BoxType })}>
-                      {(['normal', 'BFP', 'EFP', 'P-EFP', 'OPP', 'annotation'] as const).map((t) => (
+                    <select
+                      value={b.type}
+                      onChange={(e) => changeBoxType(b.id, e.target.value as BoxType)}
+                      title="変更するとIDも自動更新"
+                    >
+                      {SELECTABLE_BOX_TYPES.map((t) => (
                         <option key={t} value={t}>{BOX_TYPE_LABELS[t].shortJa}</option>
                       ))}
                     </select>

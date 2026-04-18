@@ -5,6 +5,7 @@
 import { useTEMStore, useActiveSheet } from '../store/store';
 import type { Box, BoxType, TextAlign, VerticalAlign, SDSG } from '../types';
 import { BOX_TYPE_LABELS, FONT_OPTIONS, LEVEL_PX } from '../store/defaults';
+import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 
 export function PropertyPanel() {
   const visible = useTEMStore((s) => s.view.propertyPanelVisible);
@@ -93,6 +94,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
   const updateBoxes = useTEMStore((s) => s.updateBoxes);
   const removeBoxes = useTEMStore((s) => s.removeBoxes);
   const renameBoxId = useTEMStore((s) => s.renameBoxId);
+  const changeBoxType = useTEMStore((s) => s.changeBoxType);
 
   const isMulti = boxes.length > 1;
   const first = boxes[0];
@@ -160,13 +162,22 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
       )}
 
       <div className="prop-row">
-        <label>種別</label>
+        <label>種別{!isMulti && <span style={{ fontSize: '0.85em', color: '#888', marginLeft: 6 }}>（変更時にID自動更新）</span>}</label>
         <select
           value={commonType ?? ''}
-          onChange={(e) => updateBoxes(ids, { type: e.target.value as BoxType })}
+          onChange={(e) => {
+            const newType = e.target.value as BoxType;
+            if (!isMulti) {
+              // 単一選択: ID も自動更新
+              changeBoxType(first.id, newType);
+            } else {
+              // 複数選択: 型のみ一括変更（IDは各自の接頭辞ルールに違反する可能性あり、警告省略）
+              ids.forEach((id) => changeBoxType(id, newType));
+            }
+          }}
         >
           {commonType === undefined && <option value="">（混在）</option>}
-          {(['normal', 'BFP', 'EFP', 'P-EFP', 'OPP', 'annotation'] as const).map((t) => (
+          {SELECTABLE_BOX_TYPES.map((t) => (
             <option key={t} value={t}>{BOX_TYPE_LABELS[t].ja}</option>
           ))}
         </select>

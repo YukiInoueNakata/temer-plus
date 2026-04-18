@@ -104,6 +104,9 @@ interface Actions {
   // ID rename
   renameBoxId: (oldId: string, newId: string) => boolean;
 
+  // 型変更 + ID自動更新（新しい型の接頭辞で自動採番、参照も追従）
+  changeBoxType: (boxId: string, newType: string) => void;
+
   // Sequential line creation
   addSequentialLines: (boxIds: string[], type?: 'RLine' | 'XLine') => void;
 
@@ -898,6 +901,46 @@ export const useTEMStore = create<Store>()(
               }
             });
           }),
+          dirty: true,
+        }));
+      },
+
+      // --- 型変更 + ID自動更新 ---
+      changeBoxType: (boxId, newType) => {
+        const state = get();
+        const sheet = state.doc.sheets.find((s) => s.id === state.doc.activeSheetId);
+        if (!sheet) return;
+        const box = sheet.boxes.find((b) => b.id === boxId);
+        if (!box) return;
+        const oldType = box.type;
+        if (oldType === newType) return;
+
+        // 新しい型の接頭辞で新ID生成（自分自身を除く他のIDとの衝突を回避）
+        const otherIds = sheet.boxes.filter((b) => b.id !== boxId).map((b) => b.id);
+        const newId = genBoxIdByType(newType, otherIds);
+
+        // 1. 型変更 + 2. ID変更 + 3. 参照の一括更新
+        set((s) => ({
+          doc: produce(s.doc, (d) => {
+            d.sheets.forEach((sh) => {
+              sh.boxes.forEach((b) => {
+                if (b.id === boxId) {
+                  b.type = newType as Box['type'];
+                  b.id = newId;
+                }
+              });
+              sh.lines.forEach((l) => {
+                if (l.from === boxId) l.from = newId;
+                if (l.to === boxId) l.to = newId;
+              });
+              sh.sdsg.forEach((sg) => { if (sg.attachedTo === boxId) sg.attachedTo = newId; });
+              sh.comments.forEach((c) => { if (c.targetId === boxId) c.targetId = newId; });
+            });
+            d.metadata.modifiedAt = new Date().toISOString();
+          }),
+          selection: s.selection.boxIds.includes(boxId)
+            ? { ...s.selection, boxIds: s.selection.boxIds.map((id) => (id === boxId ? newId : id)) }
+            : s.selection,
           dirty: true,
         }));
       },

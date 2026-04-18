@@ -8,8 +8,9 @@
 
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { Box } from '../../types';
-import { BOX_RENDER_SPECS, BOX_TYPE_LABELS } from '../../store/defaults';
-import { useTEMStore } from '../../store/store';
+import { BOX_RENDER_SPECS } from '../../store/defaults';
+import { useTEMStore, useActiveSheet } from '../../store/store';
+import { computeBoxDisplay } from '../../utils/typeDisplay';
 
 export interface BoxNodeData extends Pick<
   Box,
@@ -22,6 +23,7 @@ export interface BoxNodeData extends Pick<
 export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
   const showBoxIds = useTEMStore((s) => s.view.showBoxIds);
   const layout = useTEMStore((s) => s.doc.settings.layout);
+  const sheet = useActiveSheet();
   const spec = BOX_RENDER_SPECS[data.type] ?? BOX_RENDER_SPECS.normal;
   const shape = data.shape ?? spec.defaultShape;
   const isTextVertical = data.textOrientation === 'vertical';
@@ -105,10 +107,17 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
 
   // ==========================================================================
   // 種別タグ: Layout連動（横型=上辺中央、縦型=左辺中央）、太字、目立つ
+  // 同種別が複数ある場合は自動的に連番/オーディナル（例: "2nd EFP", "OPP-2"）
   // ==========================================================================
-  const typeShort = BOX_TYPE_LABELS[data.type]?.shortJa ?? data.type;
-  const numberSuffix = data.number ? `-${data.number}` : '';
-  const typeTagText = data.type === 'normal' ? '' : `${typeShort}${numberSuffix}`;
+  const currentBoxForDisplay: Box = {
+    id: data.id,
+    type: data.type,
+    label: data.label,
+    x: 0, y: 0, width: data.width, height: data.height,
+  };
+  const typeTagText = sheet
+    ? computeBoxDisplay(sheet.boxes, sheet.boxes.find((b) => b.id === data.id) ?? currentBoxForDisplay, layout)
+    : '';
 
   // 縦型レイアウトでは縦書き、背景/枠なし
   const typeTagStyle: React.CSSProperties = isVerticalLayout

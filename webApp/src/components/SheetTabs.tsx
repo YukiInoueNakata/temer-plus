@@ -1,8 +1,16 @@
 // ============================================================================
-// SheetTabs - Excel-style bottom tabs for multiple TEM figures
+// SheetTabs - Excel風シートタブ（右クリックメニュー付き）
 // ============================================================================
 
+import { useState, useEffect, useRef } from 'react';
 import { useTEMStore } from '../store/store';
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  sheetId: string;
+  sheetName: string;
+}
 
 export function SheetTabs() {
   const sheets = useTEMStore((s) => s.doc.sheets);
@@ -12,6 +20,7 @@ export function SheetTabs() {
   const removeSheet = useTEMStore((s) => s.removeSheet);
   const renameSheet = useTEMStore((s) => s.renameSheet);
   const duplicateSheet = useTEMStore((s) => s.duplicateSheet);
+  const [menu, setMenu] = useState<ContextMenuState | null>(null);
 
   const handleRename = (id: string, currentName: string) => {
     const newName = prompt('シート名を変更', currentName);
@@ -23,31 +32,120 @@ export function SheetTabs() {
       alert('最後のシートは削除できません');
       return;
     }
-    if (confirm('このシートを削除しますか?')) removeSheet(id);
+    if (confirm('このシートを削除しますか？（取り消せません）')) removeSheet(id);
   };
 
   const handleContextMenu = (e: React.MouseEvent, id: string, name: string) => {
     e.preventDefault();
-    const action = prompt('アクション: rename / duplicate / delete', 'rename');
-    if (action === 'rename') handleRename(id, name);
-    else if (action === 'duplicate') duplicateSheet(id);
-    else if (action === 'delete') handleDelete(id);
+    setMenu({ x: e.clientX, y: e.clientY, sheetId: id, sheetName: name });
   };
 
   return (
-    <div className="sheet-tabs">
-      {sheets.map((sheet) => (
-        <div
-          key={sheet.id}
-          className={`sheet-tab ${sheet.id === activeSheetId ? 'active' : ''}`}
-          onClick={() => setActive(sheet.id)}
-          onDoubleClick={() => handleRename(sheet.id, sheet.name)}
-          onContextMenu={(e) => handleContextMenu(e, sheet.id, sheet.name)}
-        >
-          {sheet.name}
-        </div>
-      ))}
-      <button className="sheet-add" onClick={() => addSheet()}>+</button>
+    <>
+      <div className="sheet-tabs">
+        {sheets.map((sheet) => (
+          <div
+            key={sheet.id}
+            className={`sheet-tab ${sheet.id === activeSheetId ? 'active' : ''}`}
+            onClick={() => setActive(sheet.id)}
+            onDoubleClick={() => handleRename(sheet.id, sheet.name)}
+            onContextMenu={(e) => handleContextMenu(e, sheet.id, sheet.name)}
+            title="右クリックで操作メニュー"
+          >
+            {sheet.name}
+          </div>
+        ))}
+        <button className="sheet-add" onClick={() => addSheet()} title="新規シート">+</button>
+      </div>
+
+      {menu && (
+        <SheetContextMenu
+          menu={menu}
+          onClose={() => setMenu(null)}
+          actions={{
+            rename: () => handleRename(menu.sheetId, menu.sheetName),
+            duplicate: () => duplicateSheet(menu.sheetId),
+            delete: () => handleDelete(menu.sheetId),
+            moveLeft: () => moveSheet(menu.sheetId, -1),
+            moveRight: () => moveSheet(menu.sheetId, 1),
+          }}
+          canDelete={sheets.length > 1}
+        />
+      )}
+    </>
+  );
+
+  function moveSheet(id: string, delta: number) {
+    const state = useTEMStore.getState();
+    const arr = [...state.doc.sheets];
+    const idx = arr.findIndex((s) => s.id === id);
+    const newIdx = idx + delta;
+    if (idx < 0 || newIdx < 0 || newIdx >= arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    state.reorderSheets(arr.map((s) => s.id));
+  }
+}
+
+function SheetContextMenu({
+  menu,
+  onClose,
+  actions,
+  canDelete,
+}: {
+  menu: ContextMenuState;
+  onClose: () => void;
+  actions: {
+    rename: () => void;
+    duplicate: () => void;
+    delete: () => void;
+    moveLeft: () => void;
+    moveRight: () => void;
+  };
+  canDelete: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    setTimeout(() => {
+      window.addEventListener('mousedown', onDoc);
+      window.addEventListener('keydown', onEsc);
+    }, 0);
+    return () => {
+      window.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('keydown', onEsc);
+    };
+  }, [onClose]);
+
+  const run = (fn: () => void) => {
+    fn();
+    onClose();
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="context-menu"
+      style={{ position: 'fixed', left: menu.x, top: menu.y, zIndex: 2000 }}
+    >
+      <div className="context-menu-header">{menu.sheetName}</div>
+      <button className="context-menu-item" onClick={() => run(actions.rename)}>名前を変更</button>
+      <button className="context-menu-item" onClick={() => run(actions.duplicate)}>複製</button>
+      <div className="context-menu-separator" />
+      <button className="context-menu-item" onClick={() => run(actions.moveLeft)}>← 左へ移動</button>
+      <button className="context-menu-item" onClick={() => run(actions.moveRight)}>→ 右へ移動</button>
+      <div className="context-menu-separator" />
+      <button
+        className="context-menu-item danger"
+        onClick={() => run(actions.delete)}
+        disabled={!canDelete}
+        title={!canDelete ? '最後のシートは削除できません' : ''}
+      >
+        削除
+      </button>
     </div>
   );
 }
