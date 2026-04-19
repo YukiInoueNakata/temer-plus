@@ -30,6 +30,7 @@ import { LegendOverlay } from './LegendOverlay';
 import { PeriodLabelsOverlay } from './PeriodLabelsOverlay';
 import { renderVerticalAwareText } from '../utils/verticalText';
 import { computeContentBounds } from '../utils/fitBounds';
+import { useTEMView } from '../context/TEMViewContext';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
 const edgeTypes = { line: LineEdge };
@@ -592,10 +593,11 @@ function VerticalScrollbar() {
 // TimeArrow Overlay - 非可逆的時間矢印をキャンバス上に描画
 // ============================================================================
 
-function TimeArrowOverlay() {
-  const sheet = useActiveSheet();
-  const layout = useTEMStore((s) => s.doc.settings.layout);
-  const settings = useTEMStore((s) => s.doc.settings.timeArrow);
+export function TimeArrowOverlay() {
+  const view = useTEMView();
+  const sheet = view.sheet;
+  const layout = view.settings.layout;
+  const settings = view.settings.timeArrow;
   const transform = useReactFlowStore((s) => s.transform);
 
   if (!sheet || !settings.alwaysVisible) return null;

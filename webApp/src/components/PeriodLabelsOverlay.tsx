@@ -5,15 +5,16 @@
 // ============================================================================
 
 import { useStore as useReactFlowStore } from 'reactflow';
-import { useTEMStore, useActiveSheet } from '../store/store';
 import { computePeriodLabels } from '../utils/periodLabels';
 import { renderVerticalAwareText } from '../utils/verticalText';
+import { useTEMView } from '../context/TEMViewContext';
 
 export function PeriodLabelsOverlay() {
-  const sheet = useActiveSheet();
-  const layout = useTEMStore((s) => s.doc.settings.layout);
-  const settings = useTEMStore((s) => s.doc.settings.periodLabels);
-  const timeArrowSettings = useTEMStore((s) => s.doc.settings.timeArrow);
+  const view = useTEMView();
+  const sheet = view.sheet;
+  const layout = view.settings.layout;
+  const settings = view.settings.periodLabels;
+  const timeArrowSettings = view.settings.timeArrow;
   const transform = useReactFlowStore((s) => s.transform);
 
   if (!sheet || !settings.alwaysVisible) return null;

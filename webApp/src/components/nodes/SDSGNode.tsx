@@ -5,8 +5,8 @@
 
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { SDSG } from '../../types';
-import { useTEMStore } from '../../store/store';
 import { renderVerticalAwareText } from '../../utils/verticalText';
+import { useTEMView } from '../../context/TEMViewContext';
 
 export interface SDSGNodeData extends Pick<
   SDSG,
@@ -19,8 +19,9 @@ export interface SDSGNodeData extends Pick<
 }
 
 export function SDSGNode({ data, selected }: NodeProps<SDSGNodeData>) {
-  const layout = useTEMStore((s) => s.doc.settings.layout);
-  const typeLabelVisibility = useTEMStore((s) => s.doc.settings.typeLabelVisibility);
+  const view = useTEMView();
+  const layout = view.settings.layout;
+  const typeLabelVisibility = view.settings.typeLabelVisibility;
   const width = data.width ?? 70;
   const height = data.height ?? 40;
   const isSD = data.type === 'SD';

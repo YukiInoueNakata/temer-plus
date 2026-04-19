@@ -10,7 +10,7 @@
 // ============================================================================
 
 import { BaseEdge, getStraightPath, type EdgeProps } from 'reactflow';
-import { useTEMStore } from '../../store/store';
+import { useTEMView } from '../../context/TEMViewContext';
 
 export interface LineEdgeData {
   startMargin?: number;
@@ -31,7 +31,8 @@ export function LineEdge({
   markerEnd,
   style,
 }: EdgeProps<LineEdgeData>) {
-  const layout = useTEMStore((s) => s.doc.settings.layout);
+  const view = useTEMView();
+  const layout = view.settings.layout;
   const isH = layout === 'horizontal';
 
   const startMargin = data?.startMargin ?? 0;

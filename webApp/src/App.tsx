@@ -8,7 +8,7 @@ import { StatusBar } from './components/StatusBar';
 import { SettingsDialog } from './components/SettingsDialog';
 import { InsertBetweenDialog } from './components/InsertBetweenDialog';
 import { PeriodLabelsDialog } from './components/PeriodLabelsDialog';
-import { ExportDialog } from './components/ExportDialog';
+import { ExportPreviewDialog } from './components/ExportPreviewDialog';
 import { PaperReportDialog } from './components/PaperReportDialog';
 import { useTEMStore } from './store/store';
 import {
@@ -229,7 +229,7 @@ export default function App() {
       />
       <InsertBetweenDialog open={insertBetweenOpen} onClose={() => setInsertBetweenOpen(false)} />
       <PeriodLabelsDialog open={periodLabelsOpen} onClose={() => setPeriodLabelsOpen(false)} />
-      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
+      <ExportPreviewDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <PaperReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
     </div>
   );

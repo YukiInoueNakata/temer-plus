@@ -12,11 +12,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Handle, NodeResizer, Position, type NodeProps } from 'reactflow';
 import type { Box } from '../../types';
 import { BOX_RENDER_SPECS } from '../../store/defaults';
-import { useTEMStore, useActiveSheet } from '../../store/store';
 import { computeBoxDisplay } from '../../utils/typeDisplay';
 import { renderVerticalAwareText } from '../../utils/verticalText';
 import { renderRichText } from '../../utils/richText';
 import { computeAutoFitSize } from '../../utils/boxFit';
+import { useTEMView } from '../../context/TEMViewContext';
 
 export interface BoxNodeData extends Pick<
   Box,
@@ -31,12 +31,14 @@ export interface BoxNodeData extends Pick<
 > {}
 
 export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) {
-  const showBoxIds = useTEMStore((s) => s.view.showBoxIds);
-  const layout = useTEMStore((s) => s.doc.settings.layout);
-  const typeLabelVisibility = useTEMStore((s) => s.doc.settings.typeLabelVisibility);
-  const defaultMode = useTEMStore((s) => s.doc.settings.defaultAutoFitBoxMode);
-  const updateBox = useTEMStore((s) => s.updateBox);
-  const sheet = useActiveSheet();
+  const view = useTEMView();
+  const showBoxIds = view.view.showBoxIds;
+  const layout = view.settings.layout;
+  const typeLabelVisibility = view.settings.typeLabelVisibility;
+  const defaultMode = view.settings.defaultAutoFitBoxMode;
+  const updateBox = view.updateBox;
+  const sheet = view.sheet;
+  const isPreview = view.isPreview;
   const spec = BOX_RENDER_SPECS[data.type] ?? BOX_RENDER_SPECS.normal;
   const shape = data.shape ?? spec.defaultShape;
   const isTextVertical = data.textOrientation === 'vertical';
@@ -285,7 +287,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   return (
     <div style={{ position: 'relative' }}>
       <NodeResizer
-        isVisible={!!selected && !editing}
+        isVisible={!!selected && !editing && !isPreview}
         minWidth={30}
         minHeight={20}
         handleStyle={{ width: 8, height: 8, borderRadius: 2, background: '#2684ff', border: '1px solid #fff' }}
@@ -295,6 +297,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
       <div
         style={{ ...baseStyle, ...borderStyle }}
         onDoubleClick={(e) => {
+          if (isPreview) return;
           e.stopPropagation();
           setEditing(true);
         }}

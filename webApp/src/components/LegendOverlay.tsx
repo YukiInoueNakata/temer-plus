@@ -8,14 +8,17 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useStore as useReactFlowStore } from 'reactflow';
-import { useTEMStore, useActiveSheet } from '../store/store';
+import { useTEMStore } from '../store/store';
 import { computeLegendItems, type LegendItem } from '../utils/legend';
 import { BOX_RENDER_SPECS } from '../store/defaults';
+import { useTEMView } from '../context/TEMViewContext';
 
 export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void }) {
-  const sheet = useActiveSheet();
-  const legend = useTEMStore((s) => s.doc.settings.legend);
-  const layout = useTEMStore((s) => s.doc.settings.layout);
+  const view = useTEMView();
+  const sheet = view.sheet;
+  const legend = view.settings.legend;
+  const layout = view.settings.layout;
+  const isPreview = view.isPreview;
   const transform = useReactFlowStore((s) => s.transform);
   const [dragging, setDragging] = useState(false);
   const startRef = useRef({ mouseX: 0, mouseY: 0, legendX: 0, legendY: 0 });
@@ -23,6 +26,7 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
   useEffect(() => {
     if (!dragging) return;
     const onMove = (e: MouseEvent) => {
+      if (isPreview) return; // プレビューではドラッグ無効
       const dx = (e.clientX - startRef.current.mouseX) / transform[2];
       const dy = (e.clientY - startRef.current.mouseY) / transform[2];
       const newX = startRef.current.legendX + dx;
@@ -47,7 +51,7 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [dragging, transform]);
+  }, [dragging, transform, isPreview]);
 
   if (!sheet || !legend.alwaysVisible) return null;
   const items = computeLegendItems(sheet, legend);
