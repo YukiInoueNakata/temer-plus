@@ -385,8 +385,11 @@ export const useTEMStore = create<Store>()(
                 vertical: b.textOrientation === 'vertical',
                 padding: 8,
               });
+              // 左辺中点を固定: x は不変、y は中心維持
+              const cy = b.y + b.height / 2;
               b.width = Math.max(20, size.width);
               b.height = Math.max(20, size.height);
+              b.y = cy - b.height / 2;
             });
           }),
           dirty: true,
@@ -411,8 +414,13 @@ export const useTEMStore = create<Store>()(
               : basis === 'min' ? Math.min(...heights)
               : ordered[0].height;
             ordered.forEach((b) => {
+              // 左辺中点を固定: x 不変、高さ変更時は中心 y 維持
+              const cy = b.y + b.height / 2;
               if (mode === 'width' || mode === 'both') b.width = targetW;
-              if (mode === 'height' || mode === 'both') b.height = targetH;
+              if (mode === 'height' || mode === 'both') {
+                b.height = targetH;
+                b.y = cy - b.height / 2;
+              }
             });
           }),
           dirty: true,

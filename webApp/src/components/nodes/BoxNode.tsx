@@ -106,7 +106,17 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
       }
     );
     if (next.width !== data.width || next.height !== data.height) {
-      updateBox(nodeId, { width: next.width, height: next.height });
+      // 左辺中点を固定: x 不変、height 変化時は y を調整して中心維持
+      const thisBox = sheet?.boxes.find((b) => b.id === nodeId);
+      const cy = thisBox ? thisBox.y + thisBox.height / 2 : null;
+      const patch: Partial<Box> = {
+        width: next.width,
+        height: next.height,
+      };
+      if (cy != null && next.height !== data.height) {
+        patch.y = cy - next.height / 2;
+      }
+      updateBox(nodeId, patch);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.label, fontSize, mode, isTextVertical, data.width, data.height, editing]);
