@@ -1,347 +1,1261 @@
 // ============================================================================
-// PPTX export - 文献標準準拠レンダリング
-// 注: PptxGenJS v3.12 は cmpd 属性未対応のため、二重線は矩形重ね描きで代替
+// PPTX export（刷新版）
+// - 横型レイアウト → 横型 PPTX（13.333 × 7.5 inch）
+// - 縦型レイアウト → 縦型 PPTX（7.5 × 13.333 inch）
+// - SDSG は rightArrow（ブロック矢印）を回転して描画
+// - 二重線 Box は altText "TEMER_DBL" を付けておき、出力後に XML ポストプロセス
+//   で <a:ln> に cmpd="dbl" を注入して本物の二重線に
+// - ExportDialog の scale(スケーリング有無) / offset(余白比) を反映
+// - 背景・グリッド・ルーラー等の PPTX 不要オプションは受け付けない
 // ============================================================================
 
 import PptxGenJS from 'pptxgenjs';
-import type { Box, Line, SDSG, Sheet, TimeArrowSettings, LegendSettings, LayoutDirection } from '../types';
+import JSZip from 'jszip';
+import type {
+  Box,
+  Sheet,
+  SDSG,
+  ProjectSettings,
+  LayoutDirection,
+  LegendSettings,
+  PeriodLabelSettings,
+  TimeArrowSettings,
+} from '../types';
 import { computeTimeArrow } from './timeArrow';
-import { computeLegendItems } from './legend';
+import { computePeriodLabels } from './periodLabels';
+import { computeLegendItems, type LegendItem } from './legend';
+import { computeContentBounds } from './fitBounds';
+import { BOX_RENDER_SPECS } from '../store/defaults';
+import { computeBoxDisplay } from './typeDisplay';
 
-const EMU_PER_PX = 1 / 96;
-const pxToInch = (px: number) => px * EMU_PER_PX;
-
-function lineDashType(type: Line['type']): 'solid' | 'dashDot' {
-  return type === 'XLine' ? 'dashDot' : 'solid';
-}
+// ----------------------------------------------------------------------------
+// Public API
+// ----------------------------------------------------------------------------
 
 export interface PPTXExportOptions {
   filename?: string;
-  sheet?: Sheet;
-  layout?: LayoutDirection;
-  timeArrowSettings?: TimeArrowSettings;
-  includeTimeArrow?: boolean;
-  legendSettings?: LegendSettings;
-  includeLegend?: boolean;
+  sheet: Sheet;
+  settings: ProjectSettings;
+  scale?: boolean;  // 既定 true
+  offset?: number;  // 既定 0.1
 }
 
-export async function exportToPPTX(
-  boxes: Box[],
-  lines: Line[],
-  optionsOrFilename: PPTXExportOptions | string = 'TEMer.pptx',
-) {
-  const opts: PPTXExportOptions = typeof optionsOrFilename === 'string'
-    ? { filename: optionsOrFilename }
-    : optionsOrFilename;
+const PX_PER_INCH = 96;
+const SLIDE_LONG = 13.333;
+const SLIDE_SHORT = 7.5;
+// 二重線Boxを識別するためのマーカー色（視覚的にはほぼ黒、XML上でユニーク）
+// ポストプロセスで <a:srgbClr val="..."/> を検索して cmpd="dbl" を注入、色は通常の黒へ復元する
+const DBL_MARKER_COLOR = '2E2D2D';
+const DBL_REAL_COLOR = '222222';
+
+interface Transform {
+  toX: (worldX: number) => number;  // world px → slide inch
+  toY: (worldY: number) => number;
+  toLen: (worldPx: number) => number;
+  scale: number;
+}
+
+export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
+  if (!opts || !opts.sheet || !opts.settings) {
+    throw new Error('exportToPPTX: options.sheet と options.settings が必須です');
+  }
   const filename = opts.filename ?? 'TEMer.pptx';
+  const scale = opts.scale ?? true;
+  const offsetRatio = opts.offset ?? 0.1;
+  const layout = opts.settings.layout;
+  const isH = layout === 'horizontal';
+
+  const slideW = isH ? SLIDE_LONG : SLIDE_SHORT;
+  const slideH = isH ? SLIDE_SHORT : SLIDE_LONG;
+  const slideWpx = slideW * PX_PER_INCH;
+  const slideHpx = slideH * PX_PER_INCH;
+
+  const bbox = computeContentBounds(opts.sheet, layout, opts.settings)
+    ?? { x: 0, y: 0, width: slideWpx, height: slideHpx };
+
+  const t = buildTransform(bbox, slideWpx, slideHpx, scale, offsetRatio);
 
   const pres = new PptxGenJS();
-  pres.defineLayout({ name: 'TEMER', width: 13.333, height: 7.5 });
+  pres.defineLayout({ name: 'TEMER', width: slideW, height: slideH });
   pres.layout = 'TEMER';
-
   const slide = pres.addSlide();
-  slide.background = { color: 'FFFFFF' };
+  // 背景は未設定
 
-  // 非可逆的時間矢印（オプション）
-  if (opts.includeTimeArrow && opts.sheet && opts.layout && opts.timeArrowSettings) {
-    const arrow = computeTimeArrow(opts.sheet, opts.layout, opts.timeArrowSettings);
-    if (arrow) {
-      const dx = arrow.endX - arrow.startX;
-      const dy = arrow.endY - arrow.startY;
-      slide.addShape(pres.ShapeType.line, {
-        x: pxToInch(Math.min(arrow.startX, arrow.endX)),
-        y: pxToInch(Math.min(arrow.startY, arrow.endY)),
-        w: pxToInch(Math.max(1, Math.abs(dx))),
-        h: pxToInch(Math.max(1, Math.abs(dy))),
-        line: {
-          color: '222222',
-          width: arrow.strokeWidth,
-          endArrowType: 'triangle',
-        },
-        flipH: dx < 0,
-        flipV: dy < 0,
+  // 描画（背面 → 前面の順）
+  drawTimeArrow(pres, slide, opts.sheet, layout, opts.settings.timeArrow, t);
+  drawPeriodLabels(pres, slide, opts.sheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t);
+  drawLines(pres, slide, opts.sheet, layout, t);
+  drawSDSGs(pres, slide, opts.sheet, layout, opts.settings, t);
+  drawBoxes(pres, slide, opts.sheet, layout, opts.settings, t);
+  drawLegend(pres, slide, opts.sheet, layout, opts.settings.legend, t);
+
+  // ArrayBuffer として書き出し
+  const raw = (await pres.write({ outputType: 'arraybuffer' })) as ArrayBuffer;
+  // 二重線ポストプロセス
+  const fixed = await postprocessDoubleLines(raw);
+  downloadArrayBuffer(fixed, filename);
+}
+
+// ----------------------------------------------------------------------------
+// Transform
+// ----------------------------------------------------------------------------
+
+function buildTransform(
+  bbox: { x: number; y: number; width: number; height: number },
+  slideWpx: number,
+  slideHpx: number,
+  scale: boolean,
+  offsetRatio: number,
+): Transform {
+  let sc = 1;
+  let offX = 0;
+  let offY = 0;
+  if (scale) {
+    const cw = bbox.width * (1 + offsetRatio * 2);
+    const ch = bbox.height * (1 + offsetRatio * 2);
+    sc = Math.min(slideWpx / Math.max(1, cw), slideHpx / Math.max(1, ch));
+    const drawnW = bbox.width * sc;
+    const drawnH = bbox.height * sc;
+    offX = (slideWpx - drawnW) / 2 - bbox.x * sc;
+    offY = (slideHpx - drawnH) / 2 - bbox.y * sc;
+  } else {
+    sc = 1;
+    offX = (slideWpx - bbox.width) / 2 - bbox.x;
+    offY = (slideHpx - bbox.height) / 2 - bbox.y;
+  }
+  return {
+    toX: (wx) => (wx * sc + offX) / PX_PER_INCH,
+    toY: (wy) => (wy * sc + offY) / PX_PER_INCH,
+    toLen: (p) => (p * sc) / PX_PER_INCH,
+    scale: sc,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// 共通ヘルパ
+// ----------------------------------------------------------------------------
+
+function rgbToHex(color: string): string {
+  if (!color) return '222222';
+  const c = color.trim();
+  if (c.startsWith('#')) return c.slice(1).toUpperCase();
+  // rgb(r,g,b)
+  const m = c.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (m) {
+    const r = Number(m[1]).toString(16).padStart(2, '0');
+    const g = Number(m[2]).toString(16).padStart(2, '0');
+    const b = Number(m[3]).toString(16).padStart(2, '0');
+    return (r + g + b).toUpperCase();
+  }
+  return '222222';
+}
+
+function toPptAlign(a: 'left' | 'center' | 'right'): 'left' | 'center' | 'right' {
+  return a;
+}
+function toPptVAlign(a: 'top' | 'middle' | 'bottom'): 'top' | 'middle' | 'bottom' {
+  return a;
+}
+
+function fontSizeScaled(base: number, t: Transform): number {
+  // 文字が小さくなりすぎない下限を設ける
+  return Math.max(6, base * Math.max(0.4, t.scale));
+}
+
+// ----------------------------------------------------------------------------
+// Box
+// ----------------------------------------------------------------------------
+
+function drawBoxes(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  sheet: Sheet,
+  layout: LayoutDirection,
+  settings: ProjectSettings,
+  t: Transform,
+) {
+  for (const b of sheet.boxes) {
+    renderBox(pres, slide, b, layout, settings, sheet, t);
+  }
+}
+
+function renderBox(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  b: Box,
+  layout: LayoutDirection,
+  settings: ProjectSettings,
+  sheet: Sheet,
+  t: Transform,
+) {
+  const x = t.toX(b.x);
+  const y = t.toY(b.y);
+  const w = t.toLen(b.width);
+  const h = t.toLen(b.height);
+  const spec = BOX_RENDER_SPECS[b.type] ?? BOX_RENDER_SPECS.normal;
+  const borderColor = rgbToHex(b.style?.borderColor ?? '#222');
+  const fill = { color: rgbToHex(b.style?.backgroundColor ?? '#ffffff') };
+  const isEllipse = (b.shape ?? spec.defaultShape) === 'ellipse';
+  const shapeType = isEllipse ? pres.ShapeType.ellipse : pres.ShapeType.rect;
+
+  switch (b.type) {
+    case 'EFP':
+    case '2nd-EFP':
+      // 二重線: マーカー色で識別、後段 XML で cmpd="dbl" を注入し色を戻す
+      slide.addShape(shapeType, {
+        x, y, w, h,
+        fill,
+        line: { color: DBL_MARKER_COLOR, width: 2.5 },
       });
-      slide.addText(arrow.label, {
-        x: pxToInch(arrow.labelX - 100),
-        y: pxToInch(arrow.labelY - arrow.fontSize),
-        w: pxToInch(200),
-        h: pxToInch(arrow.fontSize + 4),
-        fontSize: arrow.fontSize,
-        align: 'center',
-        valign: 'middle',
-        color: '222222',
+      break;
+    case 'OPP':
+      slide.addShape(shapeType, {
+        x, y, w, h,
+        fill,
+        line: { color: borderColor, width: 3.0 },
       });
+      break;
+    case 'P-EFP':
+    case 'P-2nd-EFP': {
+      // 二重点線: 外枠+内枠を両方 dash
+      slide.addShape(shapeType, {
+        x, y, w, h,
+        fill,
+        line: { color: borderColor, width: 1.5, dashType: 'dash' },
+      });
+      const inset = Math.max(0.02, 0.03 * Math.min(w, h));
+      slide.addShape(shapeType, {
+        x: x + inset,
+        y: y + inset,
+        w: Math.max(0.01, w - inset * 2),
+        h: Math.max(0.01, h - inset * 2),
+        fill: { color: 'FFFFFF', transparency: 100 },
+        line: { color: borderColor, width: 1.5, dashType: 'dash' },
+      });
+      break;
     }
-
-    // SDSG五角形も描画
-    if (opts.sheet.sdsg.length > 0) {
-      for (const sg of opts.sheet.sdsg) {
-        const attached = opts.sheet.boxes.find((b) => b.id === sg.attachedTo);
-        if (!attached) continue;
-        const isH = opts.layout === 'horizontal';
-        const sgX = attached.x + (isH ? (sg.timeOffset ?? 0) : (sg.itemOffset ?? 0));
-        const sgY = attached.y + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
-        const sgW = sg.width ?? 70;
-        const sgH = sg.height ?? 40;
-        await renderSDSG(pres, slide, sg, sgX, sgY, sgW, sgH, opts.layout);
-      }
-    }
+    case 'annotation':
+      slide.addShape(shapeType, {
+        x, y, w, h,
+        fill,
+        line: { color: borderColor, width: 1.0, dashType: 'sysDot' },
+      });
+      break;
+    case 'BFP':
+      slide.addShape(shapeType, {
+        x, y, w, h,
+        fill,
+        line: { color: borderColor, width: 2.0 },
+      });
+      break;
+    default:
+      slide.addShape(shapeType, {
+        x, y, w, h,
+        fill,
+        line: { color: borderColor, width: 1.5 },
+      });
   }
 
-  // 凡例を描画
-  if (opts.includeLegend && opts.sheet && opts.legendSettings) {
-    renderLegend(pres, slide, opts.sheet, opts.legendSettings);
+  // 本文テキスト
+  const isTextVertical = b.textOrientation === 'vertical';
+  slide.addText(b.label, {
+    x, y, w, h,
+    align: toPptAlign((b.style?.textAlign ?? 'center') as 'left' | 'center' | 'right'),
+    valign: toPptVAlign((b.style?.verticalAlign ?? 'middle') as 'top' | 'middle' | 'bottom'),
+    fontSize: fontSizeScaled(b.style?.fontSize ?? settings.defaultFontSize, t),
+    bold: b.style?.bold,
+    italic: b.style?.italic,
+    underline: b.style?.underline ? { style: 'sng' } : undefined,
+    color: rgbToHex(b.style?.color ?? '#222'),
+    fontFace: b.style?.fontFamily,
+    vert: isTextVertical ? 'eaVert' : undefined,
+    margin: 2,
+  });
+
+  // タイプラベル
+  drawBoxTypeLabel(slide, b, layout, settings, sheet, t);
+  // サブラベル
+  drawBoxSubLabel(slide, b, layout, t);
+}
+
+function drawBoxTypeLabel(
+  slide: PptxGenJS.Slide,
+  b: Box,
+  layout: LayoutDirection,
+  settings: ProjectSettings,
+  sheet: Sheet,
+  t: Transform,
+) {
+  if (b.type === 'normal' || b.type === 'annotation') return;
+  const vis = settings.typeLabelVisibility;
+  if (vis && (vis as Record<string, boolean | undefined>)[b.type] === false) return;
+  const typeText = computeBoxDisplay(sheet.boxes, b, layout);
+  if (!typeText) return;
+
+  const isH = layout === 'horizontal';
+  const baseFS = b.typeLabelFontSize ?? 11;
+  const fs = fontSizeScaled(baseFS, t);
+  const bold = b.typeLabelBold !== false;
+  const italic = !!b.typeLabelItalic;
+  const fontFace = b.typeLabelFontFamily;
+
+  if (isH) {
+    // 横型: Box 上辺の外側中央
+    const wpx = Math.max(60, b.width);
+    const hpx = Math.max(14, baseFS * 1.8);
+    slide.addText(typeText, {
+      x: t.toX(b.x + b.width / 2 - wpx / 2),
+      y: t.toY(b.y - hpx - 4),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'bottom',
+      fontSize: fs,
+      bold,
+      italic,
+      fontFace,
+      color: '222222',
+      margin: 1,
+    });
+  } else {
+    // 縦型: Box 左辺の外側中央、縦書き
+    const wpx = Math.max(14, baseFS * 1.8);
+    const hpx = Math.max(60, b.height);
+    slide.addText(typeText, {
+      x: t.toX(b.x - wpx - 4),
+      y: t.toY(b.y + b.height / 2 - hpx / 2),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'middle',
+      fontSize: fs,
+      bold,
+      italic,
+      fontFace,
+      color: '222222',
+      vert: 'eaVert',
+      margin: 1,
+    });
   }
+}
 
-  for (const b of boxes) {
-    await renderBox(pres, slide, b);
+function drawBoxSubLabel(slide: PptxGenJS.Slide, b: Box, layout: LayoutDirection, t: Transform) {
+  const text = b.subLabel ?? b.participantId;
+  if (!text) return;
+  const isH = layout === 'horizontal';
+  const baseFS = b.subLabelFontSize ?? 10;
+  const fs = fontSizeScaled(baseFS, t);
+  const offX = b.subLabelOffsetX ?? 0;
+  const offY = b.subLabelOffsetY ?? 0;
+  if (isH) {
+    const wpx = Math.max(80, b.width);
+    const hpx = Math.max(14, baseFS * 1.6);
+    slide.addText(text, {
+      x: t.toX(b.x + b.width / 2 - wpx / 2 + offX),
+      y: t.toY(b.y + b.height + 6 + offY),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'top',
+      fontSize: fs,
+      color: '555555',
+      margin: 1,
+    });
+  } else {
+    const wpx = Math.max(14, baseFS * 1.6);
+    const hpx = Math.max(80, b.height);
+    slide.addText(text, {
+      x: t.toX(b.x + b.width + 6 + offX),
+      y: t.toY(b.y + b.height / 2 - hpx / 2 + offY),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'middle',
+      fontSize: fs,
+      color: '555555',
+      vert: 'eaVert',
+      margin: 1,
+    });
   }
+}
 
-  const byId = new Map(boxes.map((b) => [b.id, b]));
+// ----------------------------------------------------------------------------
+// Line
+// ----------------------------------------------------------------------------
 
-  for (const l of lines) {
+function drawLines(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  sheet: Sheet,
+  layout: LayoutDirection,
+  t: Transform,
+) {
+  const byId = new Map(sheet.boxes.map((b) => [b.id, b]));
+  const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
+  const isH = layout === 'horizontal';
+
+  for (const l of sheet.lines) {
     const from = byId.get(l.from);
     const to = byId.get(l.to);
     if (!from || !to) continue;
 
-    const x1 = from.x + from.width;
-    const y1 = from.y + from.height / 2;
-    const x2 = to.x;
-    const y2 = to.y + to.height / 2;
+    const connectsDashed = dashedEndpoints.has(from.type) || dashedEndpoints.has(to.type);
+    const shouldDash = l.type === 'XLine' || connectsDashed;
 
-    const x = Math.min(x1, x2);
-    const y = Math.min(y1, y2);
-    const w = Math.max(1, Math.abs(x2 - x1));
-    const h = Math.max(1, Math.abs(y2 - y1));
+    // キャンバスの既定ハンドル: 横型 左→右 / 縦型 上→下
+    const x1 = isH ? from.x + from.width : from.x + from.width / 2;
+    const y1 = isH ? from.y + from.height / 2 : from.y + from.height;
+    const x2 = isH ? to.x : to.x + to.width / 2;
+    const y2 = isH ? to.y + to.height / 2 : to.y;
+
+    // ユーザ座標のオフセットを world 座標(x,y)へ適用
+    // 横型: Time=+x, Item=-y
+    // 縦型: Time=+y, Item=+x
+    const sOffT = l.startOffsetTime ?? 0;
+    const eOffT = l.endOffsetTime ?? 0;
+    const sOffI = l.startOffsetItem ?? 0;
+    const eOffI = l.endOffsetItem ?? 0;
+    const sDx = isH ? sOffT : sOffI;
+    const sDy = isH ? -sOffI : sOffT;
+    const eDx = isH ? eOffT : eOffI;
+    const eDy = isH ? -eOffI : eOffT;
+
+    const sx0 = x1 + sDx;
+    const sy0 = y1 + sDy;
+    const tx0 = x2 + eDx;
+    const ty0 = y2 + eDy;
+
+    const dx = tx0 - sx0;
+    const dy = ty0 - sy0;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const startMargin = l.startMargin ?? 0;
+    const endMargin = l.endMargin ?? 0;
+
+    const sx = sx0 + ux * startMargin;
+    const sy = sy0 + uy * startMargin;
+    const ex = tx0 - ux * endMargin;
+    const ey = ty0 - uy * endMargin;
+
+    const minX = Math.min(sx, ex);
+    const minY = Math.min(sy, ey);
+    const w = Math.max(1, Math.abs(ex - sx));
+    const h = Math.max(1, Math.abs(ey - sy));
 
     slide.addShape(pres.ShapeType.line, {
-      x: pxToInch(x),
-      y: pxToInch(y),
-      w: pxToInch(w),
-      h: pxToInch(h),
+      x: t.toX(minX),
+      y: t.toY(minY),
+      w: t.toLen(w),
+      h: t.toLen(h),
       line: {
-        color: '222222',
-        width: 1.5,
-        dashType: lineDashType(l.type),
+        color: rgbToHex(l.style?.color ?? '#222'),
+        width: l.style?.strokeWidth ?? 1.5,
+        dashType: shouldDash ? 'dash' : 'solid',
         endArrowType: 'triangle',
       },
-      flipH: x2 < x1,
-      flipV: y2 < y1,
+      flipH: ex < sx,
+      flipV: ey < sy,
     });
   }
-
-  await pres.writeFile({ fileName: filename });
 }
 
-function renderLegend(
+// ----------------------------------------------------------------------------
+// SDSG: rightArrow を回転
+// ----------------------------------------------------------------------------
+
+function drawSDSGs(
   pres: PptxGenJS,
   slide: PptxGenJS.Slide,
   sheet: Sheet,
-  settings: LegendSettings,
+  layout: LayoutDirection,
+  settings: ProjectSettings,
+  t: Transform,
 ) {
-  const items = computeLegendItems(sheet, settings);
-  if (items.length === 0) return;
-
-  const rowHeightPx = settings.fontSize * 2.2;
-  const padding = 10;
-  const iconWidth = 40;
-  const headerHeight = settings.fontSize * 1.8;
-  const totalHeight = headerHeight + items.length * rowHeightPx + padding * 2;
-  const totalWidth = Math.max(settings.minWidth, 240);
-
-  const x = settings.position.x;
-  const y = settings.position.y;
-
-  // 枠
-  slide.addShape(pres.ShapeType.rect, {
-    x: pxToInch(x),
-    y: pxToInch(y),
-    w: pxToInch(totalWidth),
-    h: pxToInch(totalHeight),
-    fill: { color: 'FFFFFF' },
-    line: { color: '999999', width: 1 },
-  });
-
-  // タイトル
-  slide.addText(settings.title, {
-    x: pxToInch(x + padding),
-    y: pxToInch(y + padding),
-    w: pxToInch(totalWidth - padding * 2),
-    h: pxToInch(headerHeight),
-    fontSize: settings.fontSize * 1.15,
-    bold: true,
-    color: '222222',
-  });
-
-  // 各項目
-  items.forEach((item, idx) => {
-    const itemY = y + padding + headerHeight + idx * rowHeightPx;
-    const iconX = x + padding;
-    const textX = iconX + iconWidth + 6;
-
-    // アイコン描画
-    if (item.category === 'box') {
-      const dash = item.key === 'P-EFP' || item.key === 'P-2nd-EFP' || item.key === 'annotation' ? 'dash' : 'solid';
-      const width = item.key === 'OPP' ? 3 : item.key === 'EFP' || item.key === '2nd-EFP' ? 2 : 1;
-      slide.addShape(pres.ShapeType.rect, {
-        x: pxToInch(iconX),
-        y: pxToInch(itemY + rowHeightPx * 0.15),
-        w: pxToInch(iconWidth),
-        h: pxToInch(rowHeightPx * 0.7),
-        fill: { color: 'FFFFFF' },
-        line: { color: '222222', width, dashType: dash as 'dash' | 'solid' },
-      });
-    } else if (item.category === 'line') {
-      slide.addShape(pres.ShapeType.line, {
-        x: pxToInch(iconX),
-        y: pxToInch(itemY + rowHeightPx / 2),
-        w: pxToInch(iconWidth),
-        h: 0.001,
-        line: {
-          color: '222222',
-          width: 1.5,
-          dashType: item.key === 'XLine' ? 'dash' : 'solid',
-          endArrowType: 'triangle',
-        },
-      });
-    } else if (item.category === 'sdsg') {
-      slide.addShape(pres.ShapeType.pentagon, {
-        x: pxToInch(iconX),
-        y: pxToInch(itemY + rowHeightPx * 0.15),
-        w: pxToInch(iconWidth),
-        h: pxToInch(rowHeightPx * 0.7),
-        fill: { color: item.key === 'SD' ? 'FFE8E8' : 'E8F0FF' },
-        line: { color: item.key === 'SD' ? 'AA3333' : '3333AA', width: 1 },
-      });
-    } else if (item.category === 'timeArrow') {
-      slide.addShape(pres.ShapeType.line, {
-        x: pxToInch(iconX),
-        y: pxToInch(itemY + rowHeightPx / 2),
-        w: pxToInch(iconWidth),
-        h: 0.001,
-        line: {
-          color: '222222',
-          width: 2.5,
-          endArrowType: 'triangle',
-        },
-      });
+  const isH = layout === 'horizontal';
+  for (const sg of sheet.sdsg) {
+    let anchorX = 0, anchorY = 0;
+    const attBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
+    if (attBox) {
+      anchorX = attBox.x + attBox.width / 2;
+      anchorY = attBox.y + attBox.height / 2;
+    } else {
+      const attLine = sheet.lines.find((l) => l.id === sg.attachedTo);
+      if (attLine) {
+        const fb = sheet.boxes.find((b) => b.id === attLine.from);
+        const tb = sheet.boxes.find((b) => b.id === attLine.to);
+        if (fb && tb) {
+          anchorX = (fb.x + fb.width / 2 + tb.x + tb.width / 2) / 2;
+          anchorY = (fb.y + fb.height / 2 + tb.y + tb.height / 2) / 2;
+        } else {
+          continue;
+        }
+      } else {
+        continue;
+      }
     }
+    const timeOff = sg.timeOffset ?? 0;
+    const itemOff = sg.itemOffset ?? 0;
+    const w = sg.width ?? 70;
+    const h = sg.height ?? 40;
+    const wx = anchorX - w / 2 + (isH ? timeOff : itemOff);
+    const wy = anchorY - h / 2 + (isH ? itemOff : timeOff);
 
-    // ラベル + 説明
-    slide.addText([
-      { text: item.label, options: { bold: true, fontSize: settings.fontSize } },
-      { text: `\n${item.description}`, options: { fontSize: settings.fontSize * 0.85, color: '666666' } },
-    ], {
-      x: pxToInch(textX),
-      y: pxToInch(itemY),
-      w: pxToInch(totalWidth - padding - iconWidth - 12),
-      h: pxToInch(rowHeightPx),
-      valign: 'middle',
-      color: '222222',
+    // ブロック矢印（rightArrow）は既定で右向き
+    // 横型: SD=下向き(90°), SG=上向き(270°)
+    // 縦型: SD=右向き(0°), SG=左向き(180°)
+    const isSD = sg.type === 'SD';
+    const rotate = isH ? (isSD ? 90 : 270) : (isSD ? 0 : 180);
+
+    const bgColor = rgbToHex(sg.style?.backgroundColor ?? '#ffffff');
+    const borderColor = rgbToHex(sg.style?.borderColor ?? '#333');
+
+    // 回転時の bounding box 入れ替えを考慮:
+    // 横型は右向き rightArrow を 90/270°回転 → 矢印の長さが y方向、幅がx方向
+    // つまり描画矩形は縦長(w=sg.width→逆、h=sg.height)
+    // PptxGenJS は rotate 指定しても bbox 指定は同じまま。「指定 w,h に内接する」ように見える。
+    // 直感: キャンバスの SDSG は「横型では縦方向の矢印」＝ 縦長領域。ここでは w = sg.width (横幅), h = sg.height (高さ)
+    // rightArrow は元々横長なので、90°回転すれば縦長になる → w,h を入れ替えた領域として扱うのが自然。
+    let rectW = w;
+    let rectH = h;
+    if (isH) {
+      // 90/270° なので、矩形上の rightArrow の「長さ方向」は h 方向に
+      // rightArrow は元々 width=h, height=w と考え、配置矩形の w/h を入れ替える
+      rectW = h;
+      rectH = w;
+    }
+    const rectX = anchorX - rectW / 2 + (isH ? timeOff : itemOff);
+    const rectY = anchorY - rectH / 2 + (isH ? itemOff : timeOff);
+
+    slide.addShape(pres.ShapeType.rightArrow, {
+      x: t.toX(rectX),
+      y: t.toY(rectY),
+      w: t.toLen(rectW),
+      h: t.toLen(rectH),
+      fill: { color: bgColor },
+      line: { color: borderColor, width: 1.5 },
+      rotate,
     });
+    // ラベル (本体): 中央
+    slide.addText(sg.label, {
+      x: t.toX(wx),
+      y: t.toY(wy),
+      w: t.toLen(w),
+      h: t.toLen(h),
+      align: 'center',
+      valign: 'middle',
+      fontSize: fontSizeScaled(sg.style?.fontSize ?? 11, t),
+      bold: sg.style?.bold ?? true,
+      color: rgbToHex(sg.style?.color ?? '#222'),
+    });
+
+    // タイプラベル (SD/SG) - Box と同形式
+    drawSDSGTypeLabel(slide, sg, wx, wy, w, h, isH, settings, t);
+    // サブラベル
+    drawSDSGSubLabel(slide, sg, wx, wy, w, h, isH, t);
+  }
+}
+
+function drawSDSGTypeLabel(
+  slide: PptxGenJS.Slide,
+  sg: SDSG,
+  wx: number,
+  wy: number,
+  w: number,
+  h: number,
+  isH: boolean,
+  settings: ProjectSettings,
+  t: Transform,
+) {
+  const vis = settings.typeLabelVisibility;
+  if (vis && (vis as Record<string, boolean | undefined>)[sg.type] === false) return;
+  const baseFS = sg.typeLabelFontSize ?? 11;
+  const fs = fontSizeScaled(baseFS, t);
+  const bold = sg.typeLabelBold !== false;
+  const italic = !!sg.typeLabelItalic;
+  const fontFace = sg.typeLabelFontFamily;
+  if (isH) {
+    const wpx = Math.max(60, w);
+    const hpx = Math.max(14, baseFS * 1.8);
+    slide.addText(sg.type, {
+      x: t.toX(wx + w / 2 - wpx / 2),
+      y: t.toY(wy - hpx - 4),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'bottom',
+      fontSize: fs,
+      bold,
+      italic,
+      fontFace,
+      color: '222222',
+      margin: 1,
+    });
+  } else {
+    const wpx = Math.max(14, baseFS * 1.8);
+    const hpx = Math.max(60, h);
+    slide.addText(sg.type, {
+      x: t.toX(wx - wpx - 4),
+      y: t.toY(wy + h / 2 - hpx / 2),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'middle',
+      fontSize: fs,
+      bold,
+      italic,
+      fontFace,
+      color: '222222',
+      vert: 'eaVert',
+      margin: 1,
+    });
+  }
+}
+
+function drawSDSGSubLabel(
+  slide: PptxGenJS.Slide,
+  sg: SDSG,
+  wx: number,
+  wy: number,
+  w: number,
+  h: number,
+  isH: boolean,
+  t: Transform,
+) {
+  if (!sg.subLabel) return;
+  const baseFS = sg.subLabelFontSize ?? 10;
+  const fs = fontSizeScaled(baseFS, t);
+  const offX = sg.subLabelOffsetX ?? 0;
+  const offY = sg.subLabelOffsetY ?? 0;
+  if (isH) {
+    const wpx = Math.max(80, w);
+    const hpx = Math.max(14, baseFS * 1.6);
+    slide.addText(sg.subLabel, {
+      x: t.toX(wx + w / 2 - wpx / 2 + offX),
+      y: t.toY(wy + h + 6 + offY),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'top',
+      fontSize: fs,
+      color: '555555',
+      margin: 1,
+    });
+  } else {
+    const wpx = Math.max(14, baseFS * 1.6);
+    const hpx = Math.max(80, h);
+    slide.addText(sg.subLabel, {
+      x: t.toX(wx + w + 6 + offX),
+      y: t.toY(wy + h / 2 - hpx / 2 + offY),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'middle',
+      fontSize: fs,
+      color: '555555',
+      vert: 'eaVert',
+      margin: 1,
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Time arrow
+// ----------------------------------------------------------------------------
+
+function drawTimeArrow(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  sheet: Sheet,
+  layout: LayoutDirection,
+  settings: TimeArrowSettings,
+  t: Transform,
+) {
+  if (!settings || !settings.autoInsert) return;
+  const arrow = computeTimeArrow(sheet, layout, settings);
+  if (!arrow) return;
+
+  const minX = Math.min(arrow.startX, arrow.endX);
+  const minY = Math.min(arrow.startY, arrow.endY);
+  const w = Math.max(1, Math.abs(arrow.endX - arrow.startX));
+  const h = Math.max(1, Math.abs(arrow.endY - arrow.startY));
+
+  slide.addShape(pres.ShapeType.line, {
+    x: t.toX(minX),
+    y: t.toY(minY),
+    w: t.toLen(w),
+    h: t.toLen(h),
+    line: {
+      color: '222222',
+      width: arrow.strokeWidth,
+      endArrowType: 'triangle',
+    },
+    flipH: arrow.endX < arrow.startX,
+    flipV: arrow.endY < arrow.startY,
+  });
+
+  // ラベル
+  const isVert = layout === 'vertical';
+  const fsBase = arrow.fontSize;
+  const fs = fontSizeScaled(fsBase, t);
+  const labelBoxWpx = isVert ? Math.max(20, fsBase * 1.8) : Math.max(160, fsBase * 12);
+  const labelBoxHpx = isVert ? Math.max(120, fsBase * 12) : Math.max(20, fsBase * 1.8);
+  // labelSide に応じて anchor 変換
+  let lbx = arrow.labelX;
+  let lby = arrow.labelY;
+  switch (arrow.labelSide) {
+    case 'top':    // 下辺が labelY に一致
+      lbx = arrow.labelX - labelBoxWpx / 2;
+      lby = arrow.labelY - labelBoxHpx;
+      break;
+    case 'bottom':
+      lbx = arrow.labelX - labelBoxWpx / 2;
+      lby = arrow.labelY;
+      break;
+    case 'left':   // 右辺が labelX に一致
+      lbx = arrow.labelX - labelBoxWpx;
+      lby = arrow.labelY - labelBoxHpx / 2;
+      break;
+    case 'right':
+      lbx = arrow.labelX;
+      lby = arrow.labelY - labelBoxHpx / 2;
+      break;
+  }
+  slide.addText(arrow.label, {
+    x: t.toX(lbx),
+    y: t.toY(lby),
+    w: t.toLen(labelBoxWpx),
+    h: t.toLen(labelBoxHpx),
+    align: 'center',
+    valign: 'middle',
+    fontSize: fs,
+    bold: !!settings.labelBold,
+    italic: !!settings.labelItalic,
+    underline: settings.labelUnderline ? { style: 'sng' } : undefined,
+    fontFace: settings.labelFontFamily,
+    color: '222222',
+    vert: isVert ? 'eaVert' : undefined,
+    margin: 1,
   });
 }
 
-async function renderSDSG(
+// ----------------------------------------------------------------------------
+// Period labels
+// ----------------------------------------------------------------------------
+
+function drawPeriodLabels(
   pres: PptxGenJS,
   slide: PptxGenJS.Slide,
-  sg: SDSG,
+  sheet: Sheet,
+  layout: LayoutDirection,
+  settings: PeriodLabelSettings,
+  timeArrow: TimeArrowSettings,
+  t: Transform,
+) {
+  if (!settings || !settings.includeInExport) return;
+  if (sheet.periodLabels.length === 0) return;
+  const geom = computePeriodLabels(sheet, layout, settings, timeArrow);
+  if (!geom) return;
+
+  const isH = layout === 'horizontal';
+  const sideH = settings.labelSideHorizontal ?? 'top';
+  const sideV = settings.labelSideVertical ?? 'right';
+
+  // 主軸線
+  if (settings.showDividers) {
+    const minX = Math.min(geom.startX, geom.endX);
+    const minY = Math.min(geom.startY, geom.endY);
+    const w = Math.max(1, Math.abs(geom.endX - geom.startX));
+    const h = Math.max(1, Math.abs(geom.endY - geom.startY));
+    slide.addShape(pres.ShapeType.line, {
+      x: t.toX(minX),
+      y: t.toY(minY),
+      w: t.toLen(w),
+      h: t.toLen(h),
+      line: { color: '555555', width: settings.dividerStrokeWidth },
+    });
+  }
+
+  // band スタイル: 境界位置を計算
+  if (settings.bandStyle === 'band') {
+    const sorted = [...geom.items].sort((a, b) => (isH ? a.x - b.x : a.y - b.y));
+    const bounds: number[] = [];
+    bounds.push(isH ? geom.startX : geom.startY);
+    sorted.forEach((it, i) => {
+      if (i === 0) return;
+      const prev = sorted[i - 1];
+      const mid = isH ? (prev.x + it.x) / 2 : (prev.y + it.y) / 2;
+      bounds.push(mid);
+    });
+    bounds.push(isH ? geom.endX : geom.endY);
+
+    // 境界の短い縦（or 横）線
+    if (settings.showDividers) {
+      const tickLen = 10;
+      for (const bv of bounds) {
+        if (isH) {
+          slide.addShape(pres.ShapeType.line, {
+            x: t.toX(bv),
+            y: t.toY(geom.startY - tickLen / 2),
+            w: t.toLen(1),
+            h: t.toLen(tickLen),
+            line: { color: '555555', width: settings.dividerStrokeWidth * 1.4 },
+          });
+        } else {
+          slide.addShape(pres.ShapeType.line, {
+            x: t.toX(geom.startX - tickLen / 2),
+            y: t.toY(bv),
+            w: t.toLen(tickLen),
+            h: t.toLen(1),
+            line: { color: '555555', width: settings.dividerStrokeWidth * 1.4 },
+          });
+        }
+      }
+    }
+
+    // ラベル
+    const fsBase = settings.fontSize;
+    const fs = fontSizeScaled(fsBase, t);
+    sorted.forEach((item, i) => {
+      const left = bounds[i];
+      const right = bounds[i + 1];
+      const center = (left + right) / 2;
+      placePeriodLabel(slide, item.label, center, geom, isH, sideH, sideV, fs, fsBase, t);
+    });
+    return;
+  }
+
+  // tick スタイル: ラベルを各アイテム位置に配置
+  const fsBase = settings.fontSize;
+  const fs = fontSizeScaled(fsBase, t);
+  geom.items.forEach((item) => {
+    // center 値: 横型は item.x、縦型は item.y
+    const center = isH ? item.x : item.y;
+    placePeriodLabel(slide, item.label, center, geom, isH, sideH, sideV, fs, fsBase, t);
+    // tick の短線
+    if (settings.showDividers) {
+      const tickLen = 8;
+      if (isH) {
+        slide.addShape(pres.ShapeType.line, {
+          x: t.toX(item.x),
+          y: t.toY(item.y - tickLen / 2),
+          w: t.toLen(1),
+          h: t.toLen(tickLen),
+          line: { color: '555555', width: settings.dividerStrokeWidth },
+        });
+      } else {
+        slide.addShape(pres.ShapeType.line, {
+          x: t.toX(item.x - tickLen / 2),
+          y: t.toY(item.y),
+          w: t.toLen(tickLen),
+          h: t.toLen(1),
+          line: { color: '555555', width: settings.dividerStrokeWidth },
+        });
+      }
+    }
+  });
+}
+
+function placePeriodLabel(
+  slide: PptxGenJS.Slide,
+  label: string,
+  centerWorld: number,
+  geom: { startX: number; startY: number; endX: number; endY: number },
+  isH: boolean,
+  sideH: 'top' | 'bottom',
+  sideV: 'left' | 'right',
+  fs: number,
+  baseFS: number,
+  t: Transform,
+) {
+  if (isH) {
+    const wpx = Math.max(80, baseFS * 8);
+    const hpx = Math.max(18, baseFS * 1.8);
+    const cx = centerWorld - wpx / 2;
+    const cy = sideH === 'top' ? geom.startY - hpx - 2 : geom.startY + 2;
+    slide.addText(label, {
+      x: t.toX(cx),
+      y: t.toY(cy),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: sideH === 'top' ? 'bottom' : 'top',
+      fontSize: fs,
+      color: '222222',
+      margin: 1,
+    });
+  } else {
+    const wpx = Math.max(18, baseFS * 1.8);
+    const hpx = Math.max(80, baseFS * 8);
+    const cx = sideV === 'right' ? geom.startX + 2 : geom.startX - wpx - 2;
+    const cy = centerWorld - hpx / 2;
+    slide.addText(label, {
+      x: t.toX(cx),
+      y: t.toY(cy),
+      w: t.toLen(wpx),
+      h: t.toLen(hpx),
+      align: 'center',
+      valign: 'middle',
+      fontSize: fs,
+      color: '222222',
+      vert: 'eaVert',
+      margin: 1,
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Legend
+// ----------------------------------------------------------------------------
+
+function drawLegend(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  sheet: Sheet,
+  layout: LayoutDirection,
+  lg: LegendSettings,
+  t: Transform,
+) {
+  if (!lg || !lg.includeInExport) return;
+  const items = computeLegendItems(sheet, lg);
+  if (items.length === 0) return;
+
+  const cols = Math.max(1, Math.floor(
+    (layout === 'vertical' ? lg.columnsVertical : lg.columnsHorizontal) ?? lg.columns ?? 1
+  ));
+  const showDesc = lg.showDescriptions === true;
+  const baseFS = lg.fontSize;
+  const fs = fontSizeScaled(baseFS, t);
+  const titleBaseFS = lg.titleFontSize ?? lg.fontSize * 1.15;
+  const titleFS = fontSizeScaled(titleBaseFS, t);
+  const showTitle = lg.showTitle !== false;
+  const titlePosition = lg.titlePosition ?? 'top';
+
+  const sampleW = lg.sampleWidth ?? 32;
+  const sampleH = lg.sampleHeight ?? 18;
+  const padding = 10;
+  const iconColMinPx = sampleW + 8;
+  const cellGap = 12;
+  const rowGap = 4;
+
+  const rows = Math.ceil(items.length / cols);
+  const showDescPerRow = items.map((it) => {
+    const ov = lg.itemOverrides?.[`${it.category}:${it.key}`];
+    return ov?.showDescription ?? showDesc;
+  });
+
+  // 行高（1行〜2行）
+  const rowHpx = Math.max(baseFS * (showDesc ? 2 : 1) * 1.4 + 4, sampleH + 4);
+  const cellLabelMinPx = Math.max(100, baseFS * 10);
+  const cellW = iconColMinPx + 8 + cellLabelMinPx;
+  const gridW = cols * cellW + (cols - 1) * cellGap;
+  const gridH = rows * rowHpx + (rows - 1) * rowGap;
+
+  // 全体サイズ
+  const titleHpx = titleBaseFS * 1.4 + 6;
+  let boxW = 0;
+  let boxH = 0;
+  if (titlePosition === 'top') {
+    boxW = Math.max(lg.minWidth, gridW + padding * 2);
+    boxH = gridH + padding * 2 + (showTitle ? titleHpx : 0);
+  } else {
+    // 'left': タイトル左 + グリッド右
+    const titleAreaW = Math.max(60, titleBaseFS * 6);
+    boxW = Math.max(lg.minWidth, gridW + padding * 2 + (showTitle ? titleAreaW + 12 : 0));
+    boxH = Math.max(gridH + padding * 2, titleBaseFS * 2);
+  }
+
+  const bx = lg.position.x;
+  const by = lg.position.y;
+
+  // 背景 / 枠
+  if (lg.backgroundStyle !== 'none' || lg.borderWidth > 0) {
+    slide.addShape(pres.ShapeType.rect, {
+      x: t.toX(bx),
+      y: t.toY(by),
+      w: t.toLen(boxW),
+      h: t.toLen(boxH),
+      fill: lg.backgroundStyle === 'none'
+        ? { color: 'FFFFFF', transparency: 100 }
+        : { color: 'FFFFFF' },
+      line: lg.borderWidth > 0
+        ? { color: rgbToHex(lg.borderColor ?? '#999'), width: lg.borderWidth }
+        : { color: 'FFFFFF', width: 0, transparency: 100 },
+    });
+  }
+
+  // タイトル
+  if (showTitle) {
+    const titleBold = lg.titleBold !== false;
+    const titleItalic = !!lg.titleItalic;
+    const titleUnderline = !!lg.titleUnderline;
+    const titleAlign = (lg.titleAlign ?? 'left') as 'left' | 'center' | 'right';
+    const titleVert = lg.titleWritingMode === 'vertical';
+    if (titlePosition === 'top') {
+      slide.addText(lg.title, {
+        x: t.toX(bx + padding),
+        y: t.toY(by + padding),
+        w: t.toLen(boxW - padding * 2),
+        h: t.toLen(titleHpx),
+        align: titleAlign,
+        valign: 'middle',
+        fontSize: titleFS,
+        bold: titleBold,
+        italic: titleItalic,
+        underline: titleUnderline ? { style: 'sng' } : undefined,
+        fontFace: lg.titleFontFamily ?? lg.fontFamily,
+        color: '222222',
+        vert: titleVert ? 'eaVert' : undefined,
+      });
+    } else {
+      const titleAreaW = Math.max(60, titleBaseFS * 6);
+      const tva = lg.titleVerticalAlign ?? 'top';
+      const vAlign: 'top' | 'middle' | 'bottom' = tva === 'middle' ? 'middle' : tva === 'bottom' ? 'bottom' : 'top';
+      slide.addText(lg.title, {
+        x: t.toX(bx + padding),
+        y: t.toY(by + padding),
+        w: t.toLen(titleAreaW),
+        h: t.toLen(boxH - padding * 2),
+        align: titleAlign,
+        valign: vAlign,
+        fontSize: titleFS,
+        bold: titleBold,
+        italic: titleItalic,
+        underline: titleUnderline ? { style: 'sng' } : undefined,
+        fontFace: lg.titleFontFamily ?? lg.fontFamily,
+        color: '222222',
+        vert: titleVert ? 'eaVert' : undefined,
+      });
+    }
+  }
+
+  // 項目グリッド開始位置
+  const gridOriginX = titlePosition === 'left'
+    ? bx + padding + (showTitle ? Math.max(60, titleBaseFS * 6) + 12 : 0)
+    : bx + padding;
+  const gridOriginY = titlePosition === 'top'
+    ? by + padding + (showTitle ? titleHpx : 0)
+    : by + padding;
+
+  // 各セル描画
+  items.forEach((item, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const cellX = gridOriginX + col * (cellW + cellGap);
+    const cellY = gridOriginY + row * (rowHpx + rowGap);
+
+    // アイコン（中央揃え）
+    const iconX = cellX + (iconColMinPx - sampleW) / 2;
+    const iconY = cellY + (rowHpx - sampleH) / 2;
+    drawLegendIcon(pres, slide, item, iconX, iconY, sampleW, sampleH, t);
+
+    // テキスト（左揃え）
+    const overrideKey = `${item.category}:${item.key}`;
+    const ov = lg.itemOverrides?.[overrideKey];
+    const label = ov?.label ?? item.label;
+    const description = ov?.description ?? item.description;
+    const useShowDesc = showDescPerRow[idx];
+    const textX = cellX + iconColMinPx + 8;
+    const textW = cellLabelMinPx;
+    if (useShowDesc && description) {
+      slide.addText([
+        { text: label, options: { bold: true, fontSize: fs } },
+        { text: `\n${description}`, options: { fontSize: fs * 0.85, color: '666666' } },
+      ], {
+        x: t.toX(textX),
+        y: t.toY(cellY),
+        w: t.toLen(textW),
+        h: t.toLen(rowHpx),
+        align: 'left',
+        valign: 'middle',
+        color: '222222',
+        fontFace: lg.fontFamily,
+      });
+    } else {
+      slide.addText(label, {
+        x: t.toX(textX),
+        y: t.toY(cellY),
+        w: t.toLen(textW),
+        h: t.toLen(rowHpx),
+        align: 'left',
+        valign: 'middle',
+        bold: true,
+        fontSize: fs,
+        color: '222222',
+        fontFace: lg.fontFamily,
+      });
+    }
+  });
+}
+
+function drawLegendIcon(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  item: LegendItem,
   x: number,
   y: number,
   w: number,
   h: number,
-  layout: LayoutDirection,
+  t: Transform,
 ) {
-  const isSD = sg.type === 'SD';
-  const isH = layout === 'horizontal';
-  // 簡易: 五角形ペンタゴン形状（レイアウト・種別で rotate 調整）
-  slide.addShape(pres.ShapeType.pentagon, {
-    x: pxToInch(x),
-    y: pxToInch(y),
-    w: pxToInch(w),
-    h: pxToInch(h),
-    fill: { color: isSD ? 'FFE8E8' : 'E8F0FF' },
-    line: { color: isSD ? 'AA3333' : '3333AA', width: 1.5 },
-    rotate: isH ? (isSD ? 180 : 0) : (isSD ? 90 : 270),
-  });
-  slide.addText(sg.label, {
-    x: pxToInch(x),
-    y: pxToInch(y),
-    w: pxToInch(w),
-    h: pxToInch(h),
-    fontSize: sg.style?.fontSize ?? 11,
-    bold: sg.style?.bold ?? true,
-    align: 'center',
-    valign: 'middle',
-    color: '222222',
-  });
-  void isH;
+  if (item.category === 'box') {
+    const isPEfp = item.key === 'P-EFP' || item.key === 'P-2nd-EFP';
+    if (isPEfp) {
+      // 二重点線: 外枠と内枠
+      slide.addShape(pres.ShapeType.rect, {
+        x: t.toX(x),
+        y: t.toY(y),
+        w: t.toLen(w),
+        h: t.toLen(h),
+        fill: { color: 'FFFFFF' },
+        line: { color: '222222', width: 1.2, dashType: 'dash' },
+      });
+      const inset = 2;
+      slide.addShape(pres.ShapeType.rect, {
+        x: t.toX(x + inset),
+        y: t.toY(y + inset),
+        w: t.toLen(Math.max(1, w - inset * 2)),
+        h: t.toLen(Math.max(1, h - inset * 2)),
+        fill: { color: 'FFFFFF', transparency: 100 },
+        line: { color: '222222', width: 1.2, dashType: 'dash' },
+      });
+      return;
+    }
+    const spec = BOX_RENDER_SPECS[item.key] ?? BOX_RENDER_SPECS.normal;
+    const dashType = spec.borderStyle === 'dashed' ? 'dash' : spec.borderStyle === 'dotted' ? 'sysDot' : 'solid';
+    if (item.key === 'EFP' || item.key === '2nd-EFP') {
+      // 二重線: マーカー色で識別、後段でcmpd="dbl"注入
+      slide.addShape(pres.ShapeType.rect, {
+        x: t.toX(x),
+        y: t.toY(y),
+        w: t.toLen(w),
+        h: t.toLen(h),
+        fill: { color: 'FFFFFF' },
+        line: { color: DBL_MARKER_COLOR, width: 2 },
+      });
+      return;
+    }
+    slide.addShape(pres.ShapeType.rect, {
+      x: t.toX(x),
+      y: t.toY(y),
+      w: t.toLen(w),
+      h: t.toLen(h),
+      fill: { color: 'FFFFFF' },
+      line: { color: '222222', width: spec.borderWidth, dashType: dashType as 'solid' | 'dash' | 'sysDot' },
+    });
+  } else if (item.category === 'line') {
+    slide.addShape(pres.ShapeType.line, {
+      x: t.toX(x),
+      y: t.toY(y + h / 2),
+      w: t.toLen(w),
+      h: 0.001,
+      line: {
+        color: '222222',
+        width: 1.5,
+        dashType: item.key === 'XLine' ? 'dash' : 'solid',
+        endArrowType: 'triangle',
+      },
+    });
+  } else if (item.category === 'sdsg') {
+    const rotate = item.key === 'SD' ? 90 : 270;
+    // 凡例アイコンは横長表示用に rightArrow を適切サイズで。回転で縦長扱い
+    slide.addShape(pres.ShapeType.rightArrow, {
+      x: t.toX(x),
+      y: t.toY(y),
+      w: t.toLen(w),
+      h: t.toLen(h),
+      fill: { color: 'FFFFFF' },
+      line: { color: '333333', width: 1 },
+      rotate,
+    });
+  } else if (item.category === 'timeArrow') {
+    slide.addShape(pres.ShapeType.line, {
+      x: t.toX(x),
+      y: t.toY(y + h / 2),
+      w: t.toLen(w),
+      h: 0.001,
+      line: { color: '222222', width: 2.5, endArrowType: 'triangle' },
+    });
+  }
 }
 
-async function renderBox(pres: PptxGenJS, slide: PptxGenJS.Slide, b: Box) {
-  const x = pxToInch(b.x);
-  const y = pxToInch(b.y);
-  const w = pxToInch(b.width);
-  const h = pxToInch(b.height);
+// ----------------------------------------------------------------------------
+// 二重線ポストプロセス: altText=TEMER_DBL の <p:sp> の <a:ln> に cmpd="dbl" を注入
+// ----------------------------------------------------------------------------
 
-  switch (b.type) {
-    case 'EFP':
-    case '2nd-EFP': {
-      // 二重線: 外枠 + 内枠の2矩形重ね
-      slide.addShape(pres.ShapeType.rect, {
-        x, y, w, h,
-        fill: { color: 'FFFFFF' },
-        line: { color: '222222', width: 1 },
-      });
-      const inset = 4;
-      slide.addShape(pres.ShapeType.rect, {
-        x: pxToInch(b.x + inset),
-        y: pxToInch(b.y + inset),
-        w: pxToInch(b.width - inset * 2),
-        h: pxToInch(b.height - inset * 2),
-        fill: { color: 'FFFFFF' },
-        line: { color: '222222', width: 1 },
-      });
-      break;
+async function postprocessDoubleLines(raw: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    const zip = await JSZip.loadAsync(raw);
+    // 全スライド XML を処理
+    const slideFiles = Object.keys(zip.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p));
+    for (const path of slideFiles) {
+      const file = zip.file(path);
+      if (!file) continue;
+      const xml = await file.async('string');
+      const patched = injectCompoundDouble(xml);
+      if (patched !== xml) {
+        zip.file(path, patched);
+      }
     }
-    case 'OPP':
-      slide.addShape(pres.ShapeType.rect, {
-        x, y, w, h,
-        fill: { color: 'FFFFFF' },
-        line: { color: '222222', width: 3.0 },
-      });
-      break;
-    case 'P-EFP':
-    case 'P-2nd-EFP':
-      slide.addShape(pres.ShapeType.rect, {
-        x, y, w, h,
-        fill: { color: 'FFFFFF' },
-        line: { color: '222222', width: 1.5, dashType: 'dash' },
-      });
-      break;
-    case 'annotation':
-      slide.addShape(pres.ShapeType.rect, {
-        x, y, w, h,
-        fill: { color: 'FFFFFF' },
-        line: { color: '222222', width: 1.0, dashType: 'sysDot' },
-      });
-      break;
-    default:
-      slide.addShape(pres.ShapeType.rect, {
-        x, y, w, h,
-        fill: { color: 'FFFFFF' },
-        line: { color: '222222', width: 1.5 },
-      });
+    const out = await zip.generateAsync({ type: 'arraybuffer' });
+    return out;
+  } catch (e) {
+    // ポストプロセス失敗時は元のバイナリを返す（= 2矩形的な暫定表示にはならず、単線だが表示は可能）
+    console.warn('PPTX 二重線ポストプロセス失敗（altText解決など）:', e);
+    return raw;
   }
+}
 
-  slide.addText(b.label, {
-    x, y, w, h,
-    align: 'center',
-    valign: 'middle',
-    fontSize: b.style?.fontSize ?? 12,
-    bold: b.style?.bold,
-    italic: b.style?.italic,
-    underline: b.style?.underline ? { style: 'sng' } : undefined,
-    color: b.style?.color ?? '222222',
+/**
+ * slide XML の <a:ln> タグのうち、
+ * 内側に <a:srgbClr val="2E2D2D"/>（マーカー色）を含むものに対して
+ *   - 開始タグに cmpd="dbl" 属性を付与（既にあれば上書き）
+ *   - val="2E2D2D" を val="222222" に戻す（通常の黒）
+ * を行って本物の二重線にする。
+ */
+function injectCompoundDouble(xml: string): string {
+  // <a:ln ...>...</a:ln> のブロックを検出
+  return xml.replace(/<a:ln\b([^>]*)>([\s\S]*?)<\/a:ln>/g, (
+    _full: string,
+    attrs: string,
+    inner: string,
+  ) => {
+    const markerRe = new RegExp(`<a:srgbClr\\b[^>]*val="${DBL_MARKER_COLOR}"[^>]*/?>`, 'i');
+    const markerLowerRe = new RegExp(`<a:srgbClr\\b[^>]*val="${DBL_MARKER_COLOR.toLowerCase()}"[^>]*/?>`, 'i');
+    if (!markerRe.test(inner) && !markerLowerRe.test(inner)) {
+      return `<a:ln${attrs}>${inner}</a:ln>`;
+    }
+    // cmpd 属性を dbl に設定
+    let newAttrs = attrs;
+    if (/\bcmpd\s*=\s*"[^"]*"/.test(newAttrs)) {
+      newAttrs = newAttrs.replace(/\bcmpd\s*=\s*"[^"]*"/, 'cmpd="dbl"');
+    } else if (/\bcmpd\s*=\s*'[^']*'/.test(newAttrs)) {
+      newAttrs = newAttrs.replace(/\bcmpd\s*=\s*'[^']*'/, 'cmpd="dbl"');
+    } else {
+      newAttrs = ' cmpd="dbl"' + (attrs.startsWith(' ') || attrs === '' ? attrs : ' ' + attrs);
+    }
+    // マーカー色を通常色に戻す（大文字/小文字両方）
+    const restoredInner = inner
+      .replace(new RegExp(`val="${DBL_MARKER_COLOR}"`, 'g'), `val="${DBL_REAL_COLOR}"`)
+      .replace(new RegExp(`val="${DBL_MARKER_COLOR.toLowerCase()}"`, 'g'), `val="${DBL_REAL_COLOR}"`);
+    return `<a:ln${newAttrs}>${restoredInner}</a:ln>`;
   });
+}
+
+// ----------------------------------------------------------------------------
+// ダウンロード
+// ----------------------------------------------------------------------------
+
+function downloadArrayBuffer(buf: ArrayBuffer, filename: string) {
+  const blob = new Blob([buf], {
+    type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

@@ -1,8 +1,8 @@
 // ============================================================================
 // ExportDialog - PNG / SVG / PPTX の共通出力ダイアログ
 // - タブ: PNG / SVG / PPTX
-// - 共通設定: 出力範囲 (visible/all), 全体時オフセット, 含める要素, 背景
-// - 各タブの出力ボタンでそのフォーマットで保存
+// - PNG/SVG: 出力範囲 / 要素含有 / 背景 の設定
+// - PPTX: 出力範囲 / スケーリング の設定（背景・要素は非表示）
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
@@ -13,12 +13,15 @@ type Format = 'png' | 'svg' | 'pptx';
 
 interface Config {
   range: 'visible' | 'all';
-  offset: number;              // 0.1 など
+  offset: number;              // 全体出力時の余白比（0.1 等）
+  // 画像系（PNG/SVG）オプション
   includeGrid: boolean;
   includePaperGuides: boolean;
   includeTopRuler: boolean;
   includeLeftRuler: boolean;
   background: 'white' | 'transparent';
+  // PPTX オプション
+  pptxScale: boolean;          // スケーリング有無（既定 true）
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -29,6 +32,7 @@ const DEFAULT_CONFIG: Config = {
   includeTopRuler: false,
   includeLeftRuler: false,
   background: 'white',
+  pptxScale: true,
 };
 
 const FORMATS: { key: Format; label: string }[] = [
@@ -44,6 +48,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ mouseX: 0, mouseY: 0, dlgX: 0, dlgY: 0 });
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const requestFit = useTEMStore((s) => s.requestFit);
   const doc = useTEMStore((s) => s.doc);
 
@@ -84,39 +89,51 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   const runExport = async () => {
     setBusy(true);
+    setNotice(null);
     try {
-      // 全体出力: 事前に fit('all') をトリガ
-      if (cfg.range === 'all') {
-        requestFit('all');
-        // 描画反映待ち
-        await new Promise((r) => requestAnimationFrame(() => r(null)));
-        await new Promise((r) => setTimeout(r, 60));
+      // PPTX: visible 選択時は全体にフォールバック
+      let effectiveRange = cfg.range;
+      if (format === 'pptx' && effectiveRange === 'visible') {
+        effectiveRange = 'all';
+        setNotice('PPTX は全体出力のみサポート（visible 指定 → all にフォールバック）');
       }
+
+      // 画像系の全体出力は事前に fit してからキャプチャ
+      if ((format === 'png' || format === 'svg') && effectiveRange === 'all') {
+        requestFit('all');
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        await new Promise((r) => setTimeout(r, 80));
+      }
+
       const baseName = doc.metadata.title || 'TEMer';
-      const opts: ExportOptions = {
-        includeGrid: cfg.includeGrid,
-        includePaperGuides: cfg.includePaperGuides,
-        includeRulers: cfg.includeTopRuler || cfg.includeLeftRuler,
-        background: cfg.background,
-      };
       if (format === 'png') {
         const { exportToPNG } = await import('../utils/exportImage');
+        const opts: ExportOptions = {
+          includeGrid: cfg.includeGrid,
+          includePaperGuides: cfg.includePaperGuides,
+          includeRulers: cfg.includeTopRuler || cfg.includeLeftRuler,
+          background: cfg.background,
+        };
         await exportToPNG('diagram-canvas', `${baseName}.png`, 2, opts);
       } else if (format === 'svg') {
         const { exportToSVG } = await import('../utils/exportImage');
+        const opts: ExportOptions = {
+          includeGrid: cfg.includeGrid,
+          includePaperGuides: cfg.includePaperGuides,
+          includeRulers: cfg.includeTopRuler || cfg.includeLeftRuler,
+          background: cfg.background,
+        };
         await exportToSVG('diagram-canvas', `${baseName}.svg`, opts);
       } else if (format === 'pptx') {
         const { exportToPPTX } = await import('../utils/exportPPT');
         const sheet = doc.sheets.find((s) => s.id === doc.activeSheetId);
         if (!sheet) throw new Error('アクティブシートが見つかりません');
-        await exportToPPTX(sheet.boxes, sheet.lines, {
+        await exportToPPTX({
           filename: `${baseName}.pptx`,
           sheet,
-          layout: doc.settings.layout,
-          timeArrowSettings: doc.settings.timeArrow,
-          includeTimeArrow: doc.settings.timeArrow.autoInsert,
-          legendSettings: doc.settings.legend,
-          includeLegend: doc.settings.legend.includeInExport,
+          settings: doc.settings,
+          scale: cfg.pptxScale,
+          offset: cfg.offset,
         });
       }
     } catch (e) {
@@ -126,6 +143,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       setBusy(false);
     }
   };
+
+  const isImage = format === 'png' || format === 'svg';
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -160,7 +179,9 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 onChange={(e) => update({ range: e.target.value as 'visible' | 'all' })}
               >
                 <option value="all">全体を出力</option>
-                <option value="visible">表示部分を出力</option>
+                <option value="visible">
+                  表示部分を出力{format === 'pptx' ? '（PPTXでは全体にフォールバック）' : ''}
+                </option>
               </select>
             </div>
             {cfg.range === 'all' && (
@@ -179,58 +200,81 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             )}
           </section>
 
-          <section className="settings-section">
-            <h4>含める要素（既定すべてオフ）</h4>
-            <div className="setting-row">
-              <label>グリッド</label>
-              <input
-                type="checkbox"
-                checked={cfg.includeGrid}
-                onChange={(e) => update({ includeGrid: e.target.checked })}
-              />
-            </div>
-            <div className="setting-row">
-              <label>用紙枠</label>
-              <input
-                type="checkbox"
-                checked={cfg.includePaperGuides}
-                onChange={(e) => update({ includePaperGuides: e.target.checked })}
-              />
-            </div>
-            <div className="setting-row">
-              <label>上ルーラー</label>
-              <input
-                type="checkbox"
-                checked={cfg.includeTopRuler}
-                onChange={(e) => update({ includeTopRuler: e.target.checked })}
-              />
-            </div>
-            <div className="setting-row">
-              <label>左ルーラー</label>
-              <input
-                type="checkbox"
-                checked={cfg.includeLeftRuler}
-                onChange={(e) => update({ includeLeftRuler: e.target.checked })}
-              />
-            </div>
-          </section>
+          {isImage && (
+            <>
+              <section className="settings-section">
+                <h4>含める要素（既定すべてオフ）</h4>
+                <div className="setting-row">
+                  <label>グリッド</label>
+                  <input
+                    type="checkbox"
+                    checked={cfg.includeGrid}
+                    onChange={(e) => update({ includeGrid: e.target.checked })}
+                  />
+                </div>
+                <div className="setting-row">
+                  <label>用紙枠</label>
+                  <input
+                    type="checkbox"
+                    checked={cfg.includePaperGuides}
+                    onChange={(e) => update({ includePaperGuides: e.target.checked })}
+                  />
+                </div>
+                <div className="setting-row">
+                  <label>上ルーラー</label>
+                  <input
+                    type="checkbox"
+                    checked={cfg.includeTopRuler}
+                    onChange={(e) => update({ includeTopRuler: e.target.checked })}
+                  />
+                </div>
+                <div className="setting-row">
+                  <label>左ルーラー</label>
+                  <input
+                    type="checkbox"
+                    checked={cfg.includeLeftRuler}
+                    onChange={(e) => update({ includeLeftRuler: e.target.checked })}
+                  />
+                </div>
+              </section>
 
-          <section className="settings-section">
-            <h4>背景</h4>
-            <div className="setting-row">
-              <label>背景色</label>
-              <select
-                value={cfg.background}
-                onChange={(e) => update({ background: e.target.value as 'white' | 'transparent' })}
-              >
-                <option value="white">白</option>
-                <option value="transparent">透明</option>
-              </select>
-            </div>
-            {format === 'pptx' && (
-              <p className="hint">PPTX は PPTX 固有の背景処理になります（透明=スライドそのまま）。</p>
-            )}
-          </section>
+              <section className="settings-section">
+                <h4>背景</h4>
+                <div className="setting-row">
+                  <label>背景色</label>
+                  <select
+                    value={cfg.background}
+                    onChange={(e) => update({ background: e.target.value as 'white' | 'transparent' })}
+                  >
+                    <option value="white">白</option>
+                    <option value="transparent">透明</option>
+                  </select>
+                </div>
+              </section>
+            </>
+          )}
+
+          {format === 'pptx' && (
+            <section className="settings-section">
+              <h4>PPTX 固有</h4>
+              <div className="setting-row">
+                <label>スケーリング（スライドにフィット）</label>
+                <input
+                  type="checkbox"
+                  checked={cfg.pptxScale}
+                  onChange={(e) => update({ pptxScale: e.target.checked })}
+                />
+              </div>
+              <p className="hint">
+                オフにすると元の画面座標のサイズで配置（スライド外にはみ出す可能性あり）。
+                レイアウト方向に応じて横型/縦型スライドで出力されます。
+              </p>
+            </section>
+          )}
+
+          {notice && (
+            <p style={{ color: '#b36b00', fontSize: '0.85em', margin: '4px 0 0' }}>{notice}</p>
+          )}
         </div>
         <div className="modal-footer">
           <button className="ribbon-btn-primary" onClick={runExport} disabled={busy}>
