@@ -539,6 +539,28 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         </select>
       </div>
 
+      {/* 論文用 description */}
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>論文レポート用</h5>
+      {!isMulti && (
+        <div className="prop-row" style={{ alignItems: 'flex-start' }}>
+          <label>説明文</label>
+          <textarea
+            value={first.description ?? ''}
+            onChange={(e) => updateBoxes([first.id], { description: e.target.value })}
+            style={{ width: '100%', minHeight: 60, resize: 'vertical' }}
+            placeholder="この Box の意味・解釈（論文レポートに出力）"
+          />
+        </div>
+      )}
+      <div className="prop-row">
+        <label>説明不要（自明）</label>
+        <input
+          type="checkbox"
+          checked={getCommon(boxes, 'noDescriptionNeeded') === true}
+          onChange={(e) => updateBoxes(ids, { noDescriptionNeeded: e.target.checked })}
+        />
+      </div>
+
       <div className="prop-row">
         <button className="danger-btn" onClick={() => removeBoxes(ids)}>削除</button>
       </div>
@@ -785,6 +807,28 @@ function LineProperties({ lines }: { lines: Line[] }) {
           </div>
         </>
       )}
+
+      {/* 論文用 description */}
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>論文レポート用</h5>
+      {!isMulti && (
+        <div className="prop-row" style={{ alignItems: 'flex-start' }}>
+          <label>説明文</label>
+          <textarea
+            value={first.description ?? ''}
+            onChange={(e) => updateLines([first.id], { description: e.target.value })}
+            style={{ width: '100%', minHeight: 60, resize: 'vertical' }}
+            placeholder="この Line の意味・解釈（論文レポートに出力）"
+          />
+        </div>
+      )}
+      <div className="prop-row">
+        <label>説明不要（自明）</label>
+        <input
+          type="checkbox"
+          checked={getCommon(lines, 'noDescriptionNeeded') === true}
+          onChange={(e) => updateLines(ids, { noDescriptionNeeded: e.target.checked })}
+        />
+      </div>
 
       <div className="prop-row">
         <button className="danger-btn" onClick={() => removeLines(ids)}>削除</button>

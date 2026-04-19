@@ -27,6 +27,7 @@ import { computeLegendItems, type LegendItem } from './legend';
 import { computeContentBounds } from './fitBounds';
 import { BOX_RENDER_SPECS } from '../store/defaults';
 import { computeBoxDisplay } from './typeDisplay';
+import { getPaperInch, type PaperSizeKey } from './paperSizes';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -36,13 +37,12 @@ export interface PPTXExportOptions {
   filename?: string;
   sheet: Sheet;
   settings: ProjectSettings;
-  scale?: boolean;  // 既定 true
-  offset?: number;  // 既定 0.1
+  scale?: boolean;              // 既定 true
+  offset?: number;              // 既定 0.1
+  paperSize?: PaperSizeKey;     // 既定: レイアウトに応じて 16:9
 }
 
 const PX_PER_INCH = 96;
-const SLIDE_LONG = 13.333;
-const SLIDE_SHORT = 7.5;
 // 二重線Boxを識別するためのマーカー色（視覚的にはほぼ黒、XML上でユニーク）
 // ポストプロセスで <a:srgbClr val="..."/> を検索して cmpd="dbl" を注入、色は通常の黒へ復元する
 const DBL_MARKER_COLOR = '2E2D2D';
@@ -65,8 +65,11 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   const layout = opts.settings.layout;
   const isH = layout === 'horizontal';
 
-  const slideW = isH ? SLIDE_LONG : SLIDE_SHORT;
-  const slideH = isH ? SLIDE_SHORT : SLIDE_LONG;
+  // 用紙サイズ決定: 明示指定があればそれ、なければレイアウト方向に応じた 16:9 デフォルト
+  const paperKey: PaperSizeKey = opts.paperSize ?? (isH ? '16:9' : 'A4-portrait');
+  const paper = getPaperInch(paperKey);
+  const slideW = paper.width;
+  const slideH = paper.height;
   const slideWpx = slideW * PX_PER_INCH;
   const slideHpx = slideH * PX_PER_INCH;
 

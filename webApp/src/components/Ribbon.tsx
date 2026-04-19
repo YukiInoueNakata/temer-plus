@@ -15,6 +15,7 @@ export function Ribbon({
   onOpenInsertBetween,
   onOpenPeriodLabels,
   onOpenExport,
+  onOpenPaperReport,
   onSave,
   onSaveAs,
   onOpen,
@@ -24,6 +25,7 @@ export function Ribbon({
   onOpenInsertBetween: () => void;
   onOpenPeriodLabels: () => void;
   onOpenExport: () => void;
+  onOpenPaperReport: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -49,7 +51,7 @@ export function Ribbon({
         <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} />}
         {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
@@ -121,12 +123,13 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport }: {
+function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperReport }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
   onNew: () => void;
   onOpenExport: () => void;
+  onOpenPaperReport: () => void;
 }) {
   return (
     <>
@@ -137,7 +140,8 @@ function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport }: {
         <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
       </RibbonGroup>
       <RibbonGroup title="出力">
-        <RibbonButton label="出力..." icon="📤" onClick={onOpenExport} title="PNG / SVG / PPTX 出力（設定ダイアログ）" />
+        <RibbonButton label="出力..." icon="📤" onClick={onOpenExport} title="PNG / SVG / PDF / PPTX 出力（設定ダイアログ）" />
+        <RibbonButton label="論文レポート..." icon="📝" onClick={onOpenPaperReport} title=".docx 論文用レポートを生成" />
       </RibbonGroup>
     </>
   );

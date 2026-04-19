@@ -1,27 +1,28 @@
 // ============================================================================
-// ExportDialog - PNG / SVG / PPTX の共通出力ダイアログ
-// - タブ: PNG / SVG / PPTX
-// - PNG/SVG: 出力範囲 / 要素含有 / 背景 の設定
-// - PPTX: 出力範囲 / スケーリング の設定（背景・要素は非表示）
+// ExportDialog - PNG / SVG / PDF / PPTX の共通出力ダイアログ
+// - PNG/SVG: 出力範囲 / 要素含有 / 背景
+// - PDF: 用紙サイズ / マージン / 要素含有 / 背景
+// - PPTX: 用紙サイズ / スケーリング（背景・要素は非表示）
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
 import { useTEMStore } from '../store/store';
 import type { ExportOptions } from '../utils/exportImage';
+import { PAPER_SIZE_OPTIONS, type PaperSizeKey } from '../utils/paperSizes';
 
-type Format = 'png' | 'svg' | 'pptx';
+type Format = 'png' | 'svg' | 'pdf' | 'pptx';
 
 interface Config {
   range: 'visible' | 'all';
-  offset: number;              // 全体出力時の余白比（0.1 等）
-  // 画像系（PNG/SVG）オプション
+  offset: number;
   includeGrid: boolean;
   includePaperGuides: boolean;
   includeTopRuler: boolean;
   includeLeftRuler: boolean;
   background: 'white' | 'transparent';
-  // PPTX オプション
-  pptxScale: boolean;          // スケーリング有無（既定 true）
+  pptxScale: boolean;
+  paperSize: Exclude<PaperSizeKey, 'custom'>;
+  pdfMargin: number;        // inch
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -33,11 +34,14 @@ const DEFAULT_CONFIG: Config = {
   includeLeftRuler: false,
   background: 'white',
   pptxScale: true,
+  paperSize: '16:9',
+  pdfMargin: 0.3,
 };
 
 const FORMATS: { key: Format; label: string }[] = [
   { key: 'png', label: 'PNG' },
   { key: 'svg', label: 'SVG' },
+  { key: 'pdf', label: 'PDF' },
   { key: 'pptx', label: 'PPTX' },
 ];
 
@@ -57,10 +61,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     const onMove = (e: MouseEvent) => {
       const dx = e.clientX - dragStart.current.mouseX;
       const dy = e.clientY - dragStart.current.mouseY;
-      setPos({
-        x: dragStart.current.dlgX + dx,
-        y: dragStart.current.dlgY + dy,
-      });
+      setPos({ x: dragStart.current.dlgX + dx, y: dragStart.current.dlgY + dy });
     };
     const onUp = () => setDragging(false);
     window.addEventListener('mousemove', onMove);
@@ -91,15 +92,14 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     setBusy(true);
     setNotice(null);
     try {
-      // PPTX: visible 選択時は全体にフォールバック
       let effectiveRange = cfg.range;
-      if (format === 'pptx' && effectiveRange === 'visible') {
+      if ((format === 'pptx' || format === 'pdf') && effectiveRange === 'visible') {
         effectiveRange = 'all';
-        setNotice('PPTX は全体出力のみサポート（visible 指定 → all にフォールバック）');
+        setNotice(`${format.toUpperCase()} は全体出力のみサポート（visible → all にフォールバック）`);
       }
 
-      // 画像系の全体出力は事前に fit してからキャプチャ
-      if ((format === 'png' || format === 'svg') && effectiveRange === 'all') {
+      // 画像系 / PDF の全体出力は事前に fit してからキャプチャ
+      if ((format === 'png' || format === 'svg' || format === 'pdf') && effectiveRange === 'all') {
         requestFit('all');
         await new Promise((r) => requestAnimationFrame(() => r(null)));
         await new Promise((r) => setTimeout(r, 80));
@@ -124,6 +124,16 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           background: cfg.background,
         };
         await exportToSVG('diagram-canvas', `${baseName}.svg`, opts);
+      } else if (format === 'pdf') {
+        const { exportToPDF } = await import('../utils/exportPDF');
+        await exportToPDF('diagram-canvas', `${baseName}.pdf`, {
+          paperSize: cfg.paperSize,
+          margin: cfg.pdfMargin,
+          background: cfg.background,
+          includeGrid: cfg.includeGrid,
+          includePaperGuides: cfg.includePaperGuides,
+          includeRulers: cfg.includeTopRuler || cfg.includeLeftRuler,
+        });
       } else if (format === 'pptx') {
         const { exportToPPTX } = await import('../utils/exportPPT');
         const sheet = doc.sheets.find((s) => s.id === doc.activeSheetId);
@@ -134,6 +144,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           settings: doc.settings,
           scale: cfg.pptxScale,
           offset: cfg.offset,
+          paperSize: cfg.paperSize,
         });
       }
     } catch (e) {
@@ -145,6 +156,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   };
 
   const isImage = format === 'png' || format === 'svg';
+  const isPdf = format === 'pdf';
+  const isPptx = format === 'pptx';
+  // PDF / PPTX は用紙サイズ選択
+  const showPaperSize = isPdf || isPptx;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -169,7 +184,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             </button>
           ))}
         </div>
-        <div className="modal-body" style={{ minHeight: 320 }}>
+        <div className="modal-body" style={{ minHeight: 340 }}>
           <section className="settings-section">
             <h4>出力範囲</h4>
             <div className="setting-row">
@@ -180,7 +195,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               >
                 <option value="all">全体を出力</option>
                 <option value="visible">
-                  表示部分を出力{format === 'pptx' ? '（PPTXでは全体にフォールバック）' : ''}
+                  表示部分を出力{(isPptx || isPdf) ? '（全体にフォールバック）' : ''}
                 </option>
               </select>
             </div>
@@ -200,7 +215,39 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             )}
           </section>
 
-          {isImage && (
+          {showPaperSize && (
+            <section className="settings-section">
+              <h4>用紙サイズ</h4>
+              <div className="setting-row">
+                <label>サイズ</label>
+                <select
+                  value={cfg.paperSize}
+                  onChange={(e) => update({ paperSize: e.target.value as Exclude<PaperSizeKey, 'custom'> })}
+                  style={{ maxWidth: 260 }}
+                >
+                  {PAPER_SIZE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              {isPdf && (
+                <div className="setting-row">
+                  <label>マージン (inch)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={2}
+                    step={0.05}
+                    value={cfg.pdfMargin}
+                    onChange={(e) => update({ pdfMargin: Math.max(0, Number(e.target.value)) })}
+                    style={{ width: 80 }}
+                  />
+                </div>
+              )}
+            </section>
+          )}
+
+          {(isImage || isPdf) && (
             <>
               <section className="settings-section">
                 <h4>含める要素（既定すべてオフ）</h4>
@@ -254,11 +301,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             </>
           )}
 
-          {format === 'pptx' && (
+          {isPptx && (
             <section className="settings-section">
               <h4>PPTX 固有</h4>
               <div className="setting-row">
-                <label>スケーリング（スライドにフィット）</label>
+                <label>スケーリング（用紙にフィット）</label>
                 <input
                   type="checkbox"
                   checked={cfg.pptxScale}
@@ -266,8 +313,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 />
               </div>
               <p className="hint">
-                オフにすると元の画面座標のサイズで配置（スライド外にはみ出す可能性あり）。
-                レイアウト方向に応じて横型/縦型スライドで出力されます。
+                オフにすると元の画面座標のサイズで配置（用紙外にはみ出す可能性あり）。
+                背景は未設定（スライドマスタ既定）、グリッド/用紙枠/ルーラーは含まれません。
               </p>
             </section>
           )}
