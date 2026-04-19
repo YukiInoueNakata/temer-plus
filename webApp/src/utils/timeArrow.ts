@@ -16,6 +16,8 @@ export interface TimeArrowGeometry {
   strokeWidth: number;
   fontSize: number;
   layout: LayoutDirection;
+  // ラベル配置（描画側の transform 算出に使用）
+  labelSide: 'top' | 'bottom' | 'left' | 'right';
 }
 
 /**
@@ -56,47 +58,67 @@ export function computeTimeArrow(
   const maxY = Math.max(...ys);
 
   // time軸と item軸に対応
-  const minTime = layout === 'horizontal' ? minX : minY;
-  const maxTime = layout === 'horizontal' ? maxX : maxY;
-  const minItem = layout === 'horizontal' ? minY : minX;
-  const maxItem = layout === 'horizontal' ? maxY : maxX;
+  const isH = layout === 'horizontal';
+  const minTime = isH ? minX : minY;
+  const maxTime = isH ? maxX : maxY;
 
-  // レベル換算
+  // レベル換算（time軸は layout によらず素直）
   const minTimeLevel = minTime / LEVEL_PX;
   const maxTimeLevel = maxTime / LEVEL_PX;
-  const minItemLevel = minItem / LEVEL_PX;
-  const maxItemLevel = maxItem / LEVEL_PX;
+
+  // ユーザ座標系の Item_Level 範囲
+  // 横型: Item UP=+ なので最上行(min y) が max_user_IL
+  // 縦型: Item RIGHT=+ なので最右列(max x) が max_user_IL
+  const userMaxItemLevel = isH ? -minY / LEVEL_PX : maxX / LEVEL_PX;
+  const userMinItemLevel = isH ? -maxY / LEVEL_PX : minX / LEVEL_PX;
 
   const arrowStartTime = (minTimeLevel + settings.timeStartExtension) * LEVEL_PX;
   const arrowEndTime = (maxTimeLevel + settings.timeEndExtension) * LEVEL_PX;
-  const refLevel = settings.itemReference === 'max' ? maxItemLevel : minItemLevel;
-  const arrowItem = (refLevel + settings.itemOffset) * LEVEL_PX;
+  const refUserIL = settings.itemReference === 'max' ? userMaxItemLevel : userMinItemLevel;
+  const targetUserIL = refUserIL + settings.itemOffset;
+  // ユーザ座標 → ストレージ座標
+  const arrowItem = isH ? -targetUserIL * LEVEL_PX : targetUserIL * LEVEL_PX;
 
+  const offset = (settings.labelOffset ?? 4) + settings.fontSize / 2;
   if (layout === 'horizontal') {
+    const sideH = settings.labelSideHorizontal ?? 'bottom';
+    const alignH = settings.labelAlignHorizontal ?? 'center';
+    // 矢印に沿った位置: center=中点、end=矢印の先端近く
+    const labelX = alignH === 'end'
+      ? arrowEndTime - (arrowEndTime - arrowStartTime) * 0.05
+      : (arrowStartTime + arrowEndTime) / 2;
     return {
       startX: arrowStartTime,
       startY: arrowItem,
       endX: arrowEndTime,
       endY: arrowItem,
-      labelX: (arrowStartTime + arrowEndTime) / 2,
-      labelY: arrowItem - settings.fontSize - 4,
+      labelX,
+      labelY: sideH === 'top' ? arrowItem - offset : arrowItem + offset,
       label: settings.label,
       strokeWidth: settings.strokeWidth,
       fontSize: settings.fontSize,
       layout,
+      labelSide: sideH,
     };
   } else {
+    const sideV = settings.labelSideVertical ?? 'left';
+    const alignV = settings.labelAlignVertical ?? 'center';
+    // 縦型: center=中点、start=矢印の開始付近（上寄り）
+    const labelY = alignV === 'start'
+      ? arrowStartTime + (arrowEndTime - arrowStartTime) * 0.05
+      : (arrowStartTime + arrowEndTime) / 2;
     return {
       startX: arrowItem,
       startY: arrowStartTime,
       endX: arrowItem,
       endY: arrowEndTime,
-      labelX: arrowItem - settings.fontSize - 4,
-      labelY: (arrowStartTime + arrowEndTime) / 2,
+      labelX: sideV === 'left' ? arrowItem - offset : arrowItem + offset,
+      labelY,
       label: settings.label,
       strokeWidth: settings.strokeWidth,
       fontSize: settings.fontSize,
       layout,
+      labelSide: sideV,
     };
   }
 }

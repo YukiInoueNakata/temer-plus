@@ -8,12 +8,13 @@ import { useTEMStore } from '../store/store';
 import type { BoxType } from '../types';
 import { BOX_TYPE_LABELS } from '../store/defaults';
 
-type RibbonTab = 'file' | 'home' | 'insert' | 'view' | 'output' | 'help';
+type RibbonTab = 'file' | 'home' | 'insert' | 'view' | 'help';
 
 export function Ribbon({
   onOpenSettings,
   onOpenInsertBetween,
   onOpenPeriodLabels,
+  onOpenExport,
   onSave,
   onSaveAs,
   onOpen,
@@ -22,6 +23,7 @@ export function Ribbon({
   onOpenSettings: () => void;
   onOpenInsertBetween: () => void;
   onOpenPeriodLabels: () => void;
+  onOpenExport: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -32,7 +34,7 @@ export function Ribbon({
   return (
     <div className="ribbon">
       <div className="ribbon-tabs">
-        {(['file', 'home', 'insert', 'view', 'output', 'help'] as const).map((tab) => (
+        {(['file', 'home', 'insert', 'view', 'help'] as const).map((tab) => (
           <button
             key={tab}
             className={`ribbon-tab ${activeTab === tab ? 'active' : ''}`}
@@ -47,11 +49,10 @@ export function Ribbon({
         <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} />}
         {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
-        {activeTab === 'output' && <OutputTab />}
         {activeTab === 'help' && <HelpTab />}
       </div>
     </div>
@@ -64,7 +65,6 @@ function tabLabel(tab: RibbonTab): string {
     home: '編集',
     insert: '挿入',
     view: '表示',
-    output: '出力',
     help: 'ヘルプ',
   };
   return labels[tab];
@@ -121,19 +121,25 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onNew }: {
+function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
   onNew: () => void;
+  onOpenExport: () => void;
 }) {
   return (
-    <RibbonGroup title="ファイル操作">
-      <RibbonButton label="新規 (Ctrl+N)" icon="📄" onClick={onNew} />
-      <RibbonButton label="開く (Ctrl+O)" icon="📂" onClick={onOpen} />
-      <RibbonButton label="保存 (Ctrl+S)" icon="💾" onClick={onSave} />
-      <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
-    </RibbonGroup>
+    <>
+      <RibbonGroup title="ファイル操作">
+        <RibbonButton label="新規 (Ctrl+N)" icon="📄" onClick={onNew} />
+        <RibbonButton label="開く (Ctrl+O)" icon="📂" onClick={onOpen} />
+        <RibbonButton label="保存 (Ctrl+S)" icon="💾" onClick={onSave} />
+        <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
+      </RibbonGroup>
+      <RibbonGroup title="出力">
+        <RibbonButton label="出力..." icon="📤" onClick={onOpenExport} title="PNG / SVG / PPTX 出力（設定ダイアログ）" />
+      </RibbonGroup>
+    </>
   );
 }
 
@@ -434,7 +440,10 @@ function ViewTab({ onOpenPeriodLabels }: { onOpenPeriodLabels: () => void }) {
   const togglePropertyPanel = useTEMStore((s) => s.togglePropertyPanel);
   const toggleCommentMode = useTEMStore((s) => s.toggleCommentMode);
   const toggleBoxIds = useTEMStore((s) => s.toggleBoxIds);
+  const toggleTopRuler = useTEMStore((s) => s.toggleTopRuler);
+  const toggleLeftRuler = useTEMStore((s) => s.toggleLeftRuler);
   const toggleLegend = useTEMStore((s) => s.toggleLegend);
+  const requestFit = useTEMStore((s) => s.requestFit);
   const legendVisible = useTEMStore((s) => s.doc.settings.legend.alwaysVisible);
   const togglePeriodLabels = useTEMStore((s) => s.togglePeriodLabels);
   const periodLabelsVisible = useTEMStore((s) => s.doc.settings.periodLabels.alwaysVisible);
@@ -461,6 +470,8 @@ function ViewTab({ onOpenPeriodLabels }: { onOpenPeriodLabels: () => void }) {
         <RibbonButton label={view.snapEnabled ? 'スナップ ✓' : 'スナップ'} icon="⊡" onClick={toggleSnap} />
         <RibbonButton label={view.showPaperGuides ? '用紙枠 ✓' : '用紙枠'} icon="▭" onClick={togglePaperGuides} />
         <RibbonButton label={view.showBoxIds ? 'ID ✓' : 'ID'} icon="🏷" onClick={toggleBoxIds} />
+        <RibbonButton label={view.showTopRuler ? '上ルーラー ✓' : '上ルーラー'} icon="📏" onClick={toggleTopRuler} />
+        <RibbonButton label={view.showLeftRuler ? '左ルーラー ✓' : '左ルーラー'} icon="📐" onClick={toggleLeftRuler} />
       </RibbonGroup>
       <RibbonGroup title="図要素">
         <RibbonButton label={timeArrowVisible ? '時間矢印 ✓' : '時間矢印'} icon="→" onClick={toggleTimeArrow} />
@@ -473,63 +484,10 @@ function ViewTab({ onOpenPeriodLabels }: { onOpenPeriodLabels: () => void }) {
         <RibbonButton label={view.propertyPanelVisible ? 'プロパティ ✓' : 'プロパティ'} icon="⚙" onClick={togglePropertyPanel} />
         <RibbonButton label={view.commentMode ? 'コメント ✓' : 'コメント'} icon="💬" onClick={toggleCommentMode} />
       </RibbonGroup>
-    </>
-  );
-}
-
-function OutputTab() {
-  const doc = useTEMStore((s) => s.doc);
-  const getActiveSheet = () => doc.sheets.find((s) => s.id === doc.activeSheetId);
-
-  const handleExportPNG = async () => {
-    try {
-      const { exportToPNG } = await import('../utils/exportImage');
-      const name = doc.metadata.title || 'TEMer';
-      await exportToPNG('diagram-canvas', `${name}.png`, 2);
-    } catch (e) {
-      alert('PNG出力に失敗しました: ' + (e as Error).message);
-    }
-  };
-  const handleExportSVG = async () => {
-    try {
-      const { exportToSVG } = await import('../utils/exportImage');
-      const name = doc.metadata.title || 'TEMer';
-      await exportToSVG('diagram-canvas', `${name}.svg`);
-    } catch (e) {
-      alert('SVG出力に失敗しました: ' + (e as Error).message);
-    }
-  };
-  const handleExportPPTX = async () => {
-    try {
-      const { exportToPPTX } = await import('../utils/exportPPT');
-      const sheet = getActiveSheet();
-      if (!sheet) return;
-      const name = doc.metadata.title || 'TEMer';
-      await exportToPPTX(sheet.boxes, sheet.lines, {
-        filename: `${name}.pptx`,
-        sheet,
-        layout: doc.settings.layout,
-        timeArrowSettings: doc.settings.timeArrow,
-        includeTimeArrow: doc.settings.timeArrow.autoInsert,
-        legendSettings: doc.settings.legend,
-        includeLegend: doc.settings.legend.includeInExport,
-      });
-    } catch (e) {
-      alert('PPTX出力に失敗しました: ' + (e as Error).message);
-    }
-  };
-
-  return (
-    <>
-      <RibbonGroup title="エクスポート">
-        <RibbonButton label="PNG" icon="🖼" onClick={handleExportPNG} />
-        <RibbonButton label="SVG" icon="📐" onClick={handleExportSVG} />
-        <RibbonButton label="PPTX" icon="📊" onClick={handleExportPPTX} />
-        <RibbonButton label="PDF" icon="📄" onClick={() => alert('PDF出力は次のPhaseで実装')} />
-      </RibbonGroup>
-      <RibbonGroup title="高度">
-        <RibbonButton label="横分割出力" icon="|||" onClick={() => alert('横分割出力は次のPhaseで実装')} />
-        <RibbonButton label="論文用レポート" icon="📝" onClick={() => alert('論文用レポートは次のPhaseで実装')} />
+      <RibbonGroup title="フィット">
+        <RibbonButton label="全体fit" icon="🔳" onClick={() => requestFit('all')} title="時間矢印・時期ラベル・凡例を含め全体を画面に合わせる" />
+        <RibbonButton label="横fit" icon="↔" onClick={() => requestFit('width')} title="横幅に合わせる" />
+        <RibbonButton label="縦fit" icon="↕" onClick={() => requestFit('height')} title="縦幅に合わせる" />
       </RibbonGroup>
     </>
   );
@@ -561,13 +519,15 @@ function RibbonButton({
   label,
   icon,
   onClick,
+  title,
 }: {
   label: string;
   icon: string;
   onClick?: () => void;
+  title?: string;
 }) {
   return (
-    <button className="ribbon-btn" onClick={onClick} title={label}>
+    <button className="ribbon-btn" onClick={onClick} title={title ?? label}>
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
     </button>

@@ -87,6 +87,10 @@ export interface Box {
   typeLabelBold?: boolean;
   typeLabelItalic?: boolean;
   typeLabelFontFamily?: string;
+  typeLabelAsciiUpright?: boolean;    // タイプラベルの縦書き時ASCII向き（未指定なら asciiUpright に従う）
+
+  // サブラベル個別 ASCII
+  subLabelAsciiUpright?: boolean;
 
   // 縦書き時の半角英数の向き: true=upright(縦積み)、false=mixed(横倒し)
   // 未指定時は true（upright）が既定
@@ -112,6 +116,15 @@ export interface Line {
   description?: string;
   noDescriptionNeeded?: boolean;
   zIndex?: number;
+  // 始点・終点からの方向ベクトル沿いオフセット（px）。重なり回避に用いる
+  startMargin?: number;
+  endMargin?: number;
+  // 始点・終点の Time 方向オフセット（px、ユーザ座標）
+  startOffsetTime?: number;
+  endOffsetTime?: number;
+  // 始点・終点の Item 方向オフセット（px、ユーザ座標）
+  startOffsetItem?: number;
+  endOffsetItem?: number;
 }
 
 export interface SDSG {
@@ -127,6 +140,20 @@ export interface SDSG {
   description?: string;
   noDescriptionNeeded?: boolean;
   zIndex?: number;
+  // サブラベル（Box と同形式）
+  subLabel?: string;
+  subLabelOffsetX?: number;
+  subLabelOffsetY?: number;
+  subLabelFontSize?: number;
+  subLabelAsciiUpright?: boolean;
+  // タイプラベル（SD / SG バッジ）個別スタイル
+  typeLabelFontSize?: number;
+  typeLabelBold?: boolean;
+  typeLabelItalic?: boolean;
+  typeLabelFontFamily?: string;
+  typeLabelAsciiUpright?: boolean;
+  // 縦書き英数向き（本体テキスト用）
+  asciiUpright?: boolean;
 }
 
 export interface Annotation {
@@ -251,6 +278,10 @@ export interface SnapSettings {
   gridPx: number;
 }
 
+export type PeriodLabelBandStyle = 'tick' | 'band';
+export type HorizontalLabelSide = 'top' | 'bottom';
+export type VerticalLabelSide = 'left' | 'right';
+
 export interface PeriodLabelSettings {
   alwaysVisible: boolean;              // 編集中の表示
   includeInExport: boolean;            // エクスポートに含める
@@ -259,6 +290,26 @@ export interface PeriodLabelSettings {
   fontSize: number;
   showDividers: boolean;               // 縦（横）の区切り線
   dividerStrokeWidth: number;
+  // 描画スタイル:
+  //   'tick': 単独ラベル + 短い区切り線（既定、従来）
+  //   'band': |---時期1---|---時期2---| 形式の帯
+  bandStyle: PeriodLabelBandStyle;
+  // ラベル文字の基準線に対する配置
+  labelSideHorizontal: HorizontalLabelSide; // 横型レイアウト時（既定 'top'）
+  labelSideVertical: VerticalLabelSide;     // 縦型レイアウト時（既定 'right'）
+}
+
+export type LegendBackgroundStyle = 'none' | 'white';
+export type LegendTitlePosition = 'top' | 'left';
+export type LegendTitleAlign = 'left' | 'center' | 'right';
+export type LegendTitleWritingMode = 'horizontal' | 'vertical';
+export type LegendTitleVerticalAlign = 'top' | 'middle' | 'bottom';
+
+// 項目別のテキスト上書き（ラベル/説明/説明表示）
+export interface LegendItemOverride {
+  label?: string;
+  description?: string;
+  showDescription?: boolean;          // 未指定時は全体設定 showDescriptions に従う
 }
 
 export interface LegendSettings {
@@ -273,7 +324,36 @@ export interface LegendSettings {
   title: string;
   fontSize: number;
   minWidth: number;
+  showDescriptions: boolean;          // 各項目の説明文を表示（既定 true）
+  columns: number;                    // 後方互換用（未使用）、新規は columnsHorizontal/Vertical 参照
+  columnsHorizontal: number;          // 横型レイアウト時の列数（既定 1）
+  columnsVertical: number;            // 縦型レイアウト時の列数（既定 1）
+  fontFamily?: string;                // 項目本文のフォント
+  showTitle: boolean;                 // タイトルバーを表示
+  // タイトルのスタイル
+  titleFontSize?: number;             // 未指定時は fontSize * 1.15
+  titleFontFamily?: string;           // 未指定時は fontFamily に従う
+  titleBold?: boolean;                // 既定 true
+  titleItalic?: boolean;              // 既定 false
+  titleUnderline?: boolean;           // 既定 false
+  titleAlign: LegendTitleAlign;       // 水平揃え（既定 left）
+  titlePosition: LegendTitlePosition; // 上部 or 右側（既定 top）
+  titleWritingMode: LegendTitleWritingMode; // 縦書き / 横書き（既定 horizontal）
+  titleVerticalAlign: LegendTitleVerticalAlign; // 右側配置時の上下揃え（既定 top）
+  // 背景・枠線
+  backgroundStyle: LegendBackgroundStyle;   // 'white' | 'none'（既定 white）
+  borderWidth: number;                      // 0 = 枠線なし（既定 1）
+  borderColor?: string;                     // 既定 '#999'
+  // サンプル図形サイズ（px 単位、zoom=1 の表示基準）
+  sampleWidth: number;                      // 既定 32
+  sampleHeight: number;                     // 既定 18
+  // 項目別上書き（キーは `${category}:${key}` 例: `box:EFP`, `line:RLine`）
+  itemOverrides?: Record<string, LegendItemOverride>;
 }
+
+// 矢印線方向のラベル位置: 横型は center / end(右寄り), 縦型は center / start(上寄り)
+export type TimeArrowLabelAlignHorizontal = 'center' | 'end';
+export type TimeArrowLabelAlignVertical = 'center' | 'start';
 
 export interface TimeArrowSettings {
   autoInsert: boolean;                 // エクスポート時に自動挿入するか（＋キャンバス表示）
@@ -285,7 +365,28 @@ export interface TimeArrowSettings {
   label: string;                       // 矢印ラベル（既定: 非可逆的時間）
   strokeWidth: number;                 // 線の太さ（既定 2.5）
   fontSize: number;                    // ラベルフォントサイズ（既定 14）
+  // ラベル文字の矢印線に対する配置
+  labelSideHorizontal: HorizontalLabelSide; // 横型レイアウト時（既定 'bottom'）
+  labelSideVertical: VerticalLabelSide;     // 縦型レイアウト時（既定 'left'）
+  // ラベルの装飾・フォント
+  labelFontFamily?: string;
+  labelBold?: boolean;
+  labelItalic?: boolean;
+  labelUnderline?: boolean;
+  // 矢印からのオフセット（px）
+  labelOffset: number;                 // 既定 4
+  // 矢印線方向の揃え
+  labelAlignHorizontal: TimeArrowLabelAlignHorizontal; // 既定 'center'
+  labelAlignVertical: TimeArrowLabelAlignVertical;     // 既定 'center'
 }
+
+// 各 Box 種別 / SD・SG のタイプラベル表示フラグ
+export type TypeLabelVisibilityKey =
+  | 'BFP' | 'EFP' | 'P-EFP' | 'OPP'
+  | '2nd-EFP' | 'P-2nd-EFP'
+  | 'SD' | 'SG';
+
+export type TypeLabelVisibilityMap = Record<TypeLabelVisibilityKey, boolean>;
 
 export interface ProjectSettings {
   layout: LayoutDirection;
@@ -307,6 +408,8 @@ export interface ProjectSettings {
   timeArrow: TimeArrowSettings;
   legend: LegendSettings;
   periodLabels: PeriodLabelSettings;
+  // タイプラベル（種別バッジ）の表示有無を種別ごとに
+  typeLabelVisibility: TypeLabelVisibilityMap;
 }
 
 // ----------------------------------------------------------------------------
@@ -378,6 +481,8 @@ export interface ViewState {
   showLegend: boolean;
   showComments: boolean;
   showBoxIds: boolean;                 // Box上のIDバッジ表示切替
+  showTopRuler: boolean;               // 上部ルーラー（Time or Item）表示切替
+  showLeftRuler: boolean;              // 左部ルーラー（Item or Time）表示切替
   dataSheetVisible: boolean;
   propertyPanelVisible: boolean;
   snapEnabled: boolean;

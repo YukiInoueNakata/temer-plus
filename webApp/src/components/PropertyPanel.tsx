@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
-import type { Box, BoxType, TextAlign, VerticalAlign, SDSG } from '../types';
+import type { Box, BoxType, TextAlign, VerticalAlign, SDSG, Line } from '../types';
 import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
@@ -24,7 +24,7 @@ export function PropertyPanel() {
       const panel = document.querySelector('.property-panel') as HTMLElement | null;
       if (!panel) return;
       const right = panel.getBoundingClientRect().right;
-      const newWidth = Math.max(240, Math.min(600, right - e.clientX));
+      const newWidth = Math.max(50, Math.min(900, right - e.clientX));
       setWidth(newWidth);
     };
     const onUp = () => setResizing(false);
@@ -67,18 +67,7 @@ export function PropertyPanel() {
       <div className="panel-body">
         {!hasSelection && <EmptyState />}
         {selectedBoxes.length > 0 && <BoxProperties boxes={selectedBoxes} />}
-        {selectedLines.length > 0 && (
-          <LineProperties
-            lines={selectedLines.map((l) => ({
-              id: l.id,
-              type: l.type,
-              from: l.from,
-              to: l.to,
-              connectionMode: l.connectionMode,
-              shape: l.shape,
-            }))}
-          />
-        )}
+        {selectedLines.length > 0 && <LineProperties lines={selectedLines} />}
         {selectedSDSGs.length > 0 && <SDSGProperties sdsgs={selectedSDSGs} />}
       </div>
     </div>
@@ -422,6 +411,75 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         </div>
       </div>
 
+      {/* サブラベル 縦書きASCII */}
+      <div className="prop-row">
+        <label>サブラベルの半角英数向き（縦型）</label>
+        <select
+          value={getCommon(boxes, 'subLabelAsciiUpright') === undefined
+            ? ''
+            : (getCommon(boxes, 'subLabelAsciiUpright') ? 'upright' : 'mixed')}
+          onChange={(e) => updateBoxes(ids, { subLabelAsciiUpright: e.target.value === 'upright' })}
+        >
+          {getCommon(boxes, 'subLabelAsciiUpright') === undefined && <option value="">（Box本体と同じ）</option>}
+          <option value="upright">縦向き（上下積み）</option>
+          <option value="mixed">横倒し（伝統的）</option>
+        </select>
+      </div>
+
+      {/* タイプラベル 個別設定 */}
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>タイプラベル（種別バッジ）</h5>
+      <div className="prop-row">
+        <label>フォントサイズ</label>
+        <input
+          type="number"
+          min={6}
+          max={40}
+          value={getCommon(boxes, 'typeLabelFontSize') ?? 11}
+          placeholder={getCommon(boxes, 'typeLabelFontSize') === undefined ? '（混在）' : ''}
+          onChange={(e) => updateBoxes(ids, { typeLabelFontSize: Number(e.target.value) })}
+        />
+      </div>
+      <div className="prop-row">
+        <label>装飾</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            className={getCommon(boxes, 'typeLabelBold') !== false ? 'style-btn active' : 'style-btn'}
+            onClick={() => updateBoxes(ids, { typeLabelBold: getCommon(boxes, 'typeLabelBold') === false })}
+            title="太字"
+          ><b>B</b></button>
+          <button
+            className={getCommon(boxes, 'typeLabelItalic') ? 'style-btn active' : 'style-btn'}
+            onClick={() => updateBoxes(ids, { typeLabelItalic: !getCommon(boxes, 'typeLabelItalic') })}
+            title="斜体"
+          ><i>I</i></button>
+        </div>
+      </div>
+      <div className="prop-row">
+        <label>フォント</label>
+        <select
+          value={getCommon(boxes, 'typeLabelFontFamily') ?? ''}
+          onChange={(e) => updateBoxes(ids, { typeLabelFontFamily: e.target.value || undefined })}
+        >
+          <option value="">（Box本体と同じ）</option>
+          {FONT_OPTIONS.map((f) => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="prop-row">
+        <label>半角英数向き（縦型）</label>
+        <select
+          value={getCommon(boxes, 'typeLabelAsciiUpright') === undefined
+            ? ''
+            : (getCommon(boxes, 'typeLabelAsciiUpright') ? 'upright' : 'mixed')}
+          onChange={(e) => updateBoxes(ids, { typeLabelAsciiUpright: e.target.value === 'upright' })}
+        >
+          {getCommon(boxes, 'typeLabelAsciiUpright') === undefined && <option value="">（Box本体と同じ）</option>}
+          <option value="upright">縦向き</option>
+          <option value="mixed">横倒し</option>
+        </select>
+      </div>
+
       <div className="prop-row">
         <button className="danger-btn" onClick={() => removeBoxes(ids)}>削除</button>
       </div>
@@ -506,6 +564,40 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontSize: Number(e.target.value) } })}
             />
           </div>
+          <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>サブラベル</h5>
+          <div className="prop-row">
+            <label>サブラベル</label>
+            <input
+              type="text"
+              value={first.subLabel ?? ''}
+              onChange={(e) => updateSDSG(first.id, { subLabel: e.target.value })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>サブラベル フォントサイズ</label>
+            <input
+              type="number"
+              min={6}
+              max={40}
+              value={first.subLabelFontSize ?? 10}
+              onChange={(e) => updateSDSG(first.id, { subLabelFontSize: Number(e.target.value) })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>サブラベル位置 X / Y</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                type="number"
+                value={first.subLabelOffsetX ?? 0}
+                onChange={(e) => updateSDSG(first.id, { subLabelOffsetX: Number(e.target.value) })}
+              />
+              <input
+                type="number"
+                value={first.subLabelOffsetY ?? 0}
+                onChange={(e) => updateSDSG(first.id, { subLabelOffsetY: Number(e.target.value) })}
+              />
+            </div>
+          </div>
         </>
       )}
       <div className="prop-row">
@@ -515,7 +607,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   );
 }
 
-function LineProperties({ lines }: { lines: { id: string; type: 'RLine' | 'XLine'; from: string; to: string; connectionMode: 'center-to-center' | 'horizontal'; shape: 'straight' | 'curve' }[] }) {
+function LineProperties({ lines }: { lines: Line[] }) {
   const updateLines = useTEMStore((s) => s.updateLines);
   const removeLines = useTEMStore((s) => s.removeLines);
 
@@ -526,6 +618,12 @@ function LineProperties({ lines }: { lines: { id: string; type: 'RLine' | 'XLine
   const commonType = lines.every((l) => l.type === first.type) ? first.type : undefined;
   const commonMode = lines.every((l) => l.connectionMode === first.connectionMode) ? first.connectionMode : undefined;
   const commonShape = lines.every((l) => l.shape === first.shape) ? first.shape : undefined;
+  const commonStartMargin = getCommon(lines, 'startMargin');
+  const commonEndMargin = getCommon(lines, 'endMargin');
+  const commonStartOffTime = getCommon(lines, 'startOffsetTime');
+  const commonEndOffTime = getCommon(lines, 'endOffsetTime');
+  const commonStartOffItem = getCommon(lines, 'startOffsetItem');
+  const commonEndOffItem = getCommon(lines, 'endOffsetItem');
 
   return (
     <div className="prop-section">
@@ -556,6 +654,62 @@ function LineProperties({ lines }: { lines: { id: string; type: 'RLine' | 'XLine
           <option value="straight">直線</option>
           <option value="curve">曲線</option>
         </select>
+      </div>
+
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>
+        始点・終点オフセット
+      </h5>
+      <div className="prop-row">
+        <label>始点 Time / Item (px)</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input
+            type="number"
+            value={commonStartOffTime ?? 0}
+            placeholder={commonStartOffTime === undefined ? '混在' : ''}
+            onChange={(e) => updateLines(ids, { startOffsetTime: Number(e.target.value) })}
+          />
+          <input
+            type="number"
+            value={commonStartOffItem ?? 0}
+            placeholder={commonStartOffItem === undefined ? '混在' : ''}
+            onChange={(e) => updateLines(ids, { startOffsetItem: Number(e.target.value) })}
+          />
+        </div>
+      </div>
+      <div className="prop-row">
+        <label>終点 Time / Item (px)</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input
+            type="number"
+            value={commonEndOffTime ?? 0}
+            placeholder={commonEndOffTime === undefined ? '混在' : ''}
+            onChange={(e) => updateLines(ids, { endOffsetTime: Number(e.target.value) })}
+          />
+          <input
+            type="number"
+            value={commonEndOffItem ?? 0}
+            placeholder={commonEndOffItem === undefined ? '混在' : ''}
+            onChange={(e) => updateLines(ids, { endOffsetItem: Number(e.target.value) })}
+          />
+        </div>
+      </div>
+      <div className="prop-row">
+        <label>始点マージン (方向沿い px)</label>
+        <input
+          type="number"
+          value={commonStartMargin ?? 0}
+          placeholder={commonStartMargin === undefined ? '（混在）' : ''}
+          onChange={(e) => updateLines(ids, { startMargin: Number(e.target.value) })}
+        />
+      </div>
+      <div className="prop-row">
+        <label>終点マージン (方向沿い px)</label>
+        <input
+          type="number"
+          value={commonEndMargin ?? 0}
+          placeholder={commonEndMargin === undefined ? '（混在）' : ''}
+          onChange={(e) => updateLines(ids, { endMargin: Number(e.target.value) })}
+        />
       </div>
 
       {!isMulti && (

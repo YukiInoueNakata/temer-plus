@@ -23,12 +23,16 @@ import 'reactflow/dist/style.css';
 import { useTEMStore, useActiveSheet } from '../store/store';
 import { BoxNode, type BoxNodeData } from './nodes/BoxNode';
 import { SDSGNode, type SDSGNodeData } from './nodes/SDSGNode';
+import { LineEdge } from './edges/LineEdge';
 import { LEVEL_PX, MINOR_TICK_PX } from '../store/defaults';
 import { computeTimeArrow } from '../utils/timeArrow';
 import { LegendOverlay } from './LegendOverlay';
 import { PeriodLabelsOverlay } from './PeriodLabelsOverlay';
+import { renderVerticalAwareText } from '../utils/verticalText';
+import { computeContentBounds } from '../utils/fitBounds';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
+const edgeTypes = { line: LineEdge };
 
 const PAPER_SIZES: Record<string, { w: number; h: number }> = {
   'A4-landscape': { w: 1123, h: 794 },
@@ -39,15 +43,15 @@ const PAPER_SIZES: Record<string, { w: number; h: number }> = {
   '4:3':          { w: 1024, h: 768 },
 };
 
-export function Canvas() {
+export function Canvas({ onOpenLegendSettings }: { onOpenLegendSettings?: () => void }) {
   return (
     <ReactFlowProvider>
-      <CanvasInner />
+      <CanvasInner onOpenLegendSettings={onOpenLegendSettings} />
     </ReactFlowProvider>
   );
 }
 
-function CanvasInner() {
+function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => void }) {
   const sheet = useActiveSheet();
   const updateBox = useTEMStore((s) => s.updateBox);
   const addLine = useTEMStore((s) => s.addLine);
@@ -59,11 +63,52 @@ function CanvasInner() {
   const canvasMode = useTEMStore((s) => s.view.canvasMode);
   const showGrid = useTEMStore((s) => s.view.showGrid);
   const showPaperGuides = useTEMStore((s) => s.view.showPaperGuides);
+  const showTopRuler = useTEMStore((s) => s.view.showTopRuler);
+  const showLeftRuler = useTEMStore((s) => s.view.showLeftRuler);
   const snapEnabled = useTEMStore((s) => s.view.snapEnabled);
   const gridPx = useTEMStore((s) => s.doc.settings.snap.gridPx);
   const layout = useTEMStore((s) => s.doc.settings.layout);
+  const settings = useTEMStore((s) => s.doc.settings);
+  const fitCounter = useTEMStore((s) => s.fitCounter);
+  const fitMode = useTEMStore((s) => s.fitMode);
 
   const dragging = useRef(false);
+  const rf = useReactFlow();
+  const rfWidth = useReactFlowStore((s) => s.width);
+  const rfHeight = useReactFlowStore((s) => s.height);
+
+  // fit リクエストへの反応
+  useEffect(() => {
+    if (!fitMode || !sheet) return;
+    const bounds = computeContentBounds(sheet, layout, settings);
+    if (!bounds) return;
+    const padding = 40;
+    if (fitMode === 'all') {
+      rf.fitBounds(
+        { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        { padding: 0.1 }
+      );
+    } else if (fitMode === 'width') {
+      const zoom = Math.max(0.1, Math.min(5, (rfWidth - padding * 2) / bounds.width));
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
+      rf.setViewport({
+        x: rfWidth / 2 - centerX * zoom,
+        y: rfHeight / 2 - centerY * zoom,
+        zoom,
+      });
+    } else if (fitMode === 'height') {
+      const zoom = Math.max(0.1, Math.min(5, (rfHeight - padding * 2) / bounds.height));
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
+      rf.setViewport({
+        x: rfWidth / 2 - centerX * zoom,
+        y: rfHeight / 2 - centerY * zoom,
+        zoom,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitCounter]);
 
   // Controlled selection via `selected` prop on nodes/edges
   const boxNodes: Node<BoxNodeData>[] = useMemo(() => {
@@ -92,6 +137,12 @@ function CanvasInner() {
         idOffsetX: b.idOffsetX,
         idOffsetY: b.idOffsetY,
         idFontSize: b.idFontSize,
+        typeLabelFontSize: b.typeLabelFontSize,
+        typeLabelBold: b.typeLabelBold,
+        typeLabelItalic: b.typeLabelItalic,
+        typeLabelFontFamily: b.typeLabelFontFamily,
+        typeLabelAsciiUpright: b.typeLabelAsciiUpright,
+        subLabelAsciiUpright: b.subLabelAsciiUpright,
         asciiUpright: b.asciiUpright,
       } as BoxNodeData,
       style: { width: b.width, height: b.height, zIndex: b.zIndex ?? 0 },
@@ -147,6 +198,17 @@ function CanvasInner() {
           width: w,
           height: h,
           style: sg.style,
+          subLabel: sg.subLabel,
+          subLabelOffsetX: sg.subLabelOffsetX,
+          subLabelOffsetY: sg.subLabelOffsetY,
+          subLabelFontSize: sg.subLabelFontSize,
+          subLabelAsciiUpright: sg.subLabelAsciiUpright,
+          typeLabelFontSize: sg.typeLabelFontSize,
+          typeLabelBold: sg.typeLabelBold,
+          typeLabelItalic: sg.typeLabelItalic,
+          typeLabelFontFamily: sg.typeLabelFontFamily,
+          typeLabelAsciiUpright: sg.typeLabelAsciiUpright,
+          asciiUpright: sg.asciiUpright,
         } as SDSGNodeData,
         style: { width: w, height: h, zIndex: sg.zIndex ?? 0 },
         draggable: true,
@@ -169,12 +231,24 @@ function CanvasInner() {
         (fromBox && dashedEndpointTypes.includes(fromBox.type)) ||
         (toBox && dashedEndpointTypes.includes(toBox.type));
       const shouldDash = l.type === 'XLine' || connectsToDashedType;
+      // curve は React Flow の default edge を利用、straight は custom edge (LineEdge) でマージン対応
+      const useCustom = l.shape !== 'curve';
       return {
         id: l.id,
         source: l.from,
         target: l.to,
         selected: selLineIds.has(l.id),
-        type: l.shape === 'curve' ? 'default' : 'straight',
+        type: useCustom ? 'line' : 'default',
+        data: useCustom
+          ? {
+              startMargin: l.startMargin ?? 0,
+              endMargin: l.endMargin ?? 0,
+              startOffsetTime: l.startOffsetTime ?? 0,
+              endOffsetTime: l.endOffsetTime ?? 0,
+              startOffsetItem: l.startOffsetItem ?? 0,
+              endOffsetItem: l.endOffsetItem ?? 0,
+            }
+          : undefined,
         style: {
           stroke: l.style?.color ?? '#222',
           strokeWidth: l.style?.strokeWidth ?? 1.5,
@@ -311,19 +385,22 @@ function CanvasInner() {
 
   return (
     <div id="diagram-canvas" className="canvas-container">
-      <div className="canvas-rulers">
-        <div className="ruler-corner">
-          <span className="ruler-origin">0</span>
+      {showTopRuler && (
+        <div className="canvas-rulers">
+          <div className="ruler-corner">
+            <span className="ruler-origin">0</span>
+          </div>
+          <TopRuler layout={layout} />
         </div>
-        <TopRuler layout={layout} />
-      </div>
+      )}
       <div className="canvas-main">
-        <LeftRuler layout={layout} />
+        {showLeftRuler && <LeftRuler layout={layout} />}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
@@ -346,7 +423,7 @@ function CanvasInner() {
             {showPaperGuides && <PaperGuideOverlay />}
             <TimeArrowOverlay />
             <PeriodLabelsOverlay />
-            <LegendOverlay />
+            <LegendOverlay onOpenSettings={onOpenLegendSettings} />
             <Controls />
           </ReactFlow>
           <CustomWheelHandler layout={layout} />
@@ -532,8 +609,31 @@ function TimeArrowOverlay() {
   const lx = arrow.labelX * zoom + panX;
   const ly = arrow.labelY * zoom + panY;
 
+  const isVert = layout === 'vertical';
+  // labelSide に応じて translate を決定
+  // 'top': 矢印より上 → y軸方向に自身の全高分引く (-100%)
+  // 'bottom': 矢印より下 → y軸方向はオフセット済みなので 0%
+  // 'left': 矢印より左 → x軸方向に自身の全幅分引く (-100%)
+  // 'right': 矢印より右 → x軸方向は 0%
+  let labelTransform: string;
+  switch (arrow.labelSide) {
+    case 'top':
+      labelTransform = 'translate(-50%, -100%)';
+      break;
+    case 'bottom':
+      labelTransform = 'translate(-50%, 0%)';
+      break;
+    case 'left':
+      labelTransform = 'translate(-100%, -50%)';
+      break;
+    case 'right':
+      labelTransform = 'translate(0%, -50%)';
+      break;
+    default:
+      labelTransform = 'translate(-50%, -50%)';
+  }
   return (
-    <svg
+    <div
       style={{
         position: 'absolute',
         top: 0,
@@ -545,34 +645,53 @@ function TimeArrowOverlay() {
         overflow: 'visible',
       }}
     >
-      <defs>
-        <marker id="time-arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#222" />
-        </marker>
-      </defs>
-      <line
-        x1={sx}
-        y1={sy}
-        x2={ex}
-        y2={ey}
-        stroke="#222"
-        strokeWidth={arrow.strokeWidth * zoom}
-        markerEnd="url(#time-arrow-head)"
-      />
-      <text
-        x={lx}
-        y={ly}
-        fontSize={arrow.fontSize * zoom}
-        textAnchor="middle"
-        fill="#222"
+      <svg
         style={{
-          writingMode: layout === 'vertical' ? 'vertical-rl' : undefined,
-          textOrientation: layout === 'vertical' ? 'upright' : undefined,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          overflow: 'visible',
         }}
       >
-        {arrow.label}
-      </text>
-    </svg>
+        <defs>
+          <marker id="time-arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#222" />
+          </marker>
+        </defs>
+        <line
+          x1={sx}
+          y1={sy}
+          x2={ex}
+          y2={ey}
+          stroke="#222"
+          strokeWidth={arrow.strokeWidth * zoom}
+          markerEnd="url(#time-arrow-head)"
+        />
+      </svg>
+      <div
+        style={{
+          position: 'absolute',
+          left: lx,
+          top: ly,
+          transform: labelTransform,
+          fontSize: arrow.fontSize * zoom,
+          color: '#222',
+          fontFamily: settings.labelFontFamily ?? undefined,
+          fontWeight: settings.labelBold ? 700 : 400,
+          fontStyle: settings.labelItalic ? 'italic' : 'normal',
+          textDecoration: settings.labelUnderline ? 'underline' : 'none',
+          writingMode: isVert ? 'vertical-rl' : undefined,
+          textOrientation: isVert ? 'upright' : undefined,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }}
+      >
+        {renderVerticalAwareText(arrow.label, isVert)}
+      </div>
+    </div>
   );
 }
 
@@ -586,6 +705,7 @@ function PaperGuideOverlay() {
   const size = PAPER_SIZES['A4-landscape'];
   return (
     <div
+      className="paper-guide-overlay"
       style={{
         position: 'absolute',
         left: panX,

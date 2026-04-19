@@ -34,11 +34,16 @@ interface DocumentState {
   doc: TEMDocument;
 }
 
+export type FitMode = 'all' | 'width' | 'height';
+
 interface UIState {
   view: ViewState;
   selection: Selection;
   fileHandle: FileSystemFileHandle | null;  // For File System Access API
   dirty: boolean;                             // Unsaved changes
+  // Canvas に fit を要求するシグナル（カウンタ更新で購読側が再実行）
+  fitCounter: number;
+  fitMode: FitMode | null;
 }
 
 interface Actions {
@@ -146,7 +151,10 @@ interface Actions {
   togglePaperGuides: () => void;
   toggleCommentMode: () => void;
   toggleBoxIds: () => void;
+  toggleTopRuler: () => void;
+  toggleLeftRuler: () => void;
   toggleLegend: () => void;
+  requestFit: (mode: FitMode) => void;
   togglePeriodLabels: () => void;
   setCanvasMode: (mode: 'move' | 'select') => void;
   setDataSheetWidth: (width: number) => void;
@@ -207,6 +215,8 @@ export const useTEMStore = create<Store>()(
       selection: { sheetId: '', boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] },
       fileHandle: null,
       dirty: false,
+      fitCounter: 0,
+      fitMode: null,
 
       // --- Document-level ---
       loadDocument: (doc) => set({ doc, dirty: false, selection: { sheetId: doc.activeSheetId, boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] } }),
@@ -371,7 +381,7 @@ export const useTEMStore = create<Store>()(
         const state = get();
         const sheet = state.doc.sheets.find((s) => s.id === state.doc.activeSheetId);
         const lineType = patch?.type ?? 'RLine';
-        const prefix = lineType; // RLine / XLine
+        const prefix = lineType === 'XLine' ? 'XL_' : 'RL_';
         const existingIds = sheet?.lines.map((l) => l.id) ?? [];
         const pattern = new RegExp(`^${prefix}(\\d+)$`);
         let maxN = 0;
@@ -991,11 +1001,22 @@ export const useTEMStore = create<Store>()(
         if (boxIds.length < 2) return;
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
+            const prefix = type === 'XLine' ? 'XL_' : 'RL_';
+            const pattern = new RegExp(`^${prefix}(\\d+)$`);
+            let maxN = 0;
+            sheet.lines.forEach((l) => {
+              const m = l.id.match(pattern);
+              if (m) {
+                const n = parseInt(m[1], 10);
+                if (n > maxN) maxN = n;
+              }
+            });
             for (let i = 0; i < boxIds.length - 1; i++) {
               const from = boxIds[i];
               const to = boxIds[i + 1];
+              maxN += 1;
               sheet.lines.push({
-                id: genLineId(),
+                id: `${prefix}${maxN}`,
                 type,
                 from,
                 to,
@@ -1018,6 +1039,9 @@ export const useTEMStore = create<Store>()(
       togglePaperGuides: () => set((state) => ({ view: { ...state.view, showPaperGuides: !state.view.showPaperGuides } })),
       toggleCommentMode: () => set((state) => ({ view: { ...state.view, commentMode: !state.view.commentMode } })),
       toggleBoxIds: () => set((state) => ({ view: { ...state.view, showBoxIds: !state.view.showBoxIds } })),
+      toggleTopRuler: () => set((state) => ({ view: { ...state.view, showTopRuler: !state.view.showTopRuler } })),
+      toggleLeftRuler: () => set((state) => ({ view: { ...state.view, showLeftRuler: !state.view.showLeftRuler } })),
+      requestFit: (mode) => set((state) => ({ fitMode: mode, fitCounter: state.fitCounter + 1 })),
       toggleLegend: () => set((state) => ({
         doc: produce(state.doc, (d) => { d.settings.legend.alwaysVisible = !d.settings.legend.alwaysVisible; }),
       })),

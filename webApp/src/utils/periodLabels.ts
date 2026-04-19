@@ -54,22 +54,24 @@ export function computePeriodLabels(
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
 
-  const minTime = layout === 'horizontal' ? minX : minY;
-  const maxTime = layout === 'horizontal' ? maxX : maxY;
-  const minItem = layout === 'horizontal' ? minY : minX;
-  const maxItem = layout === 'horizontal' ? maxY : maxX;
+  const isH = layout === 'horizontal';
+  const minTime = isH ? minX : minY;
+  const maxTime = isH ? maxX : maxY;
 
   const minTimeLevel = minTime / LEVEL_PX;
   const maxTimeLevel = maxTime / LEVEL_PX;
-  const minItemLevel = minItem / LEVEL_PX;
-  const maxItemLevel = maxItem / LEVEL_PX;
+
+  // ユーザ座標系の Item_Level 範囲（横型 UP=+, 縦型 RIGHT=+）
+  const userMaxItemLevel = isH ? -minY / LEVEL_PX : maxX / LEVEL_PX;
+  const userMinItemLevel = isH ? -maxY / LEVEL_PX : minX / LEVEL_PX;
 
   // 時間範囲（時間矢印と同じ拡張量）
   const startTime = (minTimeLevel + timeArrowSettings.timeStartExtension) * LEVEL_PX;
   const endTime = (maxTimeLevel + timeArrowSettings.timeEndExtension) * LEVEL_PX;
-  // item 位置
-  const refLevel = settings.itemReference === 'max' ? maxItemLevel : minItemLevel;
-  const itemPx = (refLevel + settings.itemOffset) * LEVEL_PX;
+  // item 位置（ユーザ座標 → ストレージ変換）
+  const refUserIL = settings.itemReference === 'max' ? userMaxItemLevel : userMinItemLevel;
+  const targetUserIL = refUserIL + settings.itemOffset;
+  const itemPx = isH ? -targetUserIL * LEVEL_PX : targetUserIL * LEVEL_PX;
 
   // 各 PeriodLabel を配置
   const items = sheet.periodLabels.map((pl) => {

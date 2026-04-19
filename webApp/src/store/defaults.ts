@@ -9,6 +9,8 @@ import type {
   ViewState,
   Box,
   Line,
+  SDSG,
+  PeriodLabel,
 } from '../types';
 
 export const DEFAULT_SETTINGS: ProjectSettings = {
@@ -41,11 +43,20 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     alwaysVisible: true,
     timeStartExtension: -0.5,
     timeEndExtension: 0.5,
-    itemReference: 'max',
-    itemOffset: 0.5,
+    // 既定: 下部（user 座標系で min Item_Level からさらに下）
+    itemReference: 'min',
+    itemOffset: -0.5,
     label: '非可逆的時間',
     strokeWidth: 2.5,
     fontSize: 14,
+    labelSideHorizontal: 'bottom',
+    labelSideVertical: 'left',
+    labelBold: false,
+    labelItalic: false,
+    labelUnderline: false,
+    labelOffset: 4,
+    labelAlignHorizontal: 'center',
+    labelAlignVertical: 'center',
   },
   legend: {
     autoGenerate: true,
@@ -59,6 +70,24 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     title: '凡例',
     fontSize: 11,
     minWidth: 200,
+    showDescriptions: false,
+    columns: 1,
+    columnsHorizontal: 1,
+    columnsVertical: 1,
+    showTitle: true,
+    titleBold: true,
+    titleItalic: false,
+    titleUnderline: false,
+    titleAlign: 'left',
+    titlePosition: 'top',
+    titleWritingMode: 'horizontal',
+    titleVerticalAlign: 'top',
+    backgroundStyle: 'white',
+    borderWidth: 1,
+    borderColor: '#999',
+    sampleWidth: 32,
+    sampleHeight: 18,
+    itemOverrides: {},
   },
   periodLabels: {
     alwaysVisible: true,
@@ -68,6 +97,19 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     fontSize: 13,
     showDividers: true,
     dividerStrokeWidth: 1,
+    bandStyle: 'band',
+    labelSideHorizontal: 'top',
+    labelSideVertical: 'right',
+  },
+  typeLabelVisibility: {
+    BFP: true,
+    EFP: true,
+    'P-EFP': true,
+    OPP: true,
+    '2nd-EFP': true,
+    'P-2nd-EFP': true,
+    SD: true,
+    SG: true,
   },
 };
 
@@ -80,6 +122,8 @@ export const DEFAULT_VIEW_STATE: ViewState = {
   showLegend: true,
   showComments: true,
   showBoxIds: true,
+  showTopRuler: true,
+  showLeftRuler: true,
   dataSheetVisible: false,
   propertyPanelVisible: true,
   snapEnabled: true,
@@ -173,34 +217,39 @@ export function createEmptySheet(name: string, order: number): Sheet {
 
 export function createSampleSheet(name: string, order: number): Sheet {
   const sheet = createEmptySheet(name, order);
-  // 1 level = 100px。横型レイアウト・縦書きBox = 縦長(60×100)が既定
+  // 標準構成:
+  //   Item1(出発点) → OPP1(必須通過点) → BFP1(分岐点) → EFP1(等至点) / P_EFP1(両極化等至点)
+  //   SD / SG は BFP1 に紐づけ
+  //   時期1 = 出発点〜等至点、時期2 = 等至点以降
   const boxes: Box[] = [
-    { id: 'Item1', type: 'normal', label: '出発点',       x: 100, y: 200, width: 60,  height: 100, textOrientation: 'vertical' },
-    { id: 'BFP1',  type: 'BFP',    label: '分岐点',       x: 300, y: 200, width: 60,  height: 100, textOrientation: 'vertical' },
-    { id: 'OPP1',  type: 'OPP',    label: '必須通過点',   x: 500, y: 200, width: 60,  height: 120, textOrientation: 'vertical' },
-    { id: 'EFP1',  type: 'EFP',    label: '等至点',       x: 700, y: 100, width: 70,  height: 120, textOrientation: 'vertical' },
-    { id: 'P_EFP1',type: 'P-EFP',  label: '両極化等至点', x: 700, y: 300, width: 70,  height: 120, textOrientation: 'vertical' },
+    { id: 'Item1',  type: 'normal', label: '出発点',       x: 100, y: 200, width: 60, height: 100, textOrientation: 'vertical' },
+    { id: 'OPP1',   type: 'OPP',    label: '必須通過点',   x: 300, y: 200, width: 60, height: 120, textOrientation: 'vertical' },
+    { id: 'BFP1',   type: 'BFP',    label: '分岐点',       x: 500, y: 200, width: 60, height: 100, textOrientation: 'vertical' },
+    { id: 'EFP1',   type: 'EFP',    label: '等至点',       x: 700, y: 100, width: 70, height: 120, textOrientation: 'vertical' },
+    { id: 'P_EFP1', type: 'P-EFP',  label: '両極化等至点', x: 700, y: 300, width: 70, height: 120, textOrientation: 'vertical' },
   ];
   const lines: Line[] = [
-    {
-      id: 'L1', type: 'RLine', from: 'Item1', to: 'Item2',
-      connectionMode: 'center-to-center', shape: 'straight',
-    },
-    {
-      id: 'L2', type: 'RLine', from: 'Item2', to: 'Item3',
-      connectionMode: 'center-to-center', shape: 'straight',
-    },
-    {
-      id: 'L3', type: 'RLine', from: 'Item3', to: 'Item4',
-      connectionMode: 'center-to-center', shape: 'straight',
-    },
-    {
-      id: 'L4', type: 'XLine', from: 'Item3', to: 'Item5',
-      connectionMode: 'center-to-center', shape: 'straight',
-    },
+    { id: 'RL_1', type: 'RLine', from: 'Item1', to: 'OPP1',   connectionMode: 'center-to-center', shape: 'straight' },
+    { id: 'RL_2', type: 'RLine', from: 'OPP1',  to: 'BFP1',   connectionMode: 'center-to-center', shape: 'straight' },
+    { id: 'RL_3', type: 'RLine', from: 'BFP1',  to: 'EFP1',   connectionMode: 'center-to-center', shape: 'straight' },
+    { id: 'XL_1', type: 'XLine', from: 'BFP1',  to: 'P_EFP1', connectionMode: 'center-to-center', shape: 'straight' },
+  ];
+  // SD / SG を分岐点(BFP1) に配置。既定サイズ 70x40
+  const sdsg: SDSG[] = [
+    { id: 'SD1', type: 'SD', label: 'SD', attachedTo: 'BFP1', itemOffset: -120, timeOffset: 0, width: 70, height: 40 },
+    { id: 'SG1', type: 'SG', label: 'SG', attachedTo: 'BFP1', itemOffset: 130,  timeOffset: 0, width: 70, height: 40 },
+  ];
+  // 時期ラベル: 時期1 (出発点〜等至点中央あたり)、時期2 (等至点以降)
+  // Item 左端 x=100 → timeLevel=1, EFP x=700 → timeLevel=7
+  // 中央 ≒ timeLevel=4（時期1）、timeLevel=7.5（時期2）
+  const periodLabels: PeriodLabel[] = [
+    { id: genPeriodId(), position: 4,   label: '時期1' },
+    { id: genPeriodId(), position: 7.5, label: '時期2' },
   ];
   sheet.boxes = boxes;
   sheet.lines = lines;
+  sheet.sdsg = sdsg;
+  sheet.periodLabels = periodLabels;
   return sheet;
 }
 

@@ -11,6 +11,7 @@ import type { Box } from '../../types';
 import { BOX_RENDER_SPECS } from '../../store/defaults';
 import { useTEMStore, useActiveSheet } from '../../store/store';
 import { computeBoxDisplay } from '../../utils/typeDisplay';
+import { renderVerticalAwareText } from '../../utils/verticalText';
 
 export interface BoxNodeData extends Pick<
   Box,
@@ -18,13 +19,15 @@ export interface BoxNodeData extends Pick<
   'number' | 'participantId' |
   'subLabel' | 'subLabelOffsetX' | 'subLabelOffsetY' | 'subLabelFontSize' |
   'idOffsetX' | 'idOffsetY' | 'idFontSize' |
-  'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' |
+  'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' | 'typeLabelAsciiUpright' |
+  'subLabelAsciiUpright' |
   'asciiUpright'
 > {}
 
 export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
   const showBoxIds = useTEMStore((s) => s.view.showBoxIds);
   const layout = useTEMStore((s) => s.doc.settings.layout);
+  const typeLabelVisibility = useTEMStore((s) => s.doc.settings.typeLabelVisibility);
   const sheet = useActiveSheet();
   const spec = BOX_RENDER_SPECS[data.type] ?? BOX_RENDER_SPECS.normal;
   const shape = data.shape ?? spec.defaultShape;
@@ -130,10 +133,20 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
     label: data.label,
     x: 0, y: 0, width: data.width, height: data.height,
   };
-  const shouldShowTypeTag = data.type !== 'normal' && data.type !== 'annotation';
+  // 種別ごとの表示フラグ（normal/annotation は元々タイプラベルを出さない）
+  const typeVisible = (typeLabelVisibility
+    ? (typeLabelVisibility as Record<string, boolean | undefined>)[data.type] !== false
+    : true);
+  const shouldShowTypeTag = data.type !== 'normal' && data.type !== 'annotation' && typeVisible;
   const typeTagText = shouldShowTypeTag && sheet
     ? computeBoxDisplay(sheet.boxes, sheet.boxes.find((b) => b.id === data.id) ?? currentBoxForDisplay, layout)
     : '';
+
+  const typeAsciiUpright = data.typeLabelAsciiUpright ?? asciiUpright;
+  const typeFontSize = data.typeLabelFontSize ?? 11;
+  const typeFontWeight = data.typeLabelBold === false ? 400 : 700;
+  const typeFontStyle = data.typeLabelItalic ? 'italic' : 'normal';
+  const typeFontFamily = data.typeLabelFontFamily ?? 'inherit';
 
   // 縦型レイアウトでは縦書き、背景/枠なし
   const typeTagStyle: React.CSSProperties = isVerticalLayout
@@ -142,12 +155,14 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         top: '50%',
         right: `calc(100% + 6px)`,
         transform: 'translateY(-50%)',
-        fontSize: 11,
+        fontSize: typeFontSize,
         padding: '2px 4px',
         color: '#222',
-        fontWeight: 700,
+        fontWeight: typeFontWeight,
+        fontStyle: typeFontStyle,
+        fontFamily: typeFontFamily,
         writingMode: 'vertical-rl',
-        textOrientation: 'upright',
+        textOrientation: typeAsciiUpright ? 'upright' : 'mixed',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
       }
@@ -156,10 +171,12 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         bottom: `calc(100% + 6px)`,
         left: '50%',
         transform: 'translateX(-50%)',
-        fontSize: 11,
+        fontSize: typeFontSize,
         padding: '2px 4px',
         color: '#222',
-        fontWeight: 700,
+        fontWeight: typeFontWeight,
+        fontStyle: typeFontStyle,
+        fontFamily: typeFontFamily,
         writingMode: 'horizontal-tb',
         whiteSpace: 'nowrap',
         pointerEvents: 'none',
@@ -173,7 +190,8 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
   const subOffsetY = data.subLabelOffsetY ?? 0;
   const subFontSize = data.subLabelFontSize ?? 10;
 
-  // サブラベル: 縦型Layoutでは Box の縦書き設定に合わせる
+  // サブラベル: asciiUpright 個別指定可
+  const subAsciiUpright = data.subLabelAsciiUpright ?? asciiUpright;
   const subLabelStyle: React.CSSProperties = isVerticalLayout
     ? {
         position: 'absolute',
@@ -185,7 +203,7 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         background: 'rgba(255,255,255,0.85)',
         padding: '0 4px',
         writingMode: 'vertical-rl',
-        textOrientation: asciiUpright ? 'upright' : 'mixed',
+        textOrientation: subAsciiUpright ? 'upright' : 'mixed',
         whiteSpace: 'nowrap',
       }
     : {
@@ -214,11 +232,21 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
       <div style={{ ...baseStyle, ...borderStyle }}>
         <Handle type="target" position={targetPosition} style={{ background: '#555' }} />
         {idBadge}
-        {typeTagText && <div style={typeTagStyle}>{typeTagText}</div>}
-        <div style={textStyle}>{data.label}</div>
+        {typeTagText && (
+          <div style={typeTagStyle}>
+            {renderVerticalAwareText(typeTagText, isVerticalLayout && typeAsciiUpright)}
+          </div>
+        )}
+        <div style={textStyle}>
+          {renderVerticalAwareText(data.label, isTextVertical && asciiUpright)}
+        </div>
         <Handle type="source" position={sourcePosition} style={{ background: '#555' }} />
       </div>
-      {subLabelText && <div style={subLabelStyle}>{subLabelText}</div>}
+      {subLabelText && (
+        <div style={subLabelStyle}>
+          {renderVerticalAwareText(subLabelText, isVerticalLayout && subAsciiUpright)}
+        </div>
+      )}
     </div>
   );
 }

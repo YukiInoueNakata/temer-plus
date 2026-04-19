@@ -27,7 +27,7 @@ export function DataSheet() {
       const panel = document.querySelector('.data-sheet') as HTMLElement | null;
       if (!panel) return;
       const left = panel.getBoundingClientRect().left;
-      const newWidth = Math.max(240, Math.min(900, e.clientX - left));
+      const newWidth = Math.max(50, Math.min(900, e.clientX - left));
       setWidth(newWidth);
     };
     const onUp = () => setResizing(false);

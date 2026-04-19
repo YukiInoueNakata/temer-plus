@@ -54,3 +54,11 @@ TODO.md
 
 # docs/（調査資料・文献PDF・画像はローカル保持）
 docs/
+
+# Web アプリからの出力ファイル（ルート直下 / webApp 直下）
+/*.png
+/*.svg
+/*.tem
+webApp/*.png
+webApp/*.svg
+webApp/*.tem

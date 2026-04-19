@@ -8,6 +8,7 @@ import { StatusBar } from './components/StatusBar';
 import { SettingsDialog } from './components/SettingsDialog';
 import { InsertBetweenDialog } from './components/InsertBetweenDialog';
 import { PeriodLabelsDialog } from './components/PeriodLabelsDialog';
+import { ExportDialog } from './components/ExportDialog';
 import { useTEMStore } from './store/store';
 import {
   saveToFile,
@@ -21,6 +22,12 @@ import './App.css';
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
+  const [exportOpen, setExportOpen] = useState(false);
+  const openSettings = (tab?: string) => {
+    setSettingsInitialTab(tab);
+    setSettingsOpen(true);
+  };
   const [insertBetweenOpen, setInsertBetweenOpen] = useState(false);
   const [periodLabelsOpen, setPeriodLabelsOpen] = useState(false);
   const [restoreChecked, setRestoreChecked] = useState(false);
@@ -194,9 +201,10 @@ export default function App() {
   return (
     <div className="app" style={{ fontSize: uiFontSize }}>
       <Ribbon
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => openSettings()}
         onOpenInsertBetween={() => setInsertBetweenOpen(true)}
         onOpenPeriodLabels={() => setPeriodLabelsOpen(true)}
+        onOpenExport={() => setExportOpen(true)}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpen={handleOpen}
@@ -205,15 +213,20 @@ export default function App() {
       <div className="main">
         <DataSheet />
         <div className="canvas-wrapper">
-          <Canvas />
+          <Canvas onOpenLegendSettings={() => openSettings('legend')} />
         </div>
         <PropertyPanel />
       </div>
       <SheetTabs />
       <StatusBar />
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        initialTab={settingsInitialTab}
+      />
       <InsertBetweenDialog open={insertBetweenOpen} onClose={() => setInsertBetweenOpen(false)} />
       <PeriodLabelsDialog open={periodLabelsOpen} onClose={() => setPeriodLabelsOpen(false)} />
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
     </div>
   );
 }
