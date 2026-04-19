@@ -485,6 +485,7 @@ function CanvasInner({
 
   const isSelectMode = canvasMode === 'select';
   const isPointerMode = canvasMode === 'pointer';
+  const isMoveMode = canvasMode === 'move';
 
   return (
     <div id="diagram-canvas" className="canvas-container">
@@ -514,6 +515,8 @@ function CanvasInner({
             deleteKeyCode={['Delete', 'Backspace']}
             panOnDrag={!isSelectMode && !isPointerMode}
             selectionOnDrag={isSelectMode}
+            nodesDraggable={!isMoveMode}
+            nodesConnectable={!isMoveMode}
             panOnScroll={false}
             zoomOnScroll={false}
             zoomOnPinch={true}

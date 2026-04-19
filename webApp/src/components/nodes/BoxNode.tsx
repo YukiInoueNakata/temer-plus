@@ -39,6 +39,8 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   const updateBox = view.updateBox;
   const sheet = view.sheet;
   const isPreview = view.isPreview;
+  const editLocked = view.editLocked;
+  const editingDisabled = isPreview || editLocked;
   const spec = BOX_RENDER_SPECS[data.type] ?? BOX_RENDER_SPECS.normal;
   const shape = data.shape ?? spec.defaultShape;
   const isTextVertical = data.textOrientation === 'vertical';
@@ -70,12 +72,6 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
     }
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const commitEdit = () => {
-    setEditing(false);
-    if (draft !== data.label) {
-      updateBox(nodeId, { label: draft });
-    }
-  };
   const cancelEdit = () => {
     setEditing(false);
     setDraft(data.label);
@@ -88,6 +84,48 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   // --------------------------------------------------------------------------
   const autoFitText = data.autoFitText ?? view.settings.defaultAutoFitText ?? false;
   const mode = (autoFitText ? 'none' : (data.autoFitBoxMode ?? defaultMode ?? 'none'));
+
+  // ラベル編集の確定: autoFit の結果も同じ 1 更新に畳み込むことで Ctrl+Z が機能する
+  const commitEdit = () => {
+    setEditing(false);
+    if (draft === data.label) return;
+    const patch: Partial<Box> = { label: draft };
+    // autoFitBoxMode: ラベル変更を前提に新サイズを算出し、同時に適用
+    if (mode !== 'none' && !autoFitText) {
+      const next = computeAutoFitSize(draft, data.width, data.height, mode, {
+        fontSize,
+        fontFamily: data.style?.fontFamily,
+        bold: data.style?.bold,
+        italic: data.style?.italic,
+        vertical: isTextVertical,
+        padding: 8,
+      });
+      if (next.width !== data.width || next.height !== data.height) {
+        const thisBox = sheet?.boxes.find((b) => b.id === nodeId);
+        const cy = thisBox ? thisBox.y + thisBox.height / 2 : null;
+        patch.width = next.width;
+        patch.height = next.height;
+        if (cy != null && next.height !== data.height) {
+          patch.y = cy - next.height / 2;
+        }
+      }
+    } else if (autoFitText) {
+      const fitted = computeFitFontSize(draft, data.width, data.height, {
+        fontFamily: data.style?.fontFamily,
+        bold: data.style?.bold,
+        italic: data.style?.italic,
+        vertical: isTextVertical,
+        padding: 8,
+        minSize: 6,
+        maxSize: 72,
+      });
+      if (Math.abs(fitted - fontSize) >= 0.5) {
+        patch.style = { ...(data.style ?? {}), fontSize: fitted };
+      }
+    }
+    updateBox(nodeId, patch);
+  };
+
   useEffect(() => {
     if (editing) return;
     if (mode === 'none') return;
@@ -332,7 +370,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   return (
     <div style={{ position: 'relative' }}>
       <NodeResizer
-        isVisible={!!selected && !editing && !isPreview}
+        isVisible={!!selected && !editing && !editingDisabled}
         minWidth={30}
         minHeight={20}
         handleStyle={{ width: 8, height: 8, borderRadius: 2, background: '#2684ff', border: '1px solid #fff' }}
@@ -342,7 +380,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
       <div
         style={{ ...baseStyle, ...borderStyle }}
         onDoubleClick={(e) => {
-          if (isPreview) return;
+          if (editingDisabled) return;
           e.stopPropagation();
           setEditing(true);
         }}

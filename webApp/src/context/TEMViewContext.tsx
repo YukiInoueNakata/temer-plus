@@ -21,6 +21,8 @@ export interface TEMViewContextValue {
   updateLine?: (id: string, patch: Partial<Line>) => void;
   // プレビューフラグ（編集機能の抑止・インライン編集の無効化などに使用）
   isPreview: boolean;
+  // 編集ロック: 'move' モード時に true。リサイズ/インライン編集などを抑止
+  editLocked: boolean;
 }
 
 export const TEMViewContext = createContext<TEMViewContextValue | null>(null);
@@ -47,5 +49,6 @@ export function useTEMView(): TEMViewContextValue {
     updateSDSG,
     updateLine,
     isPreview: false,
+    editLocked: view.canvasMode === 'move',
   };
 }

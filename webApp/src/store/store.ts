@@ -391,7 +391,29 @@ export const useTEMStore = create<Store>()(
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
             const idx = sheet.boxes.findIndex((b) => b.id === id);
-            if (idx >= 0) Object.assign(sheet.boxes[idx], patch);
+            if (idx < 0) return;
+            const oldW = sheet.boxes[idx].width;
+            const oldH = sheet.boxes[idx].height;
+            Object.assign(sheet.boxes[idx], patch);
+            const dw = sheet.boxes[idx].width - oldW;
+            const dh = sheet.boxes[idx].height - oldH;
+            // Box サイズが変わったら、attached SD/SG の offset を縁からの距離が保たれるよう補正
+            if (dw !== 0 || dh !== 0) {
+              const isH = state.doc.settings.layout === 'horizontal';
+              const timeDelta = isH ? dw : dh;   // 時間軸方向のサイズ変化
+              const itemDelta = isH ? dh : dw;   // 項目軸方向のサイズ変化
+              sheet.sdsg.forEach((sg) => {
+                if (sg.attachedTo !== id) return;
+                const to = sg.timeOffset ?? 0;
+                const io = sg.itemOffset ?? 0;
+                if (timeDelta !== 0 && to !== 0) {
+                  sg.timeOffset = to + Math.sign(to) * timeDelta / 2;
+                }
+                if (itemDelta !== 0 && io !== 0) {
+                  sg.itemOffset = io + Math.sign(io) * itemDelta / 2;
+                }
+              });
+            }
           }),
           dirty: true,
         }));
@@ -399,8 +421,28 @@ export const useTEMStore = create<Store>()(
       updateBoxes: (ids, patch) => {
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
+            const isH = state.doc.settings.layout === 'horizontal';
             sheet.boxes.forEach((b) => {
-              if (ids.includes(b.id)) Object.assign(b, patch);
+              if (!ids.includes(b.id)) return;
+              const oldW = b.width;
+              const oldH = b.height;
+              Object.assign(b, patch);
+              const dw = b.width - oldW;
+              const dh = b.height - oldH;
+              if (dw === 0 && dh === 0) return;
+              const timeDelta = isH ? dw : dh;
+              const itemDelta = isH ? dh : dw;
+              sheet.sdsg.forEach((sg) => {
+                if (sg.attachedTo !== b.id) return;
+                const to = sg.timeOffset ?? 0;
+                const io = sg.itemOffset ?? 0;
+                if (timeDelta !== 0 && to !== 0) {
+                  sg.timeOffset = to + Math.sign(to) * timeDelta / 2;
+                }
+                if (itemDelta !== 0 && io !== 0) {
+                  sg.itemOffset = io + Math.sign(io) * itemDelta / 2;
+                }
+              });
             });
           }),
           dirty: true,

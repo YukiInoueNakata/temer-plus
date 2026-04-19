@@ -88,6 +88,7 @@ function Inner({
     updateSDSG: () => {},
     updateLine: () => {},
     isPreview: true,
+    editLocked: true,
   }), [sheet, doc.settings, showGrid, showPaperGuide]);
 
   // nodes/edges を自前で組み立て

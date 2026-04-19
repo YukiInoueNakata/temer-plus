@@ -28,6 +28,7 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const typeLabelVisibility = view.settings.typeLabelVisibility;
   const updateSDSG = view.updateSDSG;
   const isPreview = view.isPreview;
+  const editingDisabled = isPreview || view.editLocked;
   const width = data.width ?? 70;
   const height = data.height ?? 40;
   const isSD = data.type === 'SD';
@@ -191,7 +192,7 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
     <div
       style={{ position: 'relative', width, height, overflow: 'visible' }}
       onDoubleClick={(e) => {
-        if (isPreview) return;
+        if (editingDisabled) return;
         e.stopPropagation();
         setEditing(true);
       }}
