@@ -74,6 +74,8 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
   const fitMode = useTEMStore((s) => s.fitMode);
 
   const dragging = useRef(false);
+  // 整列ガイド（world 座標）
+  const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
   const rf = useReactFlow();
   const rfWidth = useReactFlowStore((s) => s.width);
   const rfHeight = useReactFlowStore((s) => s.height);
@@ -279,6 +281,53 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
           } else if (ch.dragging === false && dragging.current) {
             dragging.current = false;
             temporal.resume();
+            setGuides({ v: [], h: [] });
+          }
+          // スマートガイド: Box ドラッグ中のみ
+          if (ch.dragging === true) {
+            const box = sheet.boxes.find((b) => b.id === ch.id);
+            if (box) {
+              const THRESHOLD = 5;
+              const nx = ch.position.x;
+              const ny = ch.position.y;
+              const my = {
+                left: nx,
+                right: nx + box.width,
+                centerX: nx + box.width / 2,
+                top: ny,
+                bottom: ny + box.height,
+                centerY: ny + box.height / 2,
+              };
+              const vLines: number[] = [];
+              const hLines: number[] = [];
+              sheet.boxes.forEach((o) => {
+                if (o.id === ch.id) return;
+                const oth = {
+                  left: o.x,
+                  right: o.x + o.width,
+                  centerX: o.x + o.width / 2,
+                  top: o.y,
+                  bottom: o.y + o.height,
+                  centerY: o.y + o.height / 2,
+                };
+                // 垂直方向の揃い (x 一致)
+                (['left', 'right', 'centerX'] as const).forEach((k) => {
+                  (['left', 'right', 'centerX'] as const).forEach((ok) => {
+                    if (Math.abs(my[k] - oth[ok]) < THRESHOLD) vLines.push(oth[ok]);
+                  });
+                });
+                // 水平方向の揃い (y 一致)
+                (['top', 'bottom', 'centerY'] as const).forEach((k) => {
+                  (['top', 'bottom', 'centerY'] as const).forEach((ok) => {
+                    if (Math.abs(my[k] - oth[ok]) < THRESHOLD) hLines.push(oth[ok]);
+                  });
+                });
+              });
+              // 重複排除
+              const vUnique = Array.from(new Set(vLines));
+              const hUnique = Array.from(new Set(hLines));
+              setGuides({ v: vUnique, h: hUnique });
+            }
           }
           let x = ch.position.x;
           let y = ch.position.y;
@@ -426,6 +475,7 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
             <TimeArrowOverlay />
             <PeriodLabelsOverlay />
             <LegendOverlay onOpenSettings={onOpenLegendSettings} />
+            <SmartGuidesOverlay guides={guides} />
             <Controls />
           </ReactFlow>
           <CustomWheelHandler layout={layout} />
@@ -592,6 +642,61 @@ function VerticalScrollbar() {
 // ============================================================================
 // TimeArrow Overlay - 非可逆的時間矢印をキャンバス上に描画
 // ============================================================================
+
+// ============================================================================
+// SmartGuidesOverlay - ドラッグ中の Box を他 Box と揃えるためのガイド線
+// ============================================================================
+
+function SmartGuidesOverlay({ guides }: { guides: { v: number[]; h: number[] } }) {
+  const transform = useReactFlowStore((s) => s.transform);
+  const [panX, panY, zoom] = transform;
+  if (guides.v.length === 0 && guides.h.length === 0) return null;
+  return (
+    <svg
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 10,
+        overflow: 'visible',
+      }}
+    >
+      {guides.v.map((x, i) => {
+        const sx = x * zoom + panX;
+        return (
+          <line
+            key={`v${i}`}
+            x1={sx}
+            y1={0}
+            x2={sx}
+            y2={9999}
+            stroke="#ff6b9d"
+            strokeWidth={1}
+            strokeDasharray="4 3"
+          />
+        );
+      })}
+      {guides.h.map((y, i) => {
+        const sy = y * zoom + panY;
+        return (
+          <line
+            key={`h${i}`}
+            x1={-9999}
+            y1={sy}
+            x2={9999}
+            y2={sy}
+            stroke="#ff6b9d"
+            strokeWidth={1}
+            strokeDasharray="4 3"
+          />
+        );
+      })}
+    </svg>
+  );
+}
 
 export function TimeArrowOverlay() {
   const view = useTEMView();

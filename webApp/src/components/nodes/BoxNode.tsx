@@ -347,9 +347,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
           />
         ) : (
           <div style={textStyle}>
-            {isTextVertical
-              ? renderVerticalAwareText(data.label, asciiUpright)
-              : renderRichText(data.label)}
+            {renderRichText(data.label, { vertical: isTextVertical, asciiUpright })}
           </div>
         )}
         <Handle type="source" position={sourcePosition} style={{ background: '#555' }} />

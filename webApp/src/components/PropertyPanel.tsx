@@ -2,12 +2,13 @@
 // PropertyPanel - Right sidebar (Figma-style)
 // ============================================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
 import type { Box, BoxType, TextAlign, VerticalAlign, SDSG, Line, AutoFitBoxMode } from '../types';
 import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
+import { RichTextToolbar } from './RichTextToolbar';
 
 export function PropertyPanel() {
   const visible = useTEMStore((s) => s.view.propertyPanelVisible);
@@ -108,6 +109,35 @@ function getCommonStyle<K extends keyof NonNullable<Box['style']>>(
 // Box Properties
 // ============================================================================
 
+// ラベル入力欄 + 装飾ツールバー（単一選択時のみ使用）
+function LabelWithToolbar({ box, updateBox }: {
+  box: Box;
+  updateBox: (id: string, patch: Partial<Box>) => void;
+}) {
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  return (
+    <div className="prop-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 4 }}>
+      <label>ラベル</label>
+      <RichTextToolbar
+        textareaRef={taRef}
+        value={box.label}
+        onChange={(next) => updateBox(box.id, { label: next })}
+        compact
+      />
+      <textarea
+        ref={taRef}
+        value={box.label}
+        onChange={(e) => updateBox(box.id, { label: e.target.value })}
+        rows={3}
+        style={{ width: '100%', resize: 'vertical' }}
+      />
+      <div style={{ fontSize: '0.75em', color: '#888' }}>
+        例: これは &lt;b&gt;重要&lt;/b&gt; な &lt;color=#cc0000&gt;分岐点&lt;/color&gt;
+      </div>
+    </div>
+  );
+}
+
 function BoxProperties({ boxes }: { boxes: Box[] }) {
   const updateBox = useTEMStore((s) => s.updateBox);
   const updateBoxes = useTEMStore((s) => s.updateBoxes);
@@ -204,16 +234,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         </select>
       </div>
 
-      {!isMulti && (
-        <div className="prop-row">
-          <label>ラベル</label>
-          <textarea
-            value={first.label}
-            onChange={(e) => updateBox(first.id, { label: e.target.value })}
-            rows={2}
-          />
-        </div>
-      )}
+      {!isMulti && <LabelWithToolbar box={first} updateBox={updateBox} />}
 
       {!isMulti && (
         <div className="prop-row">

@@ -24,6 +24,17 @@
 
 import type { ReactNode } from 'react';
 
+// 縦書き時に 90°回転すべき文字（半角ハイフン類）
+const ROTATE_CHARS = new Set([
+  '-', '\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\uFF0D', '\u2212',
+]);
+
+export interface RichTextOpts {
+  vertical?: boolean;
+  // 縦書き時の半角英数向き（親要素の text-orientation と揃える用、ここでは参考）
+  asciiUpright?: boolean;
+}
+
 type Style = {
   bold?: boolean;
   italic?: boolean;
@@ -133,15 +144,52 @@ function styleToCss(st: Style): React.CSSProperties {
 }
 
 /**
+ * 縦書き時に半角ハイフン類を 90°回転させて表示するための分割
+ */
+function splitVerticalText(text: string, keyPrefix: string): ReactNode[] {
+  const result: ReactNode[] = [];
+  let buf = '';
+  let idx = 0;
+  const flush = () => {
+    if (buf) {
+      result.push(buf);
+      buf = '';
+    }
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '\n') {
+      flush();
+      result.push(<br key={`${keyPrefix}-br-${idx++}`} />);
+    } else if (ROTATE_CHARS.has(ch)) {
+      flush();
+      result.push(
+        <span
+          key={`${keyPrefix}-r-${idx++}`}
+          style={{ display: 'inline-block', transform: 'rotate(90deg)', transformOrigin: 'center' }}
+        >
+          {ch}
+        </span>
+      );
+    } else {
+      buf += ch;
+    }
+  }
+  flush();
+  return result;
+}
+
+/**
  * タグ付き文字列を React ノードに変換する。
  * 各テキスト片は <span style=...> でスタイルを当てる。
- * 空白・改行は改行として扱う（\n → <br/>）。
+ * - vertical=false: 改行 \n を <br/> に変換
+ * - vertical=true: 上記 + 半角ハイフン類を 90°回転
  */
-export function renderRichText(src: string | undefined): ReactNode {
+export function renderRichText(src: string | undefined, opts?: RichTextOpts): ReactNode {
   if (!src) return null;
+  const vertical = !!opts?.vertical;
   const tokens = tokenize(src);
 
-  // スタック方式: スタイルと、それを適用する子要素を集める
   const frames: { tag: string | null; style: Style; children: ReactNode[] }[] = [
     { tag: null, style: {}, children: [] },
   ];
@@ -150,12 +198,15 @@ export function renderRichText(src: string | undefined): ReactNode {
 
   const pushText = (text: string) => {
     const st = top().style;
-    const pieces: ReactNode[] = [];
-    const lines = text.split('\n');
-    lines.forEach((ln, idx) => {
-      if (idx > 0) pieces.push(<br key={`br-${top().children.length}-${idx}`} />);
-      if (ln) pieces.push(ln);
-    });
+    const keyPrefix = `t-${top().children.length}`;
+    const pieces: ReactNode[] = vertical
+      ? splitVerticalText(text, keyPrefix)
+      : text.split('\n').flatMap((ln, idx) => {
+          const out: ReactNode[] = [];
+          if (idx > 0) out.push(<br key={`${keyPrefix}-br-${idx}`} />);
+          if (ln) out.push(ln);
+          return out;
+        });
     if (Object.keys(st).length > 0) {
       top().children.push(
         <span key={`s-${top().children.length}`} style={styleToCss(st)}>
