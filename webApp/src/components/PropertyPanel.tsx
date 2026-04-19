@@ -9,6 +9,7 @@ import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
 import { RichTextToolbar } from './RichTextToolbar';
+import { LegendSettingsSection } from './SettingsDialog';
 
 export function PropertyPanel() {
   const visible = useTEMStore((s) => s.view.propertyPanelVisible);
@@ -66,11 +67,28 @@ export function PropertyPanel() {
         <button className="panel-toggle" onClick={toggle} title="最小化">×</button>
       </div>
       <div className="panel-body">
-        {!hasSelection && <EmptyState />}
+        {!hasSelection && !selection.legendSelected && <EmptyState />}
+        {selection.legendSelected && <LegendProperties />}
         {selectedBoxes.length > 0 && <BoxProperties boxes={selectedBoxes} />}
         {selectedLines.length > 0 && <LineProperties lines={selectedLines} />}
         {selectedSDSGs.length > 0 && <SDSGProperties sdsgs={selectedSDSGs} />}
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 凡例選択時のプロパティ
+// ============================================================================
+function LegendProperties() {
+  return (
+    <div className="prop-section">
+      <h4>凡例</h4>
+      <p className="hint" style={{ marginTop: 0 }}>
+        凡例の表示対象・タイトル・レイアウト・背景・項目別を編集できます。
+        キャンバス上でドラッグすると位置を動かせます。
+      </p>
+      <LegendSettingsSection />
     </div>
   );
 }
@@ -138,6 +156,8 @@ function LabelWithToolbar({ box, updateBox }: {
   );
 }
 
+type BoxTab = 'basic' | 'decoration' | 'paper';
+
 function BoxProperties({ boxes }: { boxes: Box[] }) {
   const updateBox = useTEMStore((s) => s.updateBox);
   const updateBoxes = useTEMStore((s) => s.updateBoxes);
@@ -146,6 +166,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
   const changeBoxType = useTEMStore((s) => s.changeBoxType);
   const levelStep = useTEMStore((s) => s.doc.settings.levelStep);
   const layout = useTEMStore((s) => s.doc.settings.layout);
+  const [tab, setTab] = useState<BoxTab>('basic');
 
   const isMulti = boxes.length > 1;
   const first = boxes[0];
@@ -201,6 +222,29 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
   return (
     <div className="prop-section">
       <h4>Box {isMulti && <span className="multi-badge">{boxes.length}個</span>}</h4>
+
+      <div className="settings-tabs" style={{ marginBottom: 8, padding: 0 }}>
+        <button
+          className={tab === 'basic' ? 'settings-tab active' : 'settings-tab'}
+          onClick={() => setTab('basic')}
+        >
+          基本
+        </button>
+        <button
+          className={tab === 'decoration' ? 'settings-tab active' : 'settings-tab'}
+          onClick={() => setTab('decoration')}
+        >
+          装飾・調整
+        </button>
+        <button
+          className={tab === 'paper' ? 'settings-tab active' : 'settings-tab'}
+          onClick={() => setTab('paper')}
+        >
+          論文
+        </button>
+      </div>
+
+      {tab === 'basic' && <>
 
       {!isMulti && (
         <div className="prop-row">
@@ -361,6 +405,9 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         />
       </div>
 
+      </>}
+      {tab === 'decoration' && <>
+
       {/* Box 自動拡張 */}
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>Box 自動調整</h5>
       <div className="prop-row">
@@ -396,7 +443,14 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           onClick={() => useTEMStore.getState().fitBoxesToLabel(ids)}
           title="現在のラベル文字数に合わせて Box サイズを最小化"
         >
-          文字に合わせる
+          Box を文字に合わせる
+        </button>
+        <button
+          className="ribbon-btn-small"
+          onClick={() => useTEMStore.getState().fitBoxesTextToBox(ids)}
+          title="Box のサイズに合わせて文字サイズを自動調整（1 回適用）"
+        >
+          文字を Box に合わせる
         </button>
         {isMulti && (
           <>
@@ -572,6 +626,9 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         </select>
       </div>
 
+      </>}
+      {tab === 'paper' && <>
+
       {/* 論文用 description */}
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>論文レポート用</h5>
       {!isMulti && (
@@ -593,6 +650,8 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           onChange={(e) => updateBoxes(ids, { noDescriptionNeeded: e.target.checked })}
         />
       </div>
+
+      </>}
 
       <div className="prop-row">
         <button className="danger-btn" onClick={() => removeBoxes(ids)}>削除</button>

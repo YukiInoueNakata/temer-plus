@@ -270,12 +270,20 @@ export interface Participant {
 // プロジェクト設定
 // ----------------------------------------------------------------------------
 
+// 用紙の "size key"（向きを持たない短辺×長辺の論理サイズ）
+// 描画時に layout に応じて「横型なら長辺を横、縦型なら長辺を縦」に回転
+export type PaperBaseKey = 'A4' | 'A3' | '16:9' | '4:3' | 'custom';
+
 export interface PaperGuide {
   enabled: boolean;
+  // 互換: 旧 'A4-landscape' などが保存されていたら読み込み時は 'A4' 等に正規化
   size: 'A4-landscape' | 'A4-portrait' | 'A3-landscape' | 'A3-portrait' | '16:9' | '4:3' | 'custom';
-  customWidth?: number;
-  customHeight?: number;
+  baseSize?: PaperBaseKey;   // 新しいキー（layout で向きが決まる）
+  customWidth?: number;       // px
+  customHeight?: number;      // px
   color?: string;
+  pageCount?: number;         // 長辺方向に並べる枚数（既定 1）
+  maskOutside?: boolean;      // 用紙枠外を薄グレーで mask（既定 true）
 }
 
 export interface SnapSettings {
@@ -478,6 +486,7 @@ export interface Selection {
   lineIds: string[];
   sdsgIds: string[];
   annotationIds: string[];
+  legendSelected?: boolean;  // 凡例がシングル選択されている
 }
 
 export type CanvasMode = 'move' | 'select';

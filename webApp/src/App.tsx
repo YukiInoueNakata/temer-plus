@@ -12,6 +12,7 @@ import { ExportPreviewDialog } from './components/ExportPreviewDialog';
 import { PaperReportDialog } from './components/PaperReportDialog';
 import { ResizeDialog } from './components/ResizeDialog';
 import { CSVImportDialog } from './components/CSVImportDialog';
+import { ShiftContentDialog } from './components/ShiftContentDialog';
 import { useTEMStore } from './store/store';
 import {
   saveToFile,
@@ -30,6 +31,7 @@ export default function App() {
   const [reportOpen, setReportOpen] = useState(false);
   const [resizeOpen, setResizeOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
+  const [shiftOpen, setShiftOpen] = useState(false);
   const openSettings = (tab?: string) => {
     setSettingsInitialTab(tab);
     setSettingsOpen(true);
@@ -214,6 +216,7 @@ export default function App() {
         onOpenPaperReport={() => setReportOpen(true)}
         onOpenResize={() => setResizeOpen(true)}
         onOpenCSVImport={() => setCsvOpen(true)}
+        onOpenShiftContent={() => setShiftOpen(true)}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpen={handleOpen}
@@ -239,6 +242,7 @@ export default function App() {
       <PaperReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
       <ResizeDialog open={resizeOpen} onClose={() => setResizeOpen(false)} />
       <CSVImportDialog open={csvOpen} onClose={() => setCsvOpen(false)} />
+      <ShiftContentDialog open={shiftOpen} onClose={() => setShiftOpen(false)} />
     </div>
   );
 }

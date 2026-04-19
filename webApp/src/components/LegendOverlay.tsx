@@ -296,10 +296,17 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
     userSelect: 'none',
   };
 
+  const onSingleClick = (e: React.MouseEvent) => {
+    if (isPreview) return;
+    e.stopPropagation();
+    useTEMStore.getState().selectLegend();
+  };
+
   return (
     <div
       onDoubleClick={openSettings}
-      title="ダブルクリックで凡例設定"
+      onClick={onSingleClick}
+      title="クリックで選択、ダブルクリックで凡例設定"
       style={wrapperStyle}
     >
       {bareHandle}

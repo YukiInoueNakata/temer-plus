@@ -29,7 +29,7 @@ import {
   genPeriodId,
   genSheetId,
 } from './defaults';
-import { computeFitToLabelSize } from '../utils/boxFit';
+import { computeFitToLabelSize, computeFitFontSize } from '../utils/boxFit';
 
 interface DocumentState {
   doc: TEMDocument;
@@ -68,11 +68,15 @@ interface Actions {
   removeBox: (id: string) => void;
   removeBoxes: (ids: string[]) => void;
   fitBoxesToLabel: (ids: string[]) => void;   // ラベル文字数に合わせて Box サイズを最小 Fit
+  fitBoxesTextToBox: (ids: string[]) => void; // Box サイズに合わせて文字サイズを調整（1回適用）
   // 選択 Box のサイズ/文字サイズを統一
   matchBoxesSize: (ids: string[], mode: 'width' | 'height' | 'both', basis?: 'first' | 'max' | 'min') => void;
   matchBoxesFontSize: (ids: string[], basis?: 'first' | 'max' | 'min') => void;
   // シート全体のリサイズ（実データを変更）
   resizeActiveSheet: (scale: number, opts?: { includeFontSize?: boolean }) => void;
+  // Box / Line の始終点オフセット / SDSG を一括で timeLevel/itemLevel 方向に平行移動
+  // （時期区分・時間矢印・凡例は不変）
+  shiftActiveSheetContent: (deltaTimeLevel: number, deltaItemLevel: number) => void;
   // CSV インポート: Box/Line を一括追加（シフト挿入対応）
   importBoxes: (
     newBoxes: Box[],
@@ -120,7 +124,8 @@ interface Actions {
   // Selection
   selectSingle: (type: 'box' | 'line' | 'sdsg' | 'annotation', id: string) => void;
   toggleSelect: (type: 'box' | 'line' | 'sdsg' | 'annotation', id: string) => void;
-  setSelection: (boxIds: string[], lineIds?: string[], sdsgIds?: string[]) => void;
+  setSelection: (boxIds: string[], lineIds?: string[], sdsgIds?: string[], opts?: { legendSelected?: boolean }) => void;
+  selectLegend: () => void;
   clearSelection: () => void;
   selectAll: () => void;
 
@@ -395,6 +400,26 @@ export const useTEMStore = create<Store>()(
           dirty: true,
         }));
       },
+      fitBoxesTextToBox: (ids) => {
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            sheet.boxes.forEach((b) => {
+              if (!ids.includes(b.id)) return;
+              const fs = computeFitFontSize(b.label, b.width, b.height, {
+                fontFamily: b.style?.fontFamily,
+                bold: b.style?.bold,
+                italic: b.style?.italic,
+                vertical: b.textOrientation === 'vertical',
+                padding: 8,
+                minSize: 6,
+                maxSize: 72,
+              });
+              b.style = { ...(b.style ?? {}), fontSize: fs };
+            });
+          }),
+          dirty: true,
+        }));
+      },
       matchBoxesSize: (ids, mode, basis = 'first') => {
         if (ids.length < 2) return;
         set((state) => ({
@@ -485,6 +510,27 @@ export const useTEMStore = create<Store>()(
 
             sheet.boxes.push(...newBoxes);
             sheet.lines.push(...newLines);
+          }),
+          dirty: true,
+        }));
+      },
+      shiftActiveSheetContent: (deltaTimeLevel, deltaItemLevel) => {
+        if (deltaTimeLevel === 0 && deltaItemLevel === 0) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const isH = state.doc.settings.layout === 'horizontal';
+            const dxPx = deltaTimeLevel * LEVEL_PX;
+            const dyPx = -deltaItemLevel * LEVEL_PX; // user's Item UP=+ → storage y DOWN=+
+            // 横型: Time→x, Item→-y
+            // 縦型: Time→y, Item→x
+            const boxDx = isH ? dxPx : -dyPx;
+            const boxDy = isH ? dyPx : dxPx;
+            sheet.boxes.forEach((b) => {
+              b.x += boxDx;
+              b.y += boxDy;
+            });
+            // SDSG は attachedTo に追従するので不要（offset は相対値）
+            // 時期区分・時間矢印・凡例は変更しない（要望通り）
           }),
           dirty: true,
         }));
@@ -890,7 +936,7 @@ export const useTEMStore = create<Store>()(
           };
         });
       },
-      setSelection: (boxIds, lineIds = [], sdsgIds = []) => {
+      setSelection: (boxIds, lineIds = [], sdsgIds = [], opts) => {
         set((state) => ({
           selection: {
             sheetId: state.doc.activeSheetId,
@@ -898,6 +944,19 @@ export const useTEMStore = create<Store>()(
             lineIds,
             sdsgIds,
             annotationIds: [],
+            legendSelected: opts?.legendSelected ?? false,
+          },
+        }));
+      },
+      selectLegend: () => {
+        set((state) => ({
+          selection: {
+            sheetId: state.doc.activeSheetId,
+            boxIds: [],
+            lineIds: [],
+            sdsgIds: [],
+            annotationIds: [],
+            legendSelected: true,
           },
         }));
       },

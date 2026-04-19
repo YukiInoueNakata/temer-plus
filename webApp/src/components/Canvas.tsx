@@ -9,7 +9,6 @@ import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
-  Controls,
   MarkerType,
   useStore as useReactFlowStore,
   useReactFlow,
@@ -35,14 +34,22 @@ import { useTEMView } from '../context/TEMViewContext';
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
 const edgeTypes = { line: LineEdge };
 
-const PAPER_SIZES: Record<string, { w: number; h: number }> = {
-  'A4-landscape': { w: 1123, h: 794 },
-  'A4-portrait':  { w: 794,  h: 1123 },
-  'A3-landscape': { w: 1587, h: 1123 },
-  'A3-portrait':  { w: 1123, h: 1587 },
-  '16:9':         { w: 1280, h: 720 },
-  '4:3':          { w: 1024, h: 768 },
+// 短辺×長辺（layout に応じて向きを決める）
+const PAPER_BASE_SIZES: Record<string, { short: number; long: number }> = {
+  'A4':    { short: 794,  long: 1123 },
+  'A3':    { short: 1123, long: 1587 },
+  '16:9':  { short: 720,  long: 1280 },
+  '4:3':   { short: 768,  long: 1024 },
 };
+
+// 旧 size キーから baseKey を推定（互換用）
+function legacySizeToBaseKey(size: string): 'A4' | 'A3' | '16:9' | '4:3' | 'custom' {
+  if (size.startsWith('A4')) return 'A4';
+  if (size.startsWith('A3')) return 'A3';
+  if (size === '16:9') return '16:9';
+  if (size === '4:3') return '4:3';
+  return 'custom';
+}
 
 export function Canvas({ onOpenLegendSettings }: { onOpenLegendSettings?: () => void }) {
   return (
@@ -79,6 +86,22 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
   const rf = useReactFlow();
   const rfWidth = useReactFlowStore((s) => s.width);
   const rfHeight = useReactFlowStore((s) => s.height);
+
+  // レイアウト切替時: Item_Level=0 / Time_Level=0 の原点を画面中央に
+  const prevLayoutRef = useRef(layout);
+  useEffect(() => {
+    if (prevLayoutRef.current !== layout) {
+      prevLayoutRef.current = layout;
+      // 次のフレームで setCenter（React Flow の準備完了後）
+      requestAnimationFrame(() => {
+        try {
+          rf.setCenter(0, 0, { zoom: rf.getViewport().zoom });
+        } catch {
+          // ignore
+        }
+      });
+    }
+  }, [layout, rf]);
 
   // fit リクエストへの反応
   useEffect(() => {
@@ -476,7 +499,7 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
             <PeriodLabelsOverlay />
             <LegendOverlay onOpenSettings={onOpenLegendSettings} />
             <SmartGuidesOverlay guides={guides} />
-            <Controls />
+            <CustomControls />
           </ReactFlow>
           <CustomWheelHandler layout={layout} />
           <HorizontalScrollbar />
@@ -807,29 +830,195 @@ export function TimeArrowOverlay() {
 // Paper Guide
 // ============================================================================
 
-function PaperGuideOverlay() {
-  const transform = useReactFlowStore((s) => s.transform);
-  const [panX, panY, zoom] = transform;
-  const size = PAPER_SIZES['A4-landscape'];
+// ============================================================================
+// CustomControls - 右下の独自コントロール
+// ZoomIn / ZoomOut / 全体fit / 横fit / 縦fit / toggleInteractivity
+// ============================================================================
+function CustomControls() {
+  const rf = useReactFlow();
+  const requestFit = useTEMStore((s) => s.requestFit);
+  const [interactive, setInteractive] = useState(true);
+
+  const btn: React.CSSProperties = {
+    width: 30,
+    height: 30,
+    border: '1px solid #ddd',
+    background: '#fff',
+    cursor: 'pointer',
+    fontSize: 14,
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  const toggleInteractive = () => {
+    const next = !interactive;
+    setInteractive(next);
+    // Node のドラッグ可能状態を切替: CSS で pointer-events を効かせる実装は難しいので
+    // React Flow の interactive を模倣するため body に class を追加
+    document.getElementById('diagram-canvas')?.classList.toggle('non-interactive', !next);
+  };
+
   return (
     <div
-      className="paper-guide-overlay"
+      className="react-flow__controls"
       style={{
         position: 'absolute',
-        left: panX,
-        top: panY,
-        width: size.w * zoom,
-        height: size.h * zoom,
-        border: `2px dashed #ff6b6b`,
-        pointerEvents: 'none',
-        zIndex: 0,
+        right: 20,
+        bottom: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        zIndex: 5,
+        boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+        borderRadius: 3,
+        overflow: 'hidden',
       }}
     >
-      <span style={{ position: 'absolute', top: -18, left: 0, fontSize: 10, color: '#ff6b6b', background: '#fff', padding: '0 4px', fontWeight: 600 }}>
-        A4 横
-      </span>
+      <button style={btn} title="ズームイン" onClick={() => rf.zoomIn()}>＋</button>
+      <button style={btn} title="ズームアウト" onClick={() => rf.zoomOut()}>－</button>
+      <button style={btn} title="全体フィット" onClick={() => requestFit('all')}>⛶</button>
+      <button style={btn} title="横幅フィット" onClick={() => requestFit('width')}>↔</button>
+      <button style={btn} title="縦幅フィット" onClick={() => requestFit('height')}>↕</button>
+      <button
+        style={{ ...btn, background: interactive ? '#fff' : '#e8e8e8' }}
+        title={interactive ? '編集をロック' : '編集を解放'}
+        onClick={toggleInteractive}
+      >
+        {interactive ? '🔓' : '🔒'}
+      </button>
     </div>
   );
+}
+
+function PaperGuideOverlay() {
+  const transform = useReactFlowStore((s) => s.transform);
+  const layout = useTEMStore((s) => s.doc.settings.layout);
+  const paperGuides = useTEMStore((s) => s.doc.settings.paperGuides);
+  const [panX, panY, zoom] = transform;
+  const guide = paperGuides[0];
+  if (!guide) return null;
+
+  const baseKey = guide.baseSize ?? legacySizeToBaseKey(guide.size);
+  let short = 0;
+  let long = 0;
+  if (baseKey === 'custom') {
+    short = guide.customWidth ?? 794;
+    long = guide.customHeight ?? 1123;
+  } else {
+    const b = PAPER_BASE_SIZES[baseKey];
+    short = b.short;
+    long = b.long;
+  }
+  const isH = layout === 'horizontal';
+  // 横型: 長辺 = width、縦型: 長辺 = height
+  const pageW = isH ? long : short;
+  const pageH = isH ? short : long;
+  const pageCount = Math.max(1, guide.pageCount ?? 1);
+  const color = guide.color ?? '#ff6b6b';
+
+  // Level 0 が短辺中央になるよう:
+  //   横型: Level 0 は y 方向中央 → y 起点を -pageH/2
+  //   縦型: Level 0 は x 方向中央 → x 起点を -pageW/2
+  // 長辺方向の起点は 0 から（複数枚は長辺方向に並ぶ）
+  const worldOriginX = isH ? 0 : -pageW / 2;
+  const worldOriginY = isH ? -pageH / 2 : 0;
+  const totalLongPx = (isH ? pageW : pageH) * pageCount;
+
+  // ワールド座標 → 画面座標
+  const screenX = worldOriginX * zoom + panX;
+  const screenY = worldOriginY * zoom + panY;
+  const wPx = (isH ? totalLongPx : pageW) * zoom;
+  const hPx = (isH ? pageH : totalLongPx) * zoom;
+
+  // 複数枚の境界線
+  const dividers: React.ReactNode[] = [];
+  for (let i = 1; i < pageCount; i++) {
+    if (isH) {
+      const x = (worldOriginX + pageW * i) * zoom + panX;
+      dividers.push(
+        <div
+          key={`d${i}`}
+          style={{
+            position: 'absolute',
+            left: x,
+            top: screenY,
+            width: 0,
+            height: pageH * zoom,
+            borderLeft: `1.5px dashed ${color}`,
+          }}
+        />
+      );
+    } else {
+      const y = (worldOriginY + pageH * i) * zoom + panY;
+      dividers.push(
+        <div
+          key={`d${i}`}
+          style={{
+            position: 'absolute',
+            left: screenX,
+            top: y,
+            height: 0,
+            width: pageW * zoom,
+            borderTop: `1.5px dashed ${color}`,
+          }}
+        />
+      );
+    }
+  }
+
+  return (
+    <>
+      {/* 用紙枠範囲外の薄グレーマスク（4 方向） */}
+      {guide.maskOutside !== false && (
+        <>
+          <div style={maskStyle({ left: 0, top: 0, right: '100%', height: '100%' }, 'left', screenX, screenY, wPx, hPx)} />
+          <div style={maskStyle({ left: screenX + wPx, top: 0, right: 0, height: '100%' }, 'right', screenX, screenY, wPx, hPx)} />
+          <div style={maskStyle({ left: 0, top: 0, width: '100%', height: screenY }, 'top', screenX, screenY, wPx, hPx)} />
+          <div style={maskStyle({ left: 0, top: screenY + hPx, width: '100%', bottom: 0 }, 'bottom', screenX, screenY, wPx, hPx)} />
+        </>
+      )}
+      <div
+        className="paper-guide-overlay"
+        style={{
+          position: 'absolute',
+          left: screenX,
+          top: screenY,
+          width: wPx,
+          height: hPx,
+          border: `2px dashed ${color}`,
+          pointerEvents: 'none',
+          zIndex: 0,
+          boxSizing: 'border-box',
+        }}
+      >
+        <span style={{ position: 'absolute', top: -18, left: 0, fontSize: 10, color, background: '#fff', padding: '0 4px', fontWeight: 600 }}>
+          {baseKey === 'custom' ? 'カスタム' : baseKey}
+          {pageCount > 1 && ` × ${pageCount}`}
+        </span>
+      </div>
+      {dividers}
+    </>
+  );
+}
+
+// 用紙枠外マスク（薄グレー半透明）
+function maskStyle(
+  pos: React.CSSProperties,
+  _which: string,
+  _sx: number,
+  _sy: number,
+  _sw: number,
+  _sh: number,
+): React.CSSProperties {
+  return {
+    position: 'absolute',
+    ...pos,
+    background: 'rgba(180, 180, 180, 0.25)',
+    pointerEvents: 'none',
+    zIndex: 0,
+  };
 }
 
 // ============================================================================

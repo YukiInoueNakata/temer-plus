@@ -607,6 +607,11 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
   background: #fff;
 }
 
+.canvas-container.non-interactive .react-flow__node,
+.canvas-container.non-interactive .react-flow__edge {
+  pointer-events: none !important;
+}
+
 .scrollbar-h {
   position: absolute;
   bottom: 0;

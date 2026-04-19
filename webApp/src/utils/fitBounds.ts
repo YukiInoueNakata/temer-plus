@@ -74,9 +74,21 @@ export function computeContentBounds(
     if (geom) {
       xs.push(geom.startX, geom.endX);
       ys.push(geom.startY, geom.endY);
+      // ラベルテキスト領域（テキスト自体の大きさ）も bbox に含める
+      const fs = settings.periodLabels.fontSize ?? 13;
       geom.items.forEach((it) => {
-        xs.push(it.x);
-        ys.push(it.y);
+        const maxLen = Math.max(6, (it.label ?? '').length);
+        const textW = Math.max(80, maxLen * fs * 0.9);
+        const textH = Math.max(20, fs * 1.8);
+        if (layout === 'horizontal') {
+          // 横型: label は x 中央 + y 上下どちらか
+          xs.push(it.x - textW / 2, it.x + textW / 2);
+          ys.push(it.y - textH, it.y + textH);
+        } else {
+          // 縦型: label は y 中心 + x 左右どちらか
+          xs.push(it.x - textW, it.x + textW);
+          ys.push(it.y - textH / 2, it.y + textH / 2);
+        }
       });
     }
   }

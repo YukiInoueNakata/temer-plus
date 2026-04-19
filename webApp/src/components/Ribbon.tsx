@@ -18,6 +18,7 @@ export function Ribbon({
   onOpenPaperReport,
   onOpenResize,
   onOpenCSVImport,
+  onOpenShiftContent,
   onSave,
   onSaveAs,
   onOpen,
@@ -30,6 +31,7 @@ export function Ribbon({
   onOpenPaperReport: () => void;
   onOpenResize: () => void;
   onOpenCSVImport: () => void;
+  onOpenShiftContent: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -55,8 +57,8 @@ export function Ribbon({
         <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} />}
-        {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} onOpenResize={onOpenResize} />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onOpenSettings={onOpenSettings} />}
+        {activeTab === 'home' && <HomeTab onOpenResize={onOpenResize} onOpenShiftContent={onOpenShiftContent} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'help' && <HelpTab />}
@@ -127,7 +129,7 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperReport, onOpenCSVImport }: {
+function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperReport, onOpenCSVImport, onOpenSettings }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -135,6 +137,7 @@ function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperRep
   onOpenExport: () => void;
   onOpenPaperReport: () => void;
   onOpenCSVImport: () => void;
+  onOpenSettings: () => void;
 }) {
   return (
     <>
@@ -151,11 +154,14 @@ function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperRep
         <RibbonButton label="出力..." icon="📤" onClick={onOpenExport} title="PNG / SVG / PDF / PPTX 出力（設定ダイアログ）" />
         <RibbonButton label="論文レポート..." icon="📝" onClick={onOpenPaperReport} title=".docx 論文用レポートを生成" />
       </RibbonGroup>
+      <RibbonGroup title="環境">
+        <RibbonButton label="設定" icon="⚙" onClick={onOpenSettings} title="全般設定（レイアウト・フォント・凡例など）" />
+      </RibbonGroup>
     </>
   );
 }
 
-function HomeTab({ onOpenSettings, onOpenResize }: { onOpenSettings: () => void; onOpenResize: () => void }) {
+function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => void; onOpenShiftContent: () => void }) {
   const copyToClipboard = useTEMStore((s) => s.copyToClipboard);
   const pasteFromClipboard = useTEMStore((s) => s.pasteFromClipboard);
   const selection = useTEMStore((s) => s.selection);
@@ -282,9 +288,12 @@ function HomeTab({ onOpenSettings, onOpenResize }: { onOpenSettings: () => void;
           onClick={onOpenResize}
           title="シート全体を用紙サイズや任意の倍率でリサイズ"
         />
-      </RibbonGroup>
-      <RibbonGroup title="その他">
-        <RibbonButton label="設定" icon="⚙" onClick={onOpenSettings} />
+        <RibbonButton
+          label="一括移動..."
+          icon="✥"
+          onClick={onOpenShiftContent}
+          title="時期区分・時間矢印・凡例以外を Time/Item 方向にまとめて移動"
+        />
       </RibbonGroup>
     </>
   );

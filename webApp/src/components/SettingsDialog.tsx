@@ -506,7 +506,7 @@ function PeriodLabelSettingsSection() {
 // ============================================================================
 // Legend
 // ============================================================================
-function LegendSettingsSection() {
+export function LegendSettingsSection() {
   const doc = useTEMStore((s) => s.doc);
   const sheet = useActiveSheet();
   const lg = doc.settings.legend;
