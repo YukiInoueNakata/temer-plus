@@ -51,15 +51,35 @@ function legacySizeToBaseKey(size: string): 'A4' | 'A3' | '16:9' | '4:3' | 'cust
   return 'custom';
 }
 
-export function Canvas({ onOpenLegendSettings }: { onOpenLegendSettings?: () => void }) {
+export function Canvas({
+  onOpenLegendSettings,
+  onOpenTimeArrowSettings,
+  onOpenPeriodSettings,
+}: {
+  onOpenLegendSettings?: () => void;
+  onOpenTimeArrowSettings?: () => void;
+  onOpenPeriodSettings?: () => void;
+}) {
   return (
     <ReactFlowProvider>
-      <CanvasInner onOpenLegendSettings={onOpenLegendSettings} />
+      <CanvasInner
+        onOpenLegendSettings={onOpenLegendSettings}
+        onOpenTimeArrowSettings={onOpenTimeArrowSettings}
+        onOpenPeriodSettings={onOpenPeriodSettings}
+      />
     </ReactFlowProvider>
   );
 }
 
-function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => void }) {
+function CanvasInner({
+  onOpenLegendSettings,
+  onOpenTimeArrowSettings,
+  onOpenPeriodSettings,
+}: {
+  onOpenLegendSettings?: () => void;
+  onOpenTimeArrowSettings?: () => void;
+  onOpenPeriodSettings?: () => void;
+}) {
   const sheet = useActiveSheet();
   const updateBox = useTEMStore((s) => s.updateBox);
   const addLine = useTEMStore((s) => s.addLine);
@@ -449,13 +469,22 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
 
   const onPaneClick = useCallback(() => {
     setSelection([], []);
+    setGuides({ v: [], h: [] });
   }, [setSelection]);
+
+  // 選択が解除されたらガイドも消す
+  useEffect(() => {
+    if (storeBoxIds.length === 0 && storeLineIds.length === 0 && storeSdsgIds.length === 0) {
+      setGuides({ v: [], h: [] });
+    }
+  }, [storeBoxIds, storeLineIds, storeSdsgIds]);
 
   if (!sheet) {
     return <div style={{ padding: 20 }}>シートがありません</div>;
   }
 
   const isSelectMode = canvasMode === 'select';
+  const isPointerMode = canvasMode === 'pointer';
 
   return (
     <div id="diagram-canvas" className="canvas-container">
@@ -483,7 +512,7 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
             multiSelectionKeyCode={null}
             selectionKeyCode={null}
             deleteKeyCode={['Delete', 'Backspace']}
-            panOnDrag={!isSelectMode}
+            panOnDrag={!isSelectMode && !isPointerMode}
             selectionOnDrag={isSelectMode}
             panOnScroll={false}
             zoomOnScroll={false}
@@ -493,10 +522,10 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
             fitView
             fitViewOptions={{ padding: 0.2 }}
           >
-            {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
+            {showGrid && <Background gap={Math.max(MINOR_TICK_PX, gridPx)} variant={BackgroundVariant.Dots} />}
             {showPaperGuides && <PaperGuideOverlay />}
-            <TimeArrowOverlay />
-            <PeriodLabelsOverlay />
+            <TimeArrowOverlay onOpenSettings={onOpenTimeArrowSettings} />
+            <PeriodLabelsOverlay onOpenSettings={onOpenPeriodSettings} />
             <LegendOverlay onOpenSettings={onOpenLegendSettings} />
             <SmartGuidesOverlay guides={guides} />
             <CustomControls />
@@ -721,7 +750,7 @@ function SmartGuidesOverlay({ guides }: { guides: { v: number[]; h: number[] } }
   );
 }
 
-export function TimeArrowOverlay() {
+export function TimeArrowOverlay({ onOpenSettings }: { onOpenSettings?: () => void } = {}) {
   const view = useTEMView();
   const sheet = view.sheet;
   const layout = view.settings.layout;
@@ -731,6 +760,8 @@ export function TimeArrowOverlay() {
   if (!sheet || !settings.alwaysVisible) return null;
   const arrow = computeTimeArrow(sheet, layout, settings);
   if (!arrow) return null;
+
+  const editable = !!onOpenSettings && !view.isPreview;
 
   const [panX, panY, zoom] = transform;
   const sx = arrow.startX * zoom + panX;
@@ -817,8 +848,11 @@ export function TimeArrowOverlay() {
           writingMode: isVert ? 'vertical-rl' : undefined,
           textOrientation: isVert ? 'upright' : undefined,
           whiteSpace: 'nowrap',
-          pointerEvents: 'none',
+          pointerEvents: editable ? 'auto' : 'none',
+          cursor: editable ? 'pointer' : 'default',
         }}
+        onDoubleClick={editable ? (e) => { e.stopPropagation(); onOpenSettings?.(); } : undefined}
+        title={editable ? 'ダブルクリックで非可逆的時間タブを開く' : undefined}
       >
         {renderVerticalAwareText(arrow.label, isVert)}
       </div>

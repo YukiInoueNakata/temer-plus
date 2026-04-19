@@ -1,8 +1,12 @@
 // ============================================================================
 // SDSGNode - React Flow custom node for SD/SG (ペンタゴン)
 // - モノクロ基調、Box と同形式のタイプラベル + サブラベル対応
+// - ダブルクリックでラベルのインライン編集
+// - SD のタイプラベルは上部（横型）/ 左側（縦型）
+// - SG のタイプラベルは下部（横型）/ 右側（縦型）
 // ============================================================================
 
+import { useEffect, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import type { SDSG } from '../../types';
 import { renderVerticalAwareText } from '../../utils/verticalText';
@@ -18,15 +22,41 @@ export interface SDSGNodeData extends Pick<
   id: string;
 }
 
-export function SDSGNode({ data, selected }: NodeProps<SDSGNodeData>) {
+export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>) {
   const view = useTEMView();
   const layout = view.settings.layout;
   const typeLabelVisibility = view.settings.typeLabelVisibility;
+  const updateSDSG = view.updateSDSG;
+  const isPreview = view.isPreview;
   const width = data.width ?? 70;
   const height = data.height ?? 40;
   const isSD = data.type === 'SD';
   const isHorizontalLayout = layout === 'horizontal';
   const isVerticalLayout = !isHorizontalLayout;
+
+  // インライン編集
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    if (editing) {
+      setDraft(data.label);
+      queueMicrotask(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.select();
+      });
+    }
+  }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
+  const commitEdit = () => {
+    setEditing(false);
+    if (draft !== data.label) {
+      updateSDSG(nodeId, { label: draft });
+    }
+  };
+  const cancelEdit = () => {
+    setEditing(false);
+    setDraft(data.label);
+  };
 
   let points: string;
   if (isHorizontalLayout) {
@@ -57,38 +87,72 @@ export function SDSGNode({ data, selected }: NodeProps<SDSGNodeData>) {
   const typeFontStyle = data.typeLabelItalic ? 'italic' : 'normal';
   const typeFontFamily = data.typeLabelFontFamily ?? 'inherit';
 
+  // SD = 上（横型）/ 左（縦型）、SG = 下（横型）/ 右（縦型）
   const typeTagStyle: React.CSSProperties = isVerticalLayout
-    ? {
-        position: 'absolute',
-        top: '50%',
-        right: `calc(100% + 6px)`,
-        transform: 'translateY(-50%)',
-        fontSize: typeFontSize,
-        padding: '2px 4px',
-        color: '#222',
-        fontWeight: typeFontWeight,
-        fontStyle: typeFontStyle,
-        fontFamily: typeFontFamily,
-        writingMode: 'vertical-rl',
-        textOrientation: typeAsciiUpright ? 'upright' : 'mixed',
-        whiteSpace: 'nowrap',
-        pointerEvents: 'none',
-      }
-    : {
-        position: 'absolute',
-        bottom: `calc(100% + 6px)`,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        fontSize: typeFontSize,
-        padding: '2px 4px',
-        color: '#222',
-        fontWeight: typeFontWeight,
-        fontStyle: typeFontStyle,
-        fontFamily: typeFontFamily,
-        writingMode: 'horizontal-tb',
-        whiteSpace: 'nowrap',
-        pointerEvents: 'none',
-      };
+    ? isSD
+      ? {
+          position: 'absolute',
+          top: '50%',
+          right: `calc(100% + 6px)`,
+          transform: 'translateY(-50%)',
+          fontSize: typeFontSize,
+          padding: '2px 4px',
+          color: '#222',
+          fontWeight: typeFontWeight,
+          fontStyle: typeFontStyle,
+          fontFamily: typeFontFamily,
+          writingMode: 'vertical-rl',
+          textOrientation: typeAsciiUpright ? 'upright' : 'mixed',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }
+      : {
+          position: 'absolute',
+          top: '50%',
+          left: `calc(100% + 6px)`,
+          transform: 'translateY(-50%)',
+          fontSize: typeFontSize,
+          padding: '2px 4px',
+          color: '#222',
+          fontWeight: typeFontWeight,
+          fontStyle: typeFontStyle,
+          fontFamily: typeFontFamily,
+          writingMode: 'vertical-rl',
+          textOrientation: typeAsciiUpright ? 'upright' : 'mixed',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }
+    : isSD
+      ? {
+          position: 'absolute',
+          bottom: `calc(100% + 6px)`,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: typeFontSize,
+          padding: '2px 4px',
+          color: '#222',
+          fontWeight: typeFontWeight,
+          fontStyle: typeFontStyle,
+          fontFamily: typeFontFamily,
+          writingMode: 'horizontal-tb',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }
+      : {
+          position: 'absolute',
+          top: `calc(100% + 6px)`,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: typeFontSize,
+          padding: '2px 4px',
+          color: '#222',
+          fontWeight: typeFontWeight,
+          fontStyle: typeFontStyle,
+          fontFamily: typeFontFamily,
+          writingMode: 'horizontal-tb',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        };
 
   // --- サブラベル（Box と同じ形式） ---
   const subLabelText = data.subLabel ?? '';
@@ -124,7 +188,14 @@ export function SDSGNode({ data, selected }: NodeProps<SDSGNodeData>) {
       };
 
   return (
-    <div style={{ position: 'relative', width, height, overflow: 'visible' }}>
+    <div
+      style={{ position: 'relative', width, height, overflow: 'visible' }}
+      onDoubleClick={(e) => {
+        if (isPreview) return;
+        e.stopPropagation();
+        setEditing(true);
+      }}
+    >
       <svg
         width={width}
         height={height}
@@ -145,26 +216,58 @@ export function SDSGNode({ data, selected }: NodeProps<SDSGNodeData>) {
       </svg>
       <Handle type="target" position={Position.Top} style={{ opacity: 0, pointerEvents: 'none' }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: 'none' }} />
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize,
-          fontWeight: data.style?.bold ?? true ? 700 : 400,
-          color: textColor,
-          pointerEvents: 'none',
-          textAlign: 'center',
-          padding: 2,
-        }}
-      >
-        {data.label}
-      </div>
+      {editing ? (
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            outline: 'none',
+            resize: 'none',
+            background: 'transparent',
+            fontSize,
+            fontWeight: data.style?.bold ?? true ? 700 : 400,
+            color: textColor,
+            textAlign: 'center',
+            padding: 2,
+            boxSizing: 'border-box',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize,
+            fontWeight: data.style?.bold ?? true ? 700 : 400,
+            color: textColor,
+            pointerEvents: 'none',
+            textAlign: 'center',
+            padding: 2,
+          }}
+        >
+          {data.label}
+        </div>
+      )}
       {showTypeTag && (
         <div style={typeTagStyle}>
           {renderVerticalAwareText(data.type, isVerticalLayout && typeAsciiUpright)}

@@ -33,7 +33,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'general', label: '全体' },
   { key: 'snap', label: 'スナップ' },
   { key: 'typelabel', label: 'タイプラベル' },
-  { key: 'timearrow', label: '時間矢印' },
+  { key: 'timearrow', label: '非可逆的時間' },
   { key: 'legend', label: '凡例' },
   { key: 'period', label: '時期区分' },
   { key: 'project', label: 'プロジェクト' },
@@ -161,6 +161,8 @@ function GeneralSection() {
   const setLayout = useTEMStore((s) => s.setLayout);
   const setLocale = useTEMStore((s) => s.setLocale);
   const setUIFontSize = useTEMStore((s) => s.setUIFontSize);
+  const setRibbonFontSize = useTEMStore((s) => s.setRibbonFontSize);
+  const ribbonFontSize = doc.settings.ribbonFontSize ?? 12;
 
   const updateLevelStep = (v: number) => {
     useTEMStore.setState((state) => ({
@@ -207,6 +209,27 @@ function GeneralSection() {
             max={40}
             value={doc.settings.uiFontSize}
             onChange={(e) => setUIFontSize(Number(e.target.value))}
+            style={{ width: 50 }}
+          />
+        </div>
+      </div>
+      <div className="setting-row">
+        <label>リボン文字サイズ（px）</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="range"
+            min={8}
+            max={24}
+            value={ribbonFontSize}
+            onChange={(e) => setRibbonFontSize(Number(e.target.value))}
+            style={{ width: 120 }}
+          />
+          <input
+            type="number"
+            min={8}
+            max={24}
+            value={ribbonFontSize}
+            onChange={(e) => setRibbonFontSize(Number(e.target.value))}
             style={{ width: 50 }}
           />
         </div>
@@ -368,21 +391,68 @@ function PaperGuideSection() {
 // ============================================================================
 function SnapSection() {
   const doc = useTEMStore((s) => s.doc);
+  const view = useTEMStore((s) => s.view);
+  const toggleGrid = useTEMStore((s) => s.toggleGrid);
+  const toggleSnap = useTEMStore((s) => s.toggleSnap);
+  const setGridPx = useTEMStore((s) => s.setGridPx);
+
+  const updateSnap = (patch: Partial<typeof doc.settings.snap>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => { d.settings.snap = { ...d.settings.snap, ...patch }; }),
+    }));
+  };
+
   return (
     <section className="settings-section">
+      <h4>表示</h4>
       <div className="setting-row">
-        <label>整列ガイド</label>
-        <input type="checkbox" checked={doc.settings.snap.alignGuides} readOnly />
+        <label>グリッドを表示</label>
+        <input type="checkbox" checked={view.showGrid} onChange={toggleGrid} />
+      </div>
+      <div className="setting-row">
+        <label>スナップを有効化</label>
+        <input type="checkbox" checked={view.snapEnabled} onChange={toggleSnap} />
+      </div>
+      <p className="hint" style={{ marginTop: 0 }}>
+        「グリッド」は点の表示のみ。「スナップ」は Box ドラッグ時に位置をグリッドに吸着させます（両者は独立）。
+      </p>
+
+      <h4 style={{ marginTop: 14 }}>グリッド間隔</h4>
+      <div className="setting-row">
+        <label>グリッド（px）</label>
+        <input
+          type="number"
+          min={2}
+          max={200}
+          value={doc.settings.snap.gridPx}
+          onChange={(e) => setGridPx(Number(e.target.value))}
+          style={{ width: 80 }}
+        />
+      </div>
+      <p className="hint" style={{ marginTop: 0 }}>
+        グリッド表示の点間隔とスナップ吸着距離を兼ねる（既定 10px）。25〜50 程度にするとスナップの効きが体感しやすくなります。
+      </p>
+
+      <h4 style={{ marginTop: 14 }}>整列ガイド</h4>
+      <div className="setting-row">
+        <label>他 Box と整列時にガイド線を表示</label>
+        <input
+          type="checkbox"
+          checked={doc.settings.snap.alignGuides}
+          onChange={(e) => updateSnap({ alignGuides: e.target.checked })}
+        />
       </div>
       <div className="setting-row">
         <label>距離スナップ（px）</label>
-        <input type="number" value={doc.settings.snap.distancePx} readOnly style={{ width: 60 }} />
+        <input
+          type="number"
+          min={0}
+          max={200}
+          value={doc.settings.snap.distancePx}
+          onChange={(e) => updateSnap({ distancePx: Math.max(0, Number(e.target.value)) })}
+          style={{ width: 80 }}
+        />
       </div>
-      <div className="setting-row">
-        <label>グリッド（px）</label>
-        <input type="number" value={doc.settings.snap.gridPx} readOnly style={{ width: 60 }} />
-      </div>
-      <p className="hint">※ 詳細設定は今後のアップデートで実装</p>
     </section>
   );
 }
@@ -596,8 +666,100 @@ function PeriodLabelSettingsSection() {
           style={{ width: 70 }}
         />
       </div>
-      <p className="hint">時期ラベル自体は「挿入」タブ→「時期ラベル...」で追加編集</p>
+
+      <PeriodLabelListEditor />
     </section>
+  );
+}
+
+// 現シートの時期ラベル一覧（追加・編集・削除）
+function PeriodLabelListEditor() {
+  const sheet = useActiveSheet();
+  const addPeriodLabel = useTEMStore((s) => s.addPeriodLabel);
+  const updatePeriodLabel = useTEMStore((s) => s.updatePeriodLabel);
+  const removePeriodLabel = useTEMStore((s) => s.removePeriodLabel);
+  const [newLabel, setNewLabel] = useState('');
+  const [newPosition, setNewPosition] = useState(0);
+
+  const handleAdd = () => {
+    if (!newLabel.trim()) {
+      alert('ラベルを入力してください');
+      return;
+    }
+    addPeriodLabel(newLabel.trim(), newPosition);
+    setNewLabel('');
+    setNewPosition((p) => p + 1);
+  };
+
+  return (
+    <>
+      <h4 style={{ marginTop: 16 }}>時期ラベル（現シート）</h4>
+      <p className="hint" style={{ marginTop: 0 }}>
+        メインウィンドウの時期ラベルをダブルクリック、または「表示」タブの「時期編集...」でもここが開きます。
+      </p>
+      <div className="setting-row">
+        <label>新規ラベル</label>
+        <input
+          type="text"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          placeholder="例: 入学前"
+          style={{ width: 140 }}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+        />
+        <input
+          type="number"
+          step="0.5"
+          value={newPosition}
+          onChange={(e) => setNewPosition(Number(e.target.value))}
+          style={{ width: 70, marginLeft: 4 }}
+          title="Time_Level"
+        />
+        <button className="ribbon-btn-small" onClick={handleAdd} style={{ marginLeft: 4 }}>追加</button>
+      </div>
+      {sheet && sheet.periodLabels.length === 0 && (
+        <p className="hint">まだ時期ラベルがありません。</p>
+      )}
+      {sheet && sheet.periodLabels.length > 0 && (
+        <table style={{ width: '100%', fontSize: '0.92em', marginTop: 4 }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left' }}>ラベル</th>
+              <th style={{ textAlign: 'left', width: 80 }}>Time_Level</th>
+              <th style={{ width: 40 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...sheet.periodLabels]
+              .sort((a, b) => a.position - b.position)
+              .map((pl) => (
+                <tr key={pl.id}>
+                  <td>
+                    <input
+                      type="text"
+                      value={pl.label}
+                      onChange={(e) => updatePeriodLabel(pl.id, { label: e.target.value })}
+                      style={{ width: '100%' }}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={pl.position}
+                      onChange={(e) => updatePeriodLabel(pl.id, { position: Number(e.target.value) })}
+                      style={{ width: 70 }}
+                    />
+                  </td>
+                  <td>
+                    <button className="row-btn danger" onClick={() => removePeriodLabel(pl.id)} title="削除">×</button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      )}
+    </>
   );
 }
 

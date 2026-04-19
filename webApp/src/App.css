@@ -142,7 +142,7 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
-  font-size: 0.77em;
+  font-size: var(--ribbon-font-size, 12px);
   border-radius: 3px;
   gap: 2px;
 }
@@ -152,8 +152,12 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
   border-color: #d0d0d0;
 }
 
-.ribbon-btn-icon { font-size: 1.4em; line-height: 1; }
-.ribbon-btn-label { font-size: 0.77em; white-space: nowrap; }
+.ribbon-btn-icon { font-size: 1.5em; line-height: 1; }
+.ribbon-btn-label {
+  font-size: var(--ribbon-font-size, 12px);
+  white-space: nowrap;
+}
+.ribbon-btn.active { background: #e3efff; border-color: #2684ff; }
 
 /* ========================= Main Area ========================= */
 

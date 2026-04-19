@@ -14,6 +14,7 @@ export function Ribbon({
   onOpenSettings,
   onOpenInsertBetween,
   onOpenPeriodLabels,
+  onOpenPeriodSettings,
   onOpenExport,
   onOpenPaperReport,
   onOpenResize,
@@ -28,6 +29,7 @@ export function Ribbon({
   onOpenSettings: () => void;
   onOpenInsertBetween: () => void;
   onOpenPeriodLabels: () => void;
+  onOpenPeriodSettings: () => void;
   onOpenExport: () => void;
   onOpenPaperReport: () => void;
   onOpenResize: () => void;
@@ -62,7 +64,7 @@ export function Ribbon({
         {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onOpenAsNewSheets={onOpenAsNewSheets} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onOpenSettings={onOpenSettings} />}
         {activeTab === 'home' && <HomeTab onOpenResize={onOpenResize} onOpenShiftContent={onOpenShiftContent} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
-        {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
+        {activeTab === 'view' && <ViewTab onOpenPeriodSettings={onOpenPeriodSettings} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'help' && <HelpTab />}
       </div>
     </div>
@@ -193,11 +195,22 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
           label={canvasMode === 'move' ? '移動 ✓' : '移動'}
           icon="✋"
           onClick={() => setCanvasMode('move')}
+          title="ドラッグで画面をパン"
+          active={canvasMode === 'move'}
+        />
+        <RibbonButton
+          label={canvasMode === 'pointer' ? '選択 ✓' : '選択'}
+          icon="➤"
+          onClick={() => setCanvasMode('pointer')}
+          title="編集ロックなし・図形のクリック/ドラッグに専念（パン/範囲選択は無効）"
+          active={canvasMode === 'pointer'}
         />
         <RibbonButton
           label={canvasMode === 'select' ? '範囲選択 ✓' : '範囲選択'}
           icon="⊡"
           onClick={() => setCanvasMode('select')}
+          title="ドラッグで範囲選択"
+          active={canvasMode === 'select'}
         />
       </RibbonGroup>
       <RibbonGroup title="クリップボード">
@@ -224,9 +237,35 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
               alert('Box を選択してください');
               return;
             }
-            useTEMStore.getState().fitBoxesToLabel(ids);
+            useTEMStore.getState().fitBoxesToLabel(ids, 'both');
           }}
-          title="選択 Box のサイズをラベル文字数に合わせて最小化"
+          title="選択 Box のサイズ（幅・高さとも）をラベルに合わせて最小化"
+        />
+        <RibbonButton
+          label="幅を文字に"
+          icon="↔Aa"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.boxIds;
+            if (ids.length === 0) {
+              alert('Box を選択してください');
+              return;
+            }
+            useTEMStore.getState().fitBoxesToLabel(ids, 'width');
+          }}
+          title="高さは維持し、幅のみをラベルに合わせる"
+        />
+        <RibbonButton
+          label="高さを文字に"
+          icon="↕Aa"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.boxIds;
+            if (ids.length === 0) {
+              alert('Box を選択してください');
+              return;
+            }
+            useTEMStore.getState().fitBoxesToLabel(ids, 'height');
+          }}
+          title="幅は維持し、高さのみをラベルに合わせる"
         />
       </RibbonGroup>
       <RibbonGroup title="整列">
@@ -520,7 +559,7 @@ function getIconForBoxType(type: BoxType): string {
   }
 }
 
-function ViewTab({ onOpenPeriodLabels }: { onOpenPeriodLabels: () => void }) {
+function ViewTab({ onOpenPeriodSettings, onOpenPeriodLabels: _onOpenPeriodLabels }: { onOpenPeriodSettings: () => void; onOpenPeriodLabels: () => void }) {
   const view = useTEMStore((s) => s.view);
   const toggleGrid = useTEMStore((s) => s.toggleGrid);
   const toggleSnap = useTEMStore((s) => s.toggleSnap);
@@ -537,6 +576,7 @@ function ViewTab({ onOpenPeriodLabels }: { onOpenPeriodLabels: () => void }) {
   const togglePeriodLabels = useTEMStore((s) => s.togglePeriodLabels);
   const periodLabelsVisible = useTEMStore((s) => s.doc.settings.periodLabels.alwaysVisible);
   const timeArrowVisible = useTEMStore((s) => s.doc.settings.timeArrow.alwaysVisible);
+  const typeLabelVisibility = useTEMStore((s) => s.doc.settings.typeLabelVisibility);
   const toggleTimeArrow = () => {
     useTEMStore.setState((state) => ({
       doc: {
@@ -552,21 +592,56 @@ function ViewTab({ onOpenPeriodLabels }: { onOpenPeriodLabels: () => void }) {
     }));
   };
 
+  // すべてのタイプラベルが表示されていれば「ON」、1つでも非表示なら「OFF」とみなし
+  // クリックで全てをその逆にトグル
+  const allTypeLabelsOn =
+    typeLabelVisibility &&
+    (Object.keys(typeLabelVisibility) as (keyof typeof typeLabelVisibility)[])
+      .every((k) => typeLabelVisibility[k] !== false);
+  const toggleAllTypeLabels = () => {
+    const nextVal = !allTypeLabelsOn;
+    useTEMStore.setState((state) => ({
+      doc: {
+        ...state.doc,
+        settings: {
+          ...state.doc.settings,
+          typeLabelVisibility: {
+            BFP: nextVal,
+            EFP: nextVal,
+            'P-EFP': nextVal,
+            OPP: nextVal,
+            '2nd-EFP': nextVal,
+            'P-2nd-EFP': nextVal,
+            SD: nextVal,
+            SG: nextVal,
+          },
+        },
+      },
+    }));
+  };
+
   return (
     <>
       <RibbonGroup title="表示">
-        <RibbonButton label={view.showGrid ? 'グリッド ✓' : 'グリッド'} icon="⊞" onClick={toggleGrid} />
-        <RibbonButton label={view.snapEnabled ? 'スナップ ✓' : 'スナップ'} icon="⊡" onClick={toggleSnap} />
-        <RibbonButton label={view.showPaperGuides ? '用紙枠 ✓' : '用紙枠'} icon="▭" onClick={togglePaperGuides} />
-        <RibbonButton label={view.showBoxIds ? 'ID ✓' : 'ID'} icon="🏷" onClick={toggleBoxIds} />
-        <RibbonButton label={view.showTopRuler ? '上ルーラー ✓' : '上ルーラー'} icon="📏" onClick={toggleTopRuler} />
-        <RibbonButton label={view.showLeftRuler ? '左ルーラー ✓' : '左ルーラー'} icon="📐" onClick={toggleLeftRuler} />
+        <RibbonButton label={view.showGrid ? 'グリッド ✓' : 'グリッド'} icon="⊞" onClick={toggleGrid} active={view.showGrid} />
+        <RibbonButton label={view.snapEnabled ? 'スナップ ✓' : 'スナップ'} icon="⊡" onClick={toggleSnap} active={view.snapEnabled} />
+        <RibbonButton label={view.showPaperGuides ? '用紙枠 ✓' : '用紙枠'} icon="▭" onClick={togglePaperGuides} active={view.showPaperGuides} />
+        <RibbonButton label={view.showBoxIds ? 'ID ✓' : 'ID'} icon="🏷" onClick={toggleBoxIds} active={view.showBoxIds} />
+        <RibbonButton label={view.showTopRuler ? '上ルーラー ✓' : '上ルーラー'} icon="📏" onClick={toggleTopRuler} active={view.showTopRuler} />
+        <RibbonButton label={view.showLeftRuler ? '左ルーラー ✓' : '左ルーラー'} icon="📐" onClick={toggleLeftRuler} active={view.showLeftRuler} />
+        <RibbonButton
+          label={allTypeLabelsOn ? 'タイプラベル ✓' : 'タイプラベル'}
+          icon="🅰"
+          onClick={toggleAllTypeLabels}
+          title="Box / SDSG のタイプラベル（種別バッジ）を一括で表示・非表示"
+          active={!!allTypeLabelsOn}
+        />
       </RibbonGroup>
       <RibbonGroup title="図要素">
-        <RibbonButton label={timeArrowVisible ? '時間矢印 ✓' : '時間矢印'} icon="→" onClick={toggleTimeArrow} />
-        <RibbonButton label={legendVisible ? '凡例 ✓' : '凡例'} icon="📋" onClick={toggleLegend} />
-        <RibbonButton label={periodLabelsVisible ? '時期 ✓' : '時期'} icon="🏷" onClick={togglePeriodLabels} />
-        <RibbonButton label="時期編集..." icon="📝" onClick={onOpenPeriodLabels} />
+        <RibbonButton label={timeArrowVisible ? '非可逆的時間 ✓' : '非可逆的時間'} icon="→" onClick={toggleTimeArrow} active={timeArrowVisible} />
+        <RibbonButton label={legendVisible ? '凡例 ✓' : '凡例'} icon="📋" onClick={toggleLegend} active={legendVisible} />
+        <RibbonButton label={periodLabelsVisible ? '時期 ✓' : '時期'} icon="🏷" onClick={togglePeriodLabels} active={periodLabelsVisible} />
+        <RibbonButton label="時期編集..." icon="📝" onClick={onOpenPeriodSettings} title="設定の時期区分タブを開く" />
       </RibbonGroup>
       <RibbonGroup title="パネル">
         <RibbonButton label={view.dataSheetVisible ? 'データ ✓' : 'データ'} icon="🗂" onClick={toggleDataSheet} />
@@ -609,14 +684,20 @@ function RibbonButton({
   icon,
   onClick,
   title,
+  active,
 }: {
   label: string;
   icon: string;
   onClick?: () => void;
   title?: string;
+  active?: boolean;
 }) {
   return (
-    <button className="ribbon-btn" onClick={onClick} title={title ?? label}>
+    <button
+      className={active ? 'ribbon-btn active' : 'ribbon-btn'}
+      onClick={onClick}
+      title={title ?? label}
+    >
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
     </button>

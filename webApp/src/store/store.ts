@@ -69,7 +69,7 @@ interface Actions {
   updateBoxes: (ids: string[], patch: Partial<Box>) => void;
   removeBox: (id: string) => void;
   removeBoxes: (ids: string[]) => void;
-  fitBoxesToLabel: (ids: string[]) => void;   // ラベル文字数に合わせて Box サイズを最小 Fit
+  fitBoxesToLabel: (ids: string[], mode?: 'both' | 'width' | 'height') => void;   // ラベルに合わせて Box サイズを最小 Fit
   fitBoxesTextToBox: (ids: string[]) => void; // Box サイズに合わせて文字サイズを調整（1回適用）
   // 選択 Box のサイズ/文字サイズを統一
   matchBoxesSize: (ids: string[], mode: 'width' | 'height' | 'both', basis?: 'first' | 'max' | 'min') => void;
@@ -181,7 +181,7 @@ interface Actions {
   toggleLegend: () => void;
   requestFit: (mode: FitMode) => void;
   togglePeriodLabels: () => void;
-  setCanvasMode: (mode: 'move' | 'select') => void;
+  setCanvasMode: (mode: 'move' | 'pointer' | 'select') => void;
   setDataSheetWidth: (width: number) => void;
   setPropertyPanelWidth: (width: number) => void;
   setGridSnap: (enabled: boolean) => void;
@@ -190,6 +190,8 @@ interface Actions {
   setLayout: (layout: 'horizontal' | 'vertical') => void;
   setLocale: (locale: 'ja' | 'en') => void;
   setUIFontSize: (size: number) => void;
+  setRibbonFontSize: (size: number) => void;
+  setGridPx: (px: number) => void;
 
   // History (separate from undo/redo - persists in file)
   pushHistory: (entry: Omit<HistoryEntry, 'timestamp'>) => void;
@@ -404,23 +406,35 @@ export const useTEMStore = create<Store>()(
           dirty: true,
         }));
       },
-      fitBoxesToLabel: (ids) => {
+      fitBoxesToLabel: (ids, mode = 'both') => {
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
             sheet.boxes.forEach((b) => {
               if (!ids.includes(b.id)) return;
-              const size = computeFitToLabelSize(b.label, {
+              const isVert = b.textOrientation === 'vertical';
+              const measureOpts = {
                 fontSize: b.style?.fontSize ?? state.doc.settings.defaultFontSize,
                 fontFamily: b.style?.fontFamily,
                 bold: b.style?.bold,
                 italic: b.style?.italic,
-                vertical: b.textOrientation === 'vertical',
+                vertical: isVert,
                 padding: 8,
-              });
+              };
+              // mode 別: 幅合わせは高さ固定で横を詰める、高さ合わせは逆、both は素の最小 Fit
+              let target: { width: number; height: number };
+              if (mode === 'width') {
+                target = computeFitToLabelSize(b.label, { ...measureOpts, maxHeight: b.height });
+                target.height = b.height;
+              } else if (mode === 'height') {
+                target = computeFitToLabelSize(b.label, { ...measureOpts, maxWidth: b.width });
+                target.width = b.width;
+              } else {
+                target = computeFitToLabelSize(b.label, measureOpts);
+              }
               // 左辺中点を固定: x は不変、y は中心維持
               const cy = b.y + b.height / 2;
-              b.width = Math.max(20, size.width);
-              b.height = Math.max(20, size.height);
+              b.width = Math.max(20, target.width);
+              b.height = Math.max(20, target.height);
               b.y = cy - b.height / 2;
             });
           }),
@@ -1374,6 +1388,18 @@ export const useTEMStore = create<Store>()(
         const clamped = Math.max(10, Math.min(40, size));
         set((state) => ({
           doc: produce(state.doc, (d) => { d.settings.uiFontSize = clamped; }),
+        }));
+      },
+      setRibbonFontSize: (size) => {
+        const clamped = Math.max(8, Math.min(24, size));
+        set((state) => ({
+          doc: produce(state.doc, (d) => { d.settings.ribbonFontSize = clamped; }),
+        }));
+      },
+      setGridPx: (px) => {
+        const clamped = Math.max(2, Math.min(200, Math.round(px)));
+        set((state) => ({
+          doc: produce(state.doc, (d) => { d.settings.snap.gridPx = clamped; }),
         }));
       },
 

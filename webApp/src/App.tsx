@@ -40,6 +40,7 @@ export default function App() {
   const [periodLabelsOpen, setPeriodLabelsOpen] = useState(false);
   const [restoreChecked, setRestoreChecked] = useState(false);
   const uiFontSize = useTEMStore((s) => s.doc.settings.uiFontSize);
+  const ribbonFontSize = useTEMStore((s) => s.doc.settings.ribbonFontSize ?? 12);
   const fileHandleRef = useRef<unknown>(null);
 
   // UI全体のフォントサイズをCSS変数に反映
@@ -48,6 +49,11 @@ export default function App() {
     document.documentElement.style.fontSize = `${uiFontSize}px`;
     document.body.style.fontSize = `${uiFontSize}px`;
   }, [uiFontSize]);
+
+  // リボン文字サイズを CSS 変数に反映
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ribbon-font-size', `${ribbonFontSize}px`);
+  }, [ribbonFontSize]);
 
   // 起動時: IndexedDB バックアップを検出して復元確認
   useEffect(() => {
@@ -233,6 +239,7 @@ export default function App() {
         onOpenSettings={() => openSettings()}
         onOpenInsertBetween={() => setInsertBetweenOpen(true)}
         onOpenPeriodLabels={() => setPeriodLabelsOpen(true)}
+        onOpenPeriodSettings={() => openSettings('period')}
         onOpenExport={() => setExportOpen(true)}
         onOpenPaperReport={() => setReportOpen(true)}
         onOpenResize={() => setResizeOpen(true)}
@@ -247,7 +254,11 @@ export default function App() {
       <div className="main">
         <DataSheet />
         <div className="canvas-wrapper">
-          <Canvas onOpenLegendSettings={() => openSettings('legend')} />
+          <Canvas
+            onOpenLegendSettings={() => openSettings('legend')}
+            onOpenTimeArrowSettings={() => openSettings('timearrow')}
+            onOpenPeriodSettings={() => openSettings('period')}
+          />
         </div>
         <PropertyPanel />
       </div>

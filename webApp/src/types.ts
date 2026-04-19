@@ -428,6 +428,7 @@ export interface ProjectSettings {
   defaultAutoFitBoxMode: AutoFitBoxMode;
   paperGuides: PaperGuide[];
   uiFontSize: number;                  // UI全体のフォントサイズ（px）
+  ribbonFontSize?: number;             // リボンボタンのフォントサイズ（px、未指定=既定 12）
   levelStep: number;                   // プロパティのLevel調整刻み（既定 0.5）
   timeArrow: TimeArrowSettings;
   legend: LegendSettings;
@@ -495,7 +496,10 @@ export interface Selection {
   legendSelected?: boolean;  // 凡例がシングル選択されている
 }
 
-export type CanvasMode = 'move' | 'select';
+// 'move' = ドラッグでパン、ノード選択はクリック
+// 'pointer' = ドラッグでもパンせず、ノードの自由移動・選択・複数選択（Shift）が可能
+// 'select' = ドラッグで範囲選択
+export type CanvasMode = 'move' | 'pointer' | 'select';
 
 export interface ViewState {
   zoom: number;

@@ -9,7 +9,7 @@ import { computePeriodLabels } from '../utils/periodLabels';
 import { renderVerticalAwareText } from '../utils/verticalText';
 import { useTEMView } from '../context/TEMViewContext';
 
-export function PeriodLabelsOverlay() {
+export function PeriodLabelsOverlay({ onOpenSettings }: { onOpenSettings?: () => void } = {}) {
   const view = useTEMView();
   const sheet = view.sheet;
   const layout = view.settings.layout;
@@ -47,13 +47,15 @@ export function PeriodLabelsOverlay() {
   ) => {
     const fs = settings.fontSize * zoom;
     const isVert = !isH;
+    const editable = !!onOpenSettings && !view.isPreview;
     const style: React.CSSProperties = {
       position: 'absolute',
       left: x,
       top: y,
       fontSize: fs,
       color: '#222',
-      pointerEvents: 'none',
+      pointerEvents: editable ? 'auto' : 'none',
+      cursor: editable ? 'pointer' : 'default',
       whiteSpace: 'nowrap',
       writingMode: isVert ? 'vertical-rl' : undefined,
       textOrientation: isVert ? 'upright' : undefined,
@@ -71,7 +73,12 @@ export function PeriodLabelsOverlay() {
       style.transform = 'translate(0, -50%)';
     }
     return (
-      <div key={keyId} style={style}>
+      <div
+        key={keyId}
+        style={style}
+        onDoubleClick={editable ? (e) => { e.stopPropagation(); onOpenSettings?.(); } : undefined}
+        title={editable ? 'ダブルクリックで設定を開く' : undefined}
+      >
         {renderVerticalAwareText(text, isVert)}
       </div>
     );

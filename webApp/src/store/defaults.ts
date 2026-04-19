@@ -38,6 +38,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     { enabled: false, size: 'A4-landscape', baseSize: 'A4', color: '#000000', pageCount: 2, maskOutside: true },
   ],
   uiFontSize: 13,
+  ribbonFontSize: 12,
   levelStep: 0.5,
   timeArrow: {
     autoInsert: true,
