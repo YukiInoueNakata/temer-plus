@@ -225,20 +225,22 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
       >
         {legend.title}
       </div>
-      <div
-        onMouseDown={startDrag}
-        title="ドラッグで移動"
-        style={{
-          cursor: 'grab',
-          fontSize: titleFontSize,
-          lineHeight: 1,
-          color: '#888',
-          padding: `0 ${4 * zoom}px`,
-          flexShrink: 0,
-        }}
-      >
-        ⠿
-      </div>
+      {!isPreview && (
+        <div
+          onMouseDown={startDrag}
+          title="ドラッグで移動"
+          style={{
+            cursor: 'grab',
+            fontSize: titleFontSize,
+            lineHeight: 1,
+            color: '#888',
+            padding: `0 ${4 * zoom}px`,
+            flexShrink: 0,
+          }}
+        >
+          ⠿
+        </div>
+      )}
     </div>
   ) : null;
 
@@ -281,25 +283,27 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
       >
         {legend.title}
       </div>
-      <div
-        onMouseDown={startDrag}
-        title="ドラッグで移動"
-        style={{
-          cursor: 'grab',
-          fontSize: titleFontSize,
-          lineHeight: 1,
-          color: '#888',
-          textAlign: 'center',
-          flexShrink: 0,
-        }}
-      >
-        ⠿
-      </div>
+      {!isPreview && (
+        <div
+          onMouseDown={startDrag}
+          title="ドラッグで移動"
+          style={{
+            cursor: 'grab',
+            fontSize: titleFontSize,
+            lineHeight: 1,
+            color: '#888',
+            textAlign: 'center',
+            flexShrink: 0,
+          }}
+        >
+          ⠿
+        </div>
+      )}
     </div>
   ) : null;
 
   // タイトル非表示時の最小ハンドル（右上）
-  const bareHandle = !showTitle ? (
+  const bareHandle = !showTitle && !isPreview ? (
     <div
       onMouseDown={startDrag}
       title="ドラッグで移動"

@@ -151,21 +151,22 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   // --------------------------------------------------------------------------
   // 見た目
   // --------------------------------------------------------------------------
-  const alignMap: Record<string, string> = {
-    top: 'flex-start', middle: 'center', bottom: 'flex-end',
-    left: 'flex-start', center: 'center', right: 'flex-end',
+  // CSS Grid の justifyItems / alignItems は writing-mode に依らず
+  // 物理軸（X=justify / Y=align）で動作するため、縦書きでも横書きでも
+  // 「左右方向（Box 幅）」と「上下方向（Box 高さ）」を一貫して制御できる
+  const gridMap: Record<string, string> = {
+    top: 'start', middle: 'center', bottom: 'end',
+    left: 'start', center: 'center', right: 'end',
   };
-  // 揃えは常に Box の幅（左右）・高さ（上下）に対して適用
-  // 縦書きテキストでも flex 軸を保持（justifyContent=横、alignItems=縦）
-  const flexJustify = alignMap[textAlign];     // 左右方向 = Box 幅基準
-  const flexAlignItems = alignMap[verticalAlign]; // 上下方向 = Box 高さ基準
+  const xAlign = gridMap[textAlign];      // 左右方向 = Box 幅基準
+  const yAlign = gridMap[verticalAlign];  // 上下方向 = Box 高さ基準
 
   const baseStyle: React.CSSProperties = {
     width: data.width,
     height: data.height,
-    display: 'flex',
-    alignItems: flexAlignItems,
-    justifyContent: flexJustify,
+    display: 'grid',
+    justifyItems: xAlign,   // X 軸 = Box 幅基準で左右揃え（writing-mode 非依存）
+    alignItems: yAlign,     // Y 軸 = Box 高さ基準で上下揃え
     whiteSpace: 'pre-wrap',
     background: bgColor,
     color: textColor,
@@ -185,8 +186,11 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   const textStyle: React.CSSProperties = {
     writingMode: isTextVertical ? 'vertical-rl' : 'horizontal-tb',
     textOrientation: isTextVertical ? (asciiUpright ? 'upright' : 'mixed') : undefined,
-    textAlign: isTextVertical ? 'left' : (textAlign as 'left' | 'center' | 'right'),
-    width: '100%',
+    // grid 側で justifyItems/alignItems が box 幅・高さに対する配置を行うため
+    // ここでは textAlign は設定しない（縦書きでは行内揃えの意味が変わるため）
+    // 横書き時のみ、子 div 内の text-align を保持したい場合は指定
+    textAlign: isTextVertical ? undefined : (textAlign as 'left' | 'center' | 'right'),
+    // width/height auto で box 内の子サイズを自然に、grid justifyItems/alignItems で配置
   };
 
   const isPEfp = data.type === 'P-EFP' || data.type === 'P-2nd-EFP';

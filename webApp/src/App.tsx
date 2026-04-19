@@ -140,9 +140,18 @@ export default function App() {
   const handleOpenAsNewSheets = async () => {
     try {
       const result = await loadFromFile();
-      if (result) {
-        useTEMStore.getState().importSheetsFromDocument(result.doc);
+      if (!result) return;
+      // 既存シート名との重複チェック
+      const existing = useTEMStore.getState().doc.sheets.map((s) => s.name);
+      const dups = result.doc.sheets.filter((s) => existing.includes(s.name));
+      if (dups.length > 0) {
+        const ok = confirm(
+          `現在と同じシート名が ${dups.length} 件あります:\n${dups.map((s) => `・${s.name}`).join('\n')}\n\n` +
+          `このまま追加するとシート名が重複します（シート ID は自動でユニーク化されます）。\n続行しますか？`
+        );
+        if (!ok) return;
       }
+      useTEMStore.getState().importSheetsFromDocument(result.doc);
     } catch (e) {
       alert('ファイルの読み込みに失敗しました: ' + (e as Error).message);
     }

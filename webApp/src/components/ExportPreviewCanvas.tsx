@@ -11,10 +11,11 @@ import ReactFlow, {
   BackgroundVariant,
   MarkerType,
   ReactFlowProvider,
-  useStore as useReactFlowStore,
+  useReactFlow,
   type Edge,
   type Node,
 } from 'reactflow';
+import { useEffect } from 'react';
 import type { TEMDocument } from '../types';
 import { BoxNode, type BoxNodeData } from './nodes/BoxNode';
 import { SDSGNode, type SDSGNodeData } from './nodes/SDSGNode';
@@ -210,80 +211,100 @@ function Inner({
 
   // 用紙枠サイズ
   const paper = getPaperPx(paperSize, customPaperWidth, customPaperHeight);
+  const aspectRatio = `${paper.width} / ${paper.height}`;
+
+  // 用紙境界フィット: React Flow の fitBounds を使って用紙領域 (0,0)..(paper.width, paper.height)
+  // を表示範囲にぴったり合わせる。これによりコンテナ = 用紙枠になる。
+  void showPaperGuide; // 外部から表示指定されるが、コンテナ自体が用紙なので内部描画は不要
 
   return (
     <TEMViewContext.Provider value={ctxValue}>
+      {/* 外側: グレー背景、内側の用紙枠を中央配置 */}
       <div
-        id={elementId}
         style={{
-          background: background === 'white' ? '#ffffff' : 'transparent',
-          position: 'relative',
+          background: '#dddddd',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 12,
+          boxSizing: 'border-box',
+          overflow: 'hidden',
           ...style,
         }}
       >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          panOnDrag={true}
-          zoomOnScroll={true}
-          zoomOnPinch={true}
-          panOnScroll={true}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          selectionOnDrag={false}
-          proOptions={{ hideAttribution: true }}
-          fitView
-          fitViewOptions={{ padding: 0.1 }}
-          minZoom={0.1}
-          maxZoom={5}
+        {/* 用紙枠のラッパー（枠・影はここに、キャプチャ対象外） */}
+        <div
+          style={{
+            aspectRatio,
+            maxWidth: '100%',
+            maxHeight: '100%',
+            width: 'auto',
+            height: 'auto',
+            border: '1px solid #999',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            position: 'relative',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
-          {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
-          {showPaperGuide && <PreviewPaperGuide width={paper.width} height={paper.height} />}
-          <TimeArrowOverlay />
-          <PeriodLabelsOverlay />
-          <LegendOverlay />
-        </ReactFlow>
+        {/* 用紙そのもの（キャプチャ対象、枠/影なし） */}
+        <div
+          id={elementId}
+          style={{
+            width: '100%',
+            height: '100%',
+            background: background === 'white' ? '#ffffff' : 'transparent',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            panOnDrag={true}
+            zoomOnScroll={true}
+            zoomOnPinch={true}
+            panOnScroll={true}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            selectionOnDrag={false}
+            proOptions={{ hideAttribution: true }}
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+            minZoom={0.05}
+            maxZoom={10}
+          >
+            {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
+            <PaperExtentHelper width={paper.width} height={paper.height} />
+            <TimeArrowOverlay />
+            <PeriodLabelsOverlay />
+            <LegendOverlay />
+          </ReactFlow>
+        </div>
+        </div>
       </div>
     </TEMViewContext.Provider>
   );
 }
 
-// プレビュー用の用紙枠（world 座標 0,0 を起点、zoom/pan 追従、枠外グレー）
-function PreviewPaperGuide({ width, height }: { width: number; height: number }) {
-  const transform = useReactFlowStore((s) => s.transform);
-  const [panX, panY, zoom] = transform;
-  const sx = panX;
-  const sy = panY;
-  const sw = width * zoom;
-  const sh = height * zoom;
-  return (
-    <>
-      {/* 用紙枠外を薄グレーで mask */}
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: sy, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', top: sy + sh, left: 0, width: '100%', bottom: 0, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', top: sy, left: 0, width: sx, height: sh, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', top: sy, left: sx + sw, right: 0, height: sh, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
-      <div
-        className="paper-guide-overlay"
-        style={{
-          position: 'absolute',
-          left: sx,
-          top: sy,
-          width: sw,
-          height: sh,
-          border: '2px dashed #555',
-          pointerEvents: 'none',
-          zIndex: 0,
-          boxSizing: 'border-box',
-        }}
-      >
-        <span style={{ position: 'absolute', top: -18, left: 0, fontSize: 10, color: '#555', background: '#fff', padding: '0 4px', fontWeight: 600 }}>
-          用紙枠
-        </span>
-      </div>
-    </>
-  );
+// 用紙領域にぴったりフィットさせる
+function PaperExtentHelper({ width, height }: { width: number; height: number }) {
+  const rf = useReactFlow();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        rf.fitBounds({ x: 0, y: 0, width, height }, { padding: 0 });
+      } catch {
+        // ignore
+      }
+    }, 30);
+    return () => clearTimeout(t);
+  }, [rf, width, height]);
+  return null;
 }
+
+// 用紙枠の描画はコンテナ自身が担うため、別途の PreviewPaperGuide は不要（削除）

@@ -104,6 +104,22 @@ function SheetContextMenu({
   canDelete: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [adj, setAdj] = useState<{ x: number; y: number } | null>(null);
+
+  // メニューの実サイズを測って画面外にはみ出さないよう補正
+  useEffect(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const margin = 8;
+    const maxX = window.innerWidth - rect.width - margin;
+    const maxY = window.innerHeight - rect.height - margin;
+    let nx = menu.x;
+    let ny = menu.y;
+    if (nx > maxX) nx = Math.max(margin, maxX);
+    if (ny > maxY) ny = Math.max(margin, maxY);
+    if (nx !== menu.x || ny !== menu.y) setAdj({ x: nx, y: ny });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menu.x, menu.y]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -129,7 +145,7 @@ function SheetContextMenu({
     <div
       ref={ref}
       className="context-menu"
-      style={{ position: 'fixed', left: menu.x, top: menu.y, zIndex: 2000 }}
+      style={{ position: 'fixed', left: adj?.x ?? menu.x, top: adj?.y ?? menu.y, zIndex: 2000 }}
     >
       <div className="context-menu-header">{menu.sheetName}</div>
       <button className="context-menu-item" onClick={() => run(actions.rename)}>名前を変更</button>
