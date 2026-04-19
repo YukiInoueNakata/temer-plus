@@ -192,6 +192,19 @@ function HomeTab({ onOpenSettings }: { onOpenSettings: () => void }) {
         <ShiftAfterButton />
         <RibbonButton label="複製" icon="⎘" onClick={() => { copyToClipboard(); pasteFromClipboard(); }} />
         <RibbonButton label="全選択" icon="☰" onClick={() => useTEMStore.getState().selectAll()} />
+        <RibbonButton
+          label="文字に合わせる"
+          icon="↔↕"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.boxIds;
+            if (ids.length === 0) {
+              alert('Box を選択してください');
+              return;
+            }
+            useTEMStore.getState().fitBoxesToLabel(ids);
+          }}
+          title="選択 Box のサイズをラベル文字数に合わせて最小化"
+        />
       </RibbonGroup>
       <RibbonGroup title="整列">
         <AlignButton type="left" />

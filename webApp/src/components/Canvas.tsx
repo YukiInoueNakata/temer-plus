@@ -144,6 +144,7 @@ function CanvasInner({ onOpenLegendSettings }: { onOpenLegendSettings?: () => vo
         typeLabelAsciiUpright: b.typeLabelAsciiUpright,
         subLabelAsciiUpright: b.subLabelAsciiUpright,
         asciiUpright: b.asciiUpright,
+        autoFitBoxMode: b.autoFitBoxMode,
       } as BoxNodeData,
       style: { width: b.width, height: b.height, zIndex: b.zIndex ?? 0 },
     }));

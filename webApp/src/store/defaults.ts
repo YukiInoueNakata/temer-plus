@@ -31,8 +31,9 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
   defaultFont: 'system-ui',
   defaultFontSize: 13,
   defaultBoxSize: { width: 100, height: 50 },
-  defaultAutoFitText: true,
+  defaultAutoFitText: false,
   defaultAutoFitBox: false,
+  defaultAutoFitBoxMode: 'width-fixed',
   paperGuides: [
     { enabled: false, size: 'A4-landscape', color: '#ff6b6b' },
   ],

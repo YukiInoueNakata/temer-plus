@@ -1,17 +1,22 @@
 // ============================================================================
 // BoxNode - React Flow custom node for TEM Box
-// - IDバッジ: Box左上コーナー線上（小さく表示、調整可）
-// - 種別タグ: Box外部の辺中央（横型Layout=上辺中央、縦型Layout=左辺中央）
-// - サブラベル: Box外部の反対側辺（横型Layout=下辺、縦型Layout=右辺）
-// - Handle位置: Layoutに連動（横型=左右、縦型=上下）
+// - ダブルクリックでインラインラベル編集（textarea）
+// - 選択時に 8 点リサイズハンドル（NodeResizer）
+// - ラベルは部分装飾タグ（<b>/<i>/<u>/<s>/<size=>/<color=>/<font=>）に対応
+// - autoFitBoxMode: 'width-fixed' = 横幅固定で高さ自動拡張
+//                   'height-fixed' = 高さ固定で横幅自動拡張
+// - IDバッジ / 種別タグ / サブラベル は従来通り
 // ============================================================================
 
-import { Handle, Position, type NodeProps } from 'reactflow';
+import { useEffect, useRef, useState } from 'react';
+import { Handle, NodeResizer, Position, type NodeProps } from 'reactflow';
 import type { Box } from '../../types';
 import { BOX_RENDER_SPECS } from '../../store/defaults';
 import { useTEMStore, useActiveSheet } from '../../store/store';
 import { computeBoxDisplay } from '../../utils/typeDisplay';
 import { renderVerticalAwareText } from '../../utils/verticalText';
+import { renderRichText } from '../../utils/richText';
+import { computeAutoFitSize } from '../../utils/boxFit';
 
 export interface BoxNodeData extends Pick<
   Box,
@@ -21,13 +26,16 @@ export interface BoxNodeData extends Pick<
   'idOffsetX' | 'idOffsetY' | 'idFontSize' |
   'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' | 'typeLabelAsciiUpright' |
   'subLabelAsciiUpright' |
-  'asciiUpright'
+  'asciiUpright' |
+  'autoFitBoxMode'
 > {}
 
-export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
+export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) {
   const showBoxIds = useTEMStore((s) => s.view.showBoxIds);
   const layout = useTEMStore((s) => s.doc.settings.layout);
   const typeLabelVisibility = useTEMStore((s) => s.doc.settings.typeLabelVisibility);
+  const defaultMode = useTEMStore((s) => s.doc.settings.defaultAutoFitBoxMode);
+  const updateBox = useTEMStore((s) => s.updateBox);
   const sheet = useActiveSheet();
   const spec = BOX_RENDER_SPECS[data.type] ?? BOX_RENDER_SPECS.normal;
   const shape = data.shape ?? spec.defaultShape;
@@ -40,12 +48,72 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
   const fontFamily = data.style?.fontFamily ?? 'inherit';
   const textAlign = data.style?.textAlign ?? 'center';
   const verticalAlign = data.style?.verticalAlign ?? 'middle';
+  const fontSize = data.style?.fontSize ?? 13;
 
+  // --------------------------------------------------------------------------
+  // インライン編集
+  // --------------------------------------------------------------------------
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(data.label);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (editing) {
+      setDraft(data.label);
+      // 次のレンダリングで focus
+      queueMicrotask(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.select();
+      });
+    }
+  }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const commitEdit = () => {
+    setEditing(false);
+    if (draft !== data.label) {
+      updateBox(nodeId, { label: draft });
+    }
+  };
+  const cancelEdit = () => {
+    setEditing(false);
+    setDraft(data.label);
+  };
+
+  // --------------------------------------------------------------------------
+  // autoFitBoxMode: ラベル/フォント変更時に必要サイズを計算して自動拡張
+  // 既存サイズより大きい方向にのみ更新（ユーザ手動リサイズを尊重）
+  // --------------------------------------------------------------------------
+  const mode = data.autoFitBoxMode ?? defaultMode ?? 'none';
+  useEffect(() => {
+    if (editing) return;
+    if (mode === 'none') return;
+    const next = computeAutoFitSize(
+      data.label,
+      data.width,
+      data.height,
+      mode,
+      {
+        fontSize,
+        fontFamily: data.style?.fontFamily,
+        bold: data.style?.bold,
+        italic: data.style?.italic,
+        vertical: isTextVertical,
+        padding: 8,
+      }
+    );
+    if (next.width !== data.width || next.height !== data.height) {
+      updateBox(nodeId, { width: next.width, height: next.height });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.label, fontSize, mode, isTextVertical, data.width, data.height, editing]);
+
+  // --------------------------------------------------------------------------
+  // 見た目
+  // --------------------------------------------------------------------------
   const alignMap: Record<string, string> = {
     top: 'flex-start', middle: 'center', bottom: 'flex-end',
     left: 'flex-start', center: 'center', right: 'flex-end',
   };
-
   const flexAlignItems = isTextVertical ? alignMap[textAlign] : alignMap[verticalAlign];
   const flexJustify = isTextVertical ? alignMap[verticalAlign] : alignMap[textAlign];
 
@@ -58,7 +126,7 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
     whiteSpace: 'pre-wrap',
     background: bgColor,
     color: textColor,
-    fontSize: data.style?.fontSize ?? 13,
+    fontSize,
     fontFamily,
     fontWeight: data.style?.bold ? 700 : 400,
     fontStyle: data.style?.italic ? 'italic' : 'normal',
@@ -73,13 +141,11 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
   const asciiUpright = data.asciiUpright ?? true;
   const textStyle: React.CSSProperties = {
     writingMode: isTextVertical ? 'vertical-rl' : 'horizontal-tb',
-    // asciiUpright=true: 半角英数も縦向き（各文字を上下に積む）、ー も縦向き|形に
-    // asciiUpright=false: 半角英数は横倒し（伝統的な日本語縦書き）
     textOrientation: isTextVertical ? (asciiUpright ? 'upright' : 'mixed') : undefined,
     textAlign: isTextVertical ? 'left' : (textAlign as 'left' | 'center' | 'right'),
+    width: '100%',
   };
 
-  // P-EFP / P-2nd-EFP: 二重点線（外枠+内枠を点線で）は outline+border の組み合わせで再現
   const isPEfp = data.type === 'P-EFP' || data.type === 'P-2nd-EFP';
   const borderStyle: React.CSSProperties = shape === 'ellipse'
     ? { borderRadius: '50%', border: `${spec.borderWidth}px ${spec.borderStyle} ${borderColor}` }
@@ -92,14 +158,11 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         }
       : { border: `${spec.borderWidth}px ${spec.borderStyle} ${borderColor}`, borderRadius: 0 };
 
-  // ==========================================================================
-  // IDバッジ: Box左上コーナー線上（小さく）、オフセット調整可
-  // ==========================================================================
+  // IDバッジ
   const idOffsetX = data.idOffsetX ?? 0;
   const idOffsetY = data.idOffsetY ?? 0;
   const idFontSize = data.idFontSize ?? 9;
   const idDisplay = data.id.length > 14 ? data.id.slice(0, 14) + '…' : data.id;
-
   const idBadge = showBoxIds ? (
     <div
       style={{
@@ -121,34 +184,24 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
     </div>
   ) : null;
 
-  // ==========================================================================
-  // 種別タグ（タイプラベル）: Layout連動
-  // 同種別が複数ある場合は自動連番/オーディナル
-  // annotation(潜在経験) はタイプラベル表示しない
-  // 通常Box（normal）もタイプラベル表示しない
-  // ==========================================================================
+  // タイプラベル
   const currentBoxForDisplay: Box = {
-    id: data.id,
-    type: data.type,
-    label: data.label,
+    id: data.id, type: data.type, label: data.label,
     x: 0, y: 0, width: data.width, height: data.height,
   };
-  // 種別ごとの表示フラグ（normal/annotation は元々タイプラベルを出さない）
-  const typeVisible = (typeLabelVisibility
+  const typeVisible = typeLabelVisibility
     ? (typeLabelVisibility as Record<string, boolean | undefined>)[data.type] !== false
-    : true);
+    : true;
   const shouldShowTypeTag = data.type !== 'normal' && data.type !== 'annotation' && typeVisible;
   const typeTagText = shouldShowTypeTag && sheet
     ? computeBoxDisplay(sheet.boxes, sheet.boxes.find((b) => b.id === data.id) ?? currentBoxForDisplay, layout)
     : '';
-
   const typeAsciiUpright = data.typeLabelAsciiUpright ?? asciiUpright;
   const typeFontSize = data.typeLabelFontSize ?? 11;
   const typeFontWeight = data.typeLabelBold === false ? 400 : 700;
   const typeFontStyle = data.typeLabelItalic ? 'italic' : 'normal';
   const typeFontFamily = data.typeLabelFontFamily ?? 'inherit';
 
-  // 縦型レイアウトでは縦書き、背景/枠なし
   const typeTagStyle: React.CSSProperties = isVerticalLayout
     ? {
         position: 'absolute',
@@ -182,15 +235,11 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         pointerEvents: 'none',
       };
 
-  // ==========================================================================
-  // サブラベル: Layout連動（横型=下辺中央、縦型=右辺中央）、オフセット調整可
-  // ==========================================================================
+  // サブラベル
   const subLabelText = data.subLabel ?? data.participantId ?? '';
   const subOffsetX = data.subLabelOffsetX ?? 0;
   const subOffsetY = data.subLabelOffsetY ?? 0;
   const subFontSize = data.subLabelFontSize ?? 10;
-
-  // サブラベル: asciiUpright 個別指定可
   const subAsciiUpright = data.subLabelAsciiUpright ?? asciiUpright;
   const subLabelStyle: React.CSSProperties = isVerticalLayout
     ? {
@@ -219,17 +268,37 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
         whiteSpace: 'nowrap',
       };
 
-  // ==========================================================================
-  // Handle: Layoutに連動
-  // 横型Layout: target=左、source=右（左→右の矢印）
-  // 縦型Layout: target=上、source=下（時間が上→下、矢印も上→下。「下辺から上辺に」は子→親/target→sourceの見え方）
-  // ==========================================================================
   const targetPosition = isVerticalLayout ? Position.Top : Position.Left;
   const sourcePosition = isVerticalLayout ? Position.Bottom : Position.Right;
 
+  // NodeResizer onResize でストア更新
+  const onResize = (
+    _e: unknown,
+    params: { width: number; height: number },
+  ) => {
+    updateBox(nodeId, {
+      width: Math.max(20, Math.round(params.width)),
+      height: Math.max(20, Math.round(params.height)),
+    });
+  };
+
   return (
     <div style={{ position: 'relative' }}>
-      <div style={{ ...baseStyle, ...borderStyle }}>
+      <NodeResizer
+        isVisible={!!selected && !editing}
+        minWidth={30}
+        minHeight={20}
+        handleStyle={{ width: 8, height: 8, borderRadius: 2, background: '#2684ff', border: '1px solid #fff' }}
+        lineStyle={{ borderColor: '#2684ff' }}
+        onResize={onResize}
+      />
+      <div
+        style={{ ...baseStyle, ...borderStyle }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          setEditing(true);
+        }}
+      >
         <Handle type="target" position={targetPosition} style={{ background: '#555' }} />
         {idBadge}
         {typeTagText && (
@@ -237,9 +306,49 @@ export function BoxNode({ data, selected }: NodeProps<BoxNodeData>) {
             {renderVerticalAwareText(typeTagText, isVerticalLayout && typeAsciiUpright)}
           </div>
         )}
-        <div style={textStyle}>
-          {renderVerticalAwareText(data.label, isTextVertical && asciiUpright)}
-        </div>
+        {editing ? (
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                commitEdit();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+              }
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              background: 'transparent',
+              fontFamily,
+              fontSize,
+              fontWeight: data.style?.bold ? 700 : 400,
+              fontStyle: data.style?.italic ? 'italic' : 'normal',
+              color: textColor,
+              textAlign: isTextVertical ? 'left' : (textAlign as 'left' | 'center' | 'right'),
+              writingMode: isTextVertical ? 'vertical-rl' : 'horizontal-tb',
+              textOrientation: isTextVertical ? (asciiUpright ? 'upright' : 'mixed') : undefined,
+              padding: 0,
+              boxSizing: 'border-box',
+            }}
+          />
+        ) : (
+          <div style={textStyle}>
+            {isTextVertical
+              ? renderVerticalAwareText(data.label, asciiUpright)
+              : renderRichText(data.label)}
+          </div>
+        )}
         <Handle type="source" position={sourcePosition} style={{ background: '#555' }} />
       </div>
       {subLabelText && (

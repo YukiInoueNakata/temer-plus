@@ -29,6 +29,7 @@ import {
   genPeriodId,
   genSheetId,
 } from './defaults';
+import { computeFitToLabelSize } from '../utils/boxFit';
 
 interface DocumentState {
   doc: TEMDocument;
@@ -66,6 +67,7 @@ interface Actions {
   updateBoxes: (ids: string[], patch: Partial<Box>) => void;
   removeBox: (id: string) => void;
   removeBoxes: (ids: string[]) => void;
+  fitBoxesToLabel: (ids: string[]) => void;   // ラベル文字数に合わせて Box サイズを最小 Fit
 
   // Line operations
   addLine: (from: string, to: string, patch?: Partial<Line>) => string;
@@ -349,6 +351,26 @@ export const useTEMStore = create<Store>()(
           doc: mutateActiveSheet(state.doc, (sheet) => {
             sheet.boxes.forEach((b) => {
               if (ids.includes(b.id)) Object.assign(b, patch);
+            });
+          }),
+          dirty: true,
+        }));
+      },
+      fitBoxesToLabel: (ids) => {
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            sheet.boxes.forEach((b) => {
+              if (!ids.includes(b.id)) return;
+              const size = computeFitToLabelSize(b.label, {
+                fontSize: b.style?.fontSize ?? state.doc.settings.defaultFontSize,
+                fontFamily: b.style?.fontFamily,
+                bold: b.style?.bold,
+                italic: b.style?.italic,
+                vertical: b.textOrientation === 'vertical',
+                padding: 8,
+              });
+              b.width = Math.max(20, size.width);
+              b.height = Math.max(20, size.height);
             });
           }),
           dirty: true,

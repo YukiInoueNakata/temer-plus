@@ -223,6 +223,30 @@ function GeneralSection() {
         />
       </div>
       <p className="hint">プロパティパネルで Item/Time レベルを矢印キー/スピナーで調整する際の刻み幅</p>
+
+      <h4 style={{ marginTop: 16 }}>Box 自動調整（既定）</h4>
+      <div className="setting-row">
+        <label>自動拡張モード（Box 個別未指定時）</label>
+        <select
+          value={doc.settings.defaultAutoFitBoxMode ?? 'width-fixed'}
+          onChange={(e) => {
+            useTEMStore.setState((state) => ({
+              doc: produce(state.doc, (d) => {
+                d.settings.defaultAutoFitBoxMode = e.target.value as
+                  'none' | 'width-fixed' | 'height-fixed';
+              }),
+            }));
+          }}
+        >
+          <option value="none">自動拡張なし</option>
+          <option value="width-fixed">横幅固定で高さ自動</option>
+          <option value="height-fixed">高さ固定で横幅自動</option>
+        </select>
+      </div>
+      <p className="hint">
+        ラベルが現在のサイズに収まらない時、どちら側を増やすかの既定設定。
+        Box 個別プロパティで上書き可能。
+      </p>
     </section>
   );
 }

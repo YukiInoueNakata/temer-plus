@@ -36,6 +36,9 @@ export type Locale = 'ja' | 'en';
 export type TextAlign = 'left' | 'center' | 'right';
 export type VerticalAlign = 'top' | 'middle' | 'bottom';
 
+// Box の自動拡張モード
+export type AutoFitBoxMode = 'none' | 'width-fixed' | 'height-fixed';
+
 export interface BoxStyle {
   fontSize?: number;
   fontFamily?: string;
@@ -59,8 +62,13 @@ export interface Box {
   height: number;
   shape?: BoxShape;                   // 既定: 'rect'（BFPで 'ellipse' 選択可）
   textOrientation?: TextOrientation;  // 既定: 'horizontal'
-  autoFitText?: boolean;               // 文字サイズ自動調整
-  autoFitBox?: boolean;                // Box サイズ自動調整（テキストに合わせ）
+  autoFitText?: boolean;               // 文字サイズを Box に収まるよう自動縮小
+  autoFitBox?: boolean;                // 互換用（true = fit-content 的動作）
+  // Box 自動拡張モード:
+  //   'none': 自動拡張しない（既存サイズ固定）
+  //   'width-fixed': 横幅固定、ラベルが収まらないとき高さを増やす
+  //   'height-fixed': 高さ固定、ラベルが収まらないとき横幅を増やす
+  autoFitBoxMode?: AutoFitBoxMode;
   style?: BoxStyle;
   number?: number;                     // OPP-1, BFP-2 等
   participantId?: string;              // 統合図用
@@ -402,6 +410,8 @@ export interface ProjectSettings {
   defaultBoxSize: { width: number; height: number };
   defaultAutoFitText: boolean;
   defaultAutoFitBox: boolean;
+  // 全体既定の自動拡張モード（Box 個別設定が無いとき参照される）
+  defaultAutoFitBoxMode: AutoFitBoxMode;
   paperGuides: PaperGuide[];
   uiFontSize: number;                  // UI全体のフォントサイズ（px）
   levelStep: number;                   // プロパティのLevel調整刻み（既定 0.5）

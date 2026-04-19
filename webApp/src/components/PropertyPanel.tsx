@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
-import type { Box, BoxType, TextAlign, VerticalAlign, SDSG, Line } from '../types';
+import type { Box, BoxType, TextAlign, VerticalAlign, SDSG, Line, AutoFitBoxMode } from '../types';
 import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
@@ -338,6 +338,33 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           placeholder={commonFontSize === undefined ? '（混在）' : ''}
           onChange={(e) => updateBoxes(ids, { style: { ...first.style, fontSize: Number(e.target.value) } })}
         />
+      </div>
+
+      {/* Box 自動拡張 */}
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>Box 自動調整</h5>
+      <div className="prop-row">
+        <label>自動拡張モード</label>
+        <select
+          value={getCommon(boxes, 'autoFitBoxMode') ?? ''}
+          onChange={(e) => {
+            const v = e.target.value;
+            updateBoxes(ids, { autoFitBoxMode: v === '' ? undefined : (v as AutoFitBoxMode) });
+          }}
+        >
+          <option value="">（全体既定に従う）</option>
+          <option value="none">自動拡張なし</option>
+          <option value="width-fixed">横幅固定で高さ自動</option>
+          <option value="height-fixed">高さ固定で横幅自動</option>
+        </select>
+      </div>
+      <div className="prop-row">
+        <button
+          className="ribbon-btn-small"
+          onClick={() => useTEMStore.getState().fitBoxesToLabel(ids)}
+          title="現在のラベル文字数に合わせて Box サイズを最小化"
+        >
+          文字に合わせる
+        </button>
       </div>
 
       {/* IDバッジ位置調整 */}
