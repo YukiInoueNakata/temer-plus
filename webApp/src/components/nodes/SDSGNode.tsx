@@ -241,6 +241,8 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
             background: 'transparent',
             fontSize,
             fontWeight: data.style?.bold ?? true ? 700 : 400,
+            fontStyle: data.style?.italic ? 'italic' : 'normal',
+            fontFamily: data.style?.fontFamily ?? 'inherit',
             color: textColor,
             textAlign: 'center',
             padding: 2,
@@ -260,10 +262,15 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
             justifyContent: 'center',
             fontSize,
             fontWeight: data.style?.bold ?? true ? 700 : 400,
+            fontStyle: data.style?.italic ? 'italic' : 'normal',
+            textDecoration: data.style?.underline ? 'underline' : 'none',
+            fontFamily: data.style?.fontFamily ?? 'inherit',
             color: textColor,
             pointerEvents: 'none',
             textAlign: 'center',
             padding: 2,
+            writingMode: isVerticalLayout ? 'vertical-rl' : 'horizontal-tb',
+            textOrientation: isVerticalLayout ? ((data.asciiUpright ?? true) ? 'upright' : 'mixed') : undefined,
           }}
         >
           {data.label}

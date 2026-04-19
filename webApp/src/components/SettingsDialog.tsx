@@ -43,10 +43,13 @@ export function SettingsDialog({
   open,
   onClose,
   initialTab,
+  tabNonce,
 }: {
   open: boolean;
   onClose: () => void;
   initialTab?: string;
+  // initialTab と同じ値が連続で指定されても切替を強制するためのカウンタ
+  tabNonce?: number;
 }) {
   const [tab, setTab] = useState<Tab>('general');
   // ドラッグ位置（null = 中央配置）
@@ -54,14 +57,12 @@ export function SettingsDialog({
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ mouseX: 0, mouseY: 0, dlgX: 0, dlgY: 0 });
 
-  // open 時に initialTab を適用、位置はリセット
+  // open / initialTab / tabNonce いずれかの変化で initialTab を適用
   useEffect(() => {
-    if (open) {
-      if (initialTab && TABS.some((t) => t.key === initialTab)) {
-        setTab(initialTab as Tab);
-      }
+    if (open && initialTab && TABS.some((t) => t.key === initialTab)) {
+      setTab(initialTab as Tab);
     }
-  }, [open, initialTab]);
+  }, [open, initialTab, tabNonce]);
 
   useEffect(() => {
     if (!dragging) return;

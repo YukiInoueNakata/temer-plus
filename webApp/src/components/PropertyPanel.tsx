@@ -737,6 +737,118 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontSize: Number(e.target.value) } })}
             />
           </div>
+          <div className="prop-row">
+            <label>フォント</label>
+            <select
+              value={first.style?.fontFamily ?? ''}
+              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontFamily: e.target.value || undefined } })}
+            >
+              <option value="">（UI 既定）</option>
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="prop-row">
+            <label>装飾</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                className={first.style?.bold !== false ? 'style-btn active' : 'style-btn'}
+                onClick={() => updateSDSG(first.id, { style: { ...first.style, bold: !(first.style?.bold !== false) } })}
+                title="太字"
+              ><b>B</b></button>
+              <button
+                className={first.style?.italic ? 'style-btn active' : 'style-btn'}
+                onClick={() => updateSDSG(first.id, { style: { ...first.style, italic: !first.style?.italic } })}
+                title="斜体"
+              ><i>I</i></button>
+              <button
+                className={first.style?.underline ? 'style-btn active' : 'style-btn'}
+                onClick={() => updateSDSG(first.id, { style: { ...first.style, underline: !first.style?.underline } })}
+                title="下線"
+              ><u>U</u></button>
+            </div>
+          </div>
+          <div className="prop-row">
+            <label>文字色</label>
+            <input
+              type="color"
+              value={first.style?.color ?? '#222222'}
+              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, color: e.target.value } })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>背景色</label>
+            <input
+              type="color"
+              value={first.style?.backgroundColor ?? '#ffffff'}
+              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, backgroundColor: e.target.value } })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>枠線色</label>
+            <input
+              type="color"
+              value={first.style?.borderColor ?? '#333333'}
+              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, borderColor: e.target.value } })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>ASCII縦向き（縦書き時）</label>
+            <input
+              type="checkbox"
+              checked={first.asciiUpright ?? true}
+              onChange={(e) => updateSDSG(first.id, { asciiUpright: e.target.checked })}
+            />
+          </div>
+
+          <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>タイプラベル（SD / SG 表記）</h5>
+          <div className="prop-row">
+            <label>フォントサイズ</label>
+            <input
+              type="number"
+              min={6}
+              max={40}
+              value={first.typeLabelFontSize ?? 11}
+              onChange={(e) => updateSDSG(first.id, { typeLabelFontSize: Number(e.target.value) })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>フォント</label>
+            <select
+              value={first.typeLabelFontFamily ?? ''}
+              onChange={(e) => updateSDSG(first.id, { typeLabelFontFamily: e.target.value || undefined })}
+            >
+              <option value="">（本文と同じ）</option>
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="prop-row">
+            <label>装飾</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                className={first.typeLabelBold !== false ? 'style-btn active' : 'style-btn'}
+                onClick={() => updateSDSG(first.id, { typeLabelBold: !(first.typeLabelBold !== false) })}
+                title="太字"
+              ><b>B</b></button>
+              <button
+                className={first.typeLabelItalic ? 'style-btn active' : 'style-btn'}
+                onClick={() => updateSDSG(first.id, { typeLabelItalic: !first.typeLabelItalic })}
+                title="斜体"
+              ><i>I</i></button>
+            </div>
+          </div>
+          <div className="prop-row">
+            <label>ASCII縦向き（縦型レイアウト）</label>
+            <input
+              type="checkbox"
+              checked={first.typeLabelAsciiUpright ?? (first.asciiUpright ?? true)}
+              onChange={(e) => updateSDSG(first.id, { typeLabelAsciiUpright: e.target.checked })}
+            />
+          </div>
+
           <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>サブラベル</h5>
           <div className="prop-row">
             <label>サブラベル</label>
@@ -770,6 +882,14 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                 onChange={(e) => updateSDSG(first.id, { subLabelOffsetY: Number(e.target.value) })}
               />
             </div>
+          </div>
+          <div className="prop-row">
+            <label>ASCII縦向き（縦書き時）</label>
+            <input
+              type="checkbox"
+              checked={first.subLabelAsciiUpright ?? (first.asciiUpright ?? true)}
+              onChange={(e) => updateSDSG(first.id, { subLabelAsciiUpright: e.target.checked })}
+            />
           </div>
         </>
       )}

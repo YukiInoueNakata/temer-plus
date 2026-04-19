@@ -27,13 +27,16 @@ import './App.css';
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
+  const [settingsTabNonce, setSettingsTabNonce] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [resizeOpen, setResizeOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
+  // タブ指定で設定を開く: 同じタブを連続で指定されても再度切替できるよう nonce を回す
   const openSettings = (tab?: string) => {
     setSettingsInitialTab(tab);
+    setSettingsTabNonce((n) => n + 1);
     setSettingsOpen(true);
   };
   const [insertBetweenOpen, setInsertBetweenOpen] = useState(false);
@@ -268,6 +271,7 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         initialTab={settingsInitialTab}
+        tabNonce={settingsTabNonce}
       />
       <InsertBetweenDialog open={insertBetweenOpen} onClose={() => setInsertBetweenOpen(false)} />
       <PeriodLabelsDialog open={periodLabelsOpen} onClose={() => setPeriodLabelsOpen(false)} />
