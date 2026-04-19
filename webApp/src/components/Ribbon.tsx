@@ -16,6 +16,7 @@ export function Ribbon({
   onOpenPeriodLabels,
   onOpenExport,
   onOpenPaperReport,
+  onOpenResize,
   onSave,
   onSaveAs,
   onOpen,
@@ -26,6 +27,7 @@ export function Ribbon({
   onOpenPeriodLabels: () => void;
   onOpenExport: () => void;
   onOpenPaperReport: () => void;
+  onOpenResize: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -52,7 +54,7 @@ export function Ribbon({
       </div>
       <div className="ribbon-body">
         {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} />}
-        {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} />}
+        {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} onOpenResize={onOpenResize} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'help' && <HelpTab />}
@@ -147,7 +149,7 @@ function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperRep
   );
 }
 
-function HomeTab({ onOpenSettings }: { onOpenSettings: () => void }) {
+function HomeTab({ onOpenSettings, onOpenResize }: { onOpenSettings: () => void; onOpenResize: () => void }) {
   const copyToClipboard = useTEMStore((s) => s.copyToClipboard);
   const pasteFromClipboard = useTEMStore((s) => s.pasteFromClipboard);
   const selection = useTEMStore((s) => s.selection);
@@ -266,6 +268,14 @@ function HomeTab({ onOpenSettings }: { onOpenSettings: () => void }) {
         <RibbonButton label="前面" icon="⬆" onClick={() => firstSelectedId && bringForward(firstSelectedId)} />
         <RibbonButton label="背面" icon="⬇" onClick={() => firstSelectedId && sendBackward(firstSelectedId)} />
         <RibbonButton label="最背面" icon="⬇⬇" onClick={() => firstSelectedId && sendToBack(firstSelectedId)} />
+      </RibbonGroup>
+      <RibbonGroup title="シート">
+        <RibbonButton
+          label="リサイズ..."
+          icon="⤡"
+          onClick={onOpenResize}
+          title="シート全体を用紙サイズや任意の倍率でリサイズ"
+        />
       </RibbonGroup>
       <RibbonGroup title="その他">
         <RibbonButton label="設定" icon="⚙" onClick={onOpenSettings} />

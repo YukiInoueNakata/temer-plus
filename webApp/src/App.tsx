@@ -10,6 +10,7 @@ import { InsertBetweenDialog } from './components/InsertBetweenDialog';
 import { PeriodLabelsDialog } from './components/PeriodLabelsDialog';
 import { ExportPreviewDialog } from './components/ExportPreviewDialog';
 import { PaperReportDialog } from './components/PaperReportDialog';
+import { ResizeDialog } from './components/ResizeDialog';
 import { useTEMStore } from './store/store';
 import {
   saveToFile,
@@ -26,6 +27,7 @@ export default function App() {
   const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
   const [exportOpen, setExportOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [resizeOpen, setResizeOpen] = useState(false);
   const openSettings = (tab?: string) => {
     setSettingsInitialTab(tab);
     setSettingsOpen(true);
@@ -208,6 +210,7 @@ export default function App() {
         onOpenPeriodLabels={() => setPeriodLabelsOpen(true)}
         onOpenExport={() => setExportOpen(true)}
         onOpenPaperReport={() => setReportOpen(true)}
+        onOpenResize={() => setResizeOpen(true)}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpen={handleOpen}
@@ -231,6 +234,7 @@ export default function App() {
       <PeriodLabelsDialog open={periodLabelsOpen} onClose={() => setPeriodLabelsOpen(false)} />
       <ExportPreviewDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <PaperReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
+      <ResizeDialog open={resizeOpen} onClose={() => setResizeOpen(false)} />
     </div>
   );
 }

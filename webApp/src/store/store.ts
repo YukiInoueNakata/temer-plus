@@ -71,6 +71,8 @@ interface Actions {
   // 選択 Box のサイズ/文字サイズを統一
   matchBoxesSize: (ids: string[], mode: 'width' | 'height' | 'both', basis?: 'first' | 'max' | 'min') => void;
   matchBoxesFontSize: (ids: string[], basis?: 'first' | 'max' | 'min') => void;
+  // シート全体のリサイズ（実データを変更）
+  resizeActiveSheet: (scale: number, opts?: { includeFontSize?: boolean }) => void;
 
   // Line operations
   addLine: (from: string, to: string, patch?: Partial<Line>) => string;
@@ -400,6 +402,51 @@ export const useTEMStore = create<Store>()(
             ordered.forEach((b) => {
               if (mode === 'width' || mode === 'both') b.width = targetW;
               if (mode === 'height' || mode === 'both') b.height = targetH;
+            });
+          }),
+          dirty: true,
+        }));
+      },
+      resizeActiveSheet: (scale, opts) => {
+        if (!isFinite(scale) || scale <= 0 || scale === 1) return;
+        const includeFontSize = opts?.includeFontSize ?? true;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            sheet.boxes.forEach((b) => {
+              b.x *= scale;
+              b.y *= scale;
+              b.width *= scale;
+              b.height *= scale;
+              if (includeFontSize) {
+                const curFS = b.style?.fontSize ?? state.doc.settings.defaultFontSize;
+                b.style = { ...(b.style ?? {}), fontSize: Math.max(6, curFS * scale) };
+                if (b.typeLabelFontSize != null) {
+                  b.typeLabelFontSize = Math.max(6, b.typeLabelFontSize * scale);
+                }
+                if (b.subLabelFontSize != null) {
+                  b.subLabelFontSize = Math.max(6, b.subLabelFontSize * scale);
+                }
+              }
+            });
+            sheet.sdsg.forEach((sg) => {
+              if (sg.width != null) sg.width *= scale;
+              if (sg.height != null) sg.height *= scale;
+              sg.timeOffset = (sg.timeOffset ?? 0) * scale;
+              sg.itemOffset = (sg.itemOffset ?? 0) * scale;
+              if (includeFontSize && sg.style?.fontSize != null) {
+                sg.style = { ...sg.style, fontSize: Math.max(6, sg.style.fontSize * scale) };
+              }
+              if (includeFontSize && sg.typeLabelFontSize != null) {
+                sg.typeLabelFontSize = Math.max(6, sg.typeLabelFontSize * scale);
+              }
+              if (includeFontSize && sg.subLabelFontSize != null) {
+                sg.subLabelFontSize = Math.max(6, sg.subLabelFontSize * scale);
+              }
+            });
+            // 時期ラベル: position は timeLevel 値（= px / 100）
+            // Box 座標が scale されると timeLevel も scale 倍になるため整合のため乗算
+            sheet.periodLabels.forEach((p) => {
+              p.position = p.position * scale;
             });
           }),
           dirty: true,
