@@ -141,10 +141,14 @@ export function applyExportTransform(
         });
       }
 
-      // 2) 全体スケール: Box 座標・サイズ
+      // 2) 全体スケール: Box 座標・サイズ（SDSG / 時期ラベル含む）
       if (effectiveScale !== 1) {
         sh.boxes.forEach((b) => transformBox(b, effectiveScale));
         sh.sdsg.forEach((sg) => transformSDSG(sg, effectiveScale));
+        // 時期ラベル position（Level 値）は座標スケールに合わせて乗算
+        sh.periodLabels.forEach((p) => {
+          p.position = p.position * effectiveScale;
+        });
       }
 
       // 3) Box 微調整
@@ -155,8 +159,8 @@ export function applyExportTransform(
       sh.sdsg.forEach((sg) => applySDSGAdjust(sg, xf));
     }
 
-    // 6) Project settings
-    applyProjectAdjust(d, xf);
+    // 6) Project settings（凡例スケールも含む）
+    applyProjectAdjust(d, xf, effectiveScale);
   });
 
   // bounds を effectiveScale 適用後に再計算
@@ -187,6 +191,9 @@ export function applyExportTransform(
             p.position += (isH ? ox : oy) / 100; // LEVEL_PX = 100
           });
         }
+        // 凡例位置も同じだけシフト（メインウィンドウと印刷プレビューで同じ相対位置になるよう）
+        d.settings.legend.position.x += ox;
+        d.settings.legend.position.y += oy;
       });
       const finalSheet = finalDoc.sheets.find((s) => s.id === finalDoc.activeSheetId);
       newBounds = finalSheet
@@ -247,7 +254,7 @@ function applySDSGAdjust(sg: SDSG, xf: ExportTransform) {
   }
 }
 
-function applyProjectAdjust(d: TEMDocument, xf: ExportTransform) {
+function applyProjectAdjust(d: TEMDocument, xf: ExportTransform, effectiveScale: number) {
   // 時間矢印
   d.settings.timeArrow.fontSize = Math.max(
     xf.minFontSize,
@@ -257,11 +264,23 @@ function applyProjectAdjust(d: TEMDocument, xf: ExportTransform) {
     xf.minBorderWidth,
     d.settings.timeArrow.strokeWidth + xf.timeArrowStrokeDelta,
   );
-  // 凡例
-  d.settings.legend.fontSize = Math.max(
-    xf.minFontSize,
-    d.settings.legend.fontSize + xf.legendFontSizeDelta,
-  );
+  // 凡例: 全体スケールと fontSizeDelta を適用
+  const leg = d.settings.legend;
+  if (effectiveScale !== 1) {
+    leg.position.x *= effectiveScale;
+    leg.position.y *= effectiveScale;
+    leg.fontSize = leg.fontSize * effectiveScale;
+    if (leg.titleFontSize != null) leg.titleFontSize = leg.titleFontSize * effectiveScale;
+    leg.minWidth = leg.minWidth * effectiveScale;
+    if (leg.width != null) leg.width = leg.width * effectiveScale;
+    if (leg.height != null) leg.height = leg.height * effectiveScale;
+    leg.sampleWidth = leg.sampleWidth * effectiveScale;
+    leg.sampleHeight = leg.sampleHeight * effectiveScale;
+  }
+  leg.fontSize = Math.max(xf.minFontSize, leg.fontSize + xf.legendFontSizeDelta);
+  if (leg.titleFontSize != null) {
+    leg.titleFontSize = Math.max(xf.minFontSize, leg.titleFontSize + xf.legendFontSizeDelta);
+  }
   // 時期区分
   d.settings.periodLabels.fontSize = Math.max(
     xf.minFontSize,

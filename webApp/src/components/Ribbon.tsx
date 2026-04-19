@@ -131,7 +131,7 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExport, onOpenPaperReport, onOpenCSVImport, onOpenSettings }: {
+function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExport, onOpenPaperReport: _onOpenPaperReport, onOpenCSVImport, onOpenSettings }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -156,7 +156,8 @@ function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExp
       </RibbonGroup>
       <RibbonGroup title="出力">
         <RibbonButton label="出力..." icon="📤" onClick={onOpenExport} title="PNG / SVG / PDF / PPTX 出力（設定ダイアログ）" />
-        <RibbonButton label="論文レポート..." icon="📝" onClick={onOpenPaperReport} title=".docx 論文用レポートを生成" />
+        {/* 論文レポート機能は調整中のため一時停止 */}
+        <RibbonButton label="論文レポート(調整中)" icon="📝" onClick={() => alert('論文レポート出力は現在調整中のため一時的に無効化しています。')} title="調整中のため一時停止" />
       </RibbonGroup>
       <RibbonGroup title="環境">
         <RibbonButton label="設定" icon="⚙" onClick={onOpenSettings} title="全般設定（レイアウト・フォント・凡例など）" />

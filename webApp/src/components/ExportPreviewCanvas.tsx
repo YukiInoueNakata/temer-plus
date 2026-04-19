@@ -297,7 +297,8 @@ function Inner({
             panOnDrag={true}
             zoomOnScroll={true}
             zoomOnPinch={true}
-            panOnScroll={true}
+            panOnScroll={false}
+            preventScrolling={true}
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable={false}
