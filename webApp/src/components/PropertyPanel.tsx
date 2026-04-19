@@ -357,7 +357,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           <option value="height-fixed">高さ固定で横幅自動</option>
         </select>
       </div>
-      <div className="prop-row">
+      <div className="prop-row" style={{ flexWrap: 'wrap', gap: 4, justifyContent: 'flex-start' }}>
         <button
           className="ribbon-btn-small"
           onClick={() => useTEMStore.getState().fitBoxesToLabel(ids)}
@@ -365,6 +365,38 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         >
           文字に合わせる
         </button>
+        {isMulti && (
+          <>
+            <button
+              className="ribbon-btn-small"
+              onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'width')}
+              title="先頭の Box の幅に揃える"
+            >
+              幅揃え
+            </button>
+            <button
+              className="ribbon-btn-small"
+              onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'height')}
+              title="先頭の Box の高さに揃える"
+            >
+              高さ揃え
+            </button>
+            <button
+              className="ribbon-btn-small"
+              onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'both')}
+              title="先頭の Box の幅と高さに揃える"
+            >
+              サイズ揃え
+            </button>
+            <button
+              className="ribbon-btn-small"
+              onClick={() => useTEMStore.getState().matchBoxesFontSize(ids)}
+              title="先頭の Box の文字サイズに揃える"
+            >
+              文字サイズ揃え
+            </button>
+          </>
+        )}
       </div>
 
       {/* IDバッジ位置調整 */}

@@ -215,6 +215,48 @@ function HomeTab({ onOpenSettings }: { onOpenSettings: () => void }) {
         <AlignButton type="bottom" />
         <AlignButton type="distribute-h" />
       </RibbonGroup>
+      <RibbonGroup title="サイズ統一">
+        <RibbonButton
+          label="幅を揃える"
+          icon="↔"
+          title="選択 Box の幅を先頭のものに揃える"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.boxIds;
+            if (ids.length < 2) { alert('2 つ以上の Box を選択してください'); return; }
+            useTEMStore.getState().matchBoxesSize(ids, 'width');
+          }}
+        />
+        <RibbonButton
+          label="高さを揃える"
+          icon="↕"
+          title="選択 Box の高さを先頭のものに揃える"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.boxIds;
+            if (ids.length < 2) { alert('2 つ以上の Box を選択してください'); return; }
+            useTEMStore.getState().matchBoxesSize(ids, 'height');
+          }}
+        />
+        <RibbonButton
+          label="サイズを揃える"
+          icon="▭"
+          title="選択 Box の幅と高さを先頭のものに揃える"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.boxIds;
+            if (ids.length < 2) { alert('2 つ以上の Box を選択してください'); return; }
+            useTEMStore.getState().matchBoxesSize(ids, 'both');
+          }}
+        />
+        <RibbonButton
+          label="文字サイズ揃え"
+          icon="Aa"
+          title="選択 Box の文字サイズを先頭のものに揃える"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.boxIds;
+            if (ids.length < 2) { alert('2 つ以上の Box を選択してください'); return; }
+            useTEMStore.getState().matchBoxesFontSize(ids);
+          }}
+        />
+      </RibbonGroup>
       <RibbonGroup title="順序">
         <RibbonButton label="最前面" icon="⬆⬆" onClick={() => firstSelectedId && bringToFront(firstSelectedId)} />
         <RibbonButton label="前面" icon="⬆" onClick={() => firstSelectedId && bringForward(firstSelectedId)} />

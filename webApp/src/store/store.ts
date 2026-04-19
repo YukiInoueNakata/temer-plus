@@ -68,6 +68,9 @@ interface Actions {
   removeBox: (id: string) => void;
   removeBoxes: (ids: string[]) => void;
   fitBoxesToLabel: (ids: string[]) => void;   // ラベル文字数に合わせて Box サイズを最小 Fit
+  // 選択 Box のサイズ/文字サイズを統一
+  matchBoxesSize: (ids: string[], mode: 'width' | 'height' | 'both', basis?: 'first' | 'max' | 'min') => void;
+  matchBoxesFontSize: (ids: string[], basis?: 'first' | 'max' | 'min') => void;
 
   // Line operations
   addLine: (from: string, to: string, patch?: Partial<Line>) => string;
@@ -371,6 +374,53 @@ export const useTEMStore = create<Store>()(
               });
               b.width = Math.max(20, size.width);
               b.height = Math.max(20, size.height);
+            });
+          }),
+          dirty: true,
+        }));
+      },
+      matchBoxesSize: (ids, mode, basis = 'first') => {
+        if (ids.length < 2) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const targets = sheet.boxes.filter((b) => ids.includes(b.id));
+            if (targets.length < 2) return;
+            // 選択順（ids 順）を保つため ids で並べ替え
+            const ordered = ids
+              .map((id) => targets.find((b) => b.id === id))
+              .filter((b): b is typeof targets[number] => !!b);
+            const widths = ordered.map((b) => b.width);
+            const heights = ordered.map((b) => b.height);
+            const targetW = basis === 'max' ? Math.max(...widths)
+              : basis === 'min' ? Math.min(...widths)
+              : ordered[0].width;
+            const targetH = basis === 'max' ? Math.max(...heights)
+              : basis === 'min' ? Math.min(...heights)
+              : ordered[0].height;
+            ordered.forEach((b) => {
+              if (mode === 'width' || mode === 'both') b.width = targetW;
+              if (mode === 'height' || mode === 'both') b.height = targetH;
+            });
+          }),
+          dirty: true,
+        }));
+      },
+      matchBoxesFontSize: (ids, basis = 'first') => {
+        if (ids.length < 2) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const defaultFS = state.doc.settings.defaultFontSize;
+            const targets = sheet.boxes.filter((b) => ids.includes(b.id));
+            if (targets.length < 2) return;
+            const ordered = ids
+              .map((id) => targets.find((b) => b.id === id))
+              .filter((b): b is typeof targets[number] => !!b);
+            const sizes = ordered.map((b) => b.style?.fontSize ?? defaultFS);
+            const targetSize = basis === 'max' ? Math.max(...sizes)
+              : basis === 'min' ? Math.min(...sizes)
+              : sizes[0];
+            ordered.forEach((b) => {
+              b.style = { ...(b.style ?? {}), fontSize: targetSize };
             });
           }),
           dirty: true,
