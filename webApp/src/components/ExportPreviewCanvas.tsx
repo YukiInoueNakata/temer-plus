@@ -15,7 +15,7 @@ import ReactFlow, {
   type Edge,
   type Node,
 } from 'reactflow';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TEMDocument } from '../types';
 import { BoxNode, type BoxNodeData } from './nodes/BoxNode';
 import { SDSGNode, type SDSGNodeData } from './nodes/SDSGNode';
@@ -211,16 +211,48 @@ function Inner({
 
   // 用紙枠サイズ
   const paper = getPaperPx(paperSize, customPaperWidth, customPaperHeight);
-  const aspectRatio = `${paper.width} / ${paper.height}`;
+  void showPaperGuide;
 
-  // 用紙境界フィット: React Flow の fitBounds を使って用紙領域 (0,0)..(paper.width, paper.height)
-  // を表示範囲にぴったり合わせる。これによりコンテナ = 用紙枠になる。
-  void showPaperGuide; // 外部から表示指定されるが、コンテナ自体が用紙なので内部描画は不要
+  // 親要素のサイズを ResizeObserver で測定、aspectRatio に合わせた内側サイズを計算
+  const outerRef = useRef<HTMLDivElement>(null);
+  const [outerSize, setOuterSize] = useState<{ w: number; h: number }>({ w: 400, h: 300 });
+
+  useEffect(() => {
+    const el = outerRef.current;
+    if (!el) return;
+    const update = () => {
+      const pad = 24; // padding 分の余白
+      const r = el.getBoundingClientRect();
+      setOuterSize({
+        w: Math.max(50, r.width - pad),
+        h: Math.max(50, r.height - pad),
+      });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // 親サイズと用紙比率から、収まる最大の内側サイズを計算
+  const paperAspect = paper.width / paper.height;
+  const containerAspect = outerSize.w / Math.max(1, outerSize.h);
+  let innerW: number;
+  let innerH: number;
+  if (containerAspect > paperAspect) {
+    // 親が用紙より横長 → 高さ基準で揃える
+    innerH = outerSize.h;
+    innerW = innerH * paperAspect;
+  } else {
+    innerW = outerSize.w;
+    innerH = innerW / paperAspect;
+  }
 
   return (
     <TEMViewContext.Provider value={ctxValue}>
       {/* 外側: グレー背景、内側の用紙枠を中央配置 */}
       <div
+        ref={outerRef}
         style={{
           background: '#dddddd',
           width: '100%',
@@ -237,11 +269,8 @@ function Inner({
         {/* 用紙枠のラッパー（枠・影はここに、キャプチャ対象外） */}
         <div
           style={{
-            aspectRatio,
-            maxWidth: '100%',
-            maxHeight: '100%',
-            width: 'auto',
-            height: 'auto',
+            width: innerW,
+            height: innerH,
             border: '1px solid #999',
             boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
             position: 'relative',
