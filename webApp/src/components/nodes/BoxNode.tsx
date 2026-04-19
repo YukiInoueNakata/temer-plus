@@ -40,7 +40,11 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   const sheet = view.sheet;
   const isPreview = view.isPreview;
   const editLocked = view.editLocked;
-  const editingDisabled = isPreview || editLocked;
+  // 移動モード（editLocked）でも文字編集は許可したいため、
+  // インライン編集は isPreview のみで無効化する
+  const editingDisabled = isPreview;
+  // リサイズとノードドラッグは editLocked の場合にも無効
+  const resizeDisabled = isPreview || editLocked;
   const spec = BOX_RENDER_SPECS[data.type] ?? BOX_RENDER_SPECS.normal;
   const shape = data.shape ?? spec.defaultShape;
   const isTextVertical = data.textOrientation === 'vertical';
@@ -370,7 +374,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   return (
     <div style={{ position: 'relative' }}>
       <NodeResizer
-        isVisible={!!selected && !editing && !editingDisabled}
+        isVisible={!!selected && !editing && !resizeDisabled}
         minWidth={30}
         minHeight={20}
         handleStyle={{ width: 8, height: 8, borderRadius: 2, background: '#2684ff', border: '1px solid #fff' }}

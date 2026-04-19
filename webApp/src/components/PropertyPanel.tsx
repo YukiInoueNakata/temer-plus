@@ -794,6 +794,28 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             />
           </div>
           <div className="prop-row">
+            <label>左右方向の揃え</label>
+            <select
+              value={first.style?.textAlign ?? 'center'}
+              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
+            >
+              <option value="left">左揃え</option>
+              <option value="center">中央</option>
+              <option value="right">右揃え</option>
+            </select>
+          </div>
+          <div className="prop-row">
+            <label>上下方向の揃え</label>
+            <select
+              value={first.style?.verticalAlign ?? 'middle'}
+              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
+            >
+              <option value="top">上揃え</option>
+              <option value="middle">中央</option>
+              <option value="bottom">下揃え</option>
+            </select>
+          </div>
+          <div className="prop-row">
             <label>ASCII縦向き（縦書き時）</label>
             <input
               type="checkbox"

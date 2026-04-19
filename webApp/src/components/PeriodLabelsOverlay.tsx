@@ -72,12 +72,15 @@ export function PeriodLabelsOverlay({ onOpenSettings }: { onOpenSettings?: () =>
     } else if (align === 'right') {
       style.transform = 'translate(0, -50%)';
     }
+    const stop = (e: React.SyntheticEvent) => e.stopPropagation();
     return (
       <div
         key={keyId}
         style={style}
-        onDoubleClick={editable ? (e) => { e.stopPropagation(); onOpenSettings?.(); } : undefined}
-        title={editable ? 'ダブルクリックで設定を開く' : undefined}
+        onMouseDown={editable ? stop : undefined}
+        onClick={editable ? stop : undefined}
+        onDoubleClick={editable ? (e) => { e.preventDefault(); e.stopPropagation(); onOpenSettings?.(); } : undefined}
+        title={editable ? 'ダブルクリックで時期区分設定を開く' : undefined}
       >
         {renderVerticalAwareText(text, isVert)}
       </div>

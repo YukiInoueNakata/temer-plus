@@ -51,7 +51,10 @@ export function SettingsDialog({
   // initialTab と同じ値が連続で指定されても切替を強制するためのカウンタ
   tabNonce?: number;
 }) {
-  const [tab, setTab] = useState<Tab>('general');
+  // マウント時は initialTab を反映して 'general' フラッシュを避ける
+  const [tab, setTab] = useState<Tab>(() =>
+    initialTab && TABS.some((t) => t.key === initialTab) ? (initialTab as Tab) : 'general'
+  );
   // ドラッグ位置（null = 中央配置）
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);

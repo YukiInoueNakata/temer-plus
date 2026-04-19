@@ -28,7 +28,8 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const typeLabelVisibility = view.settings.typeLabelVisibility;
   const updateSDSG = view.updateSDSG;
   const isPreview = view.isPreview;
-  const editingDisabled = isPreview || view.editLocked;
+  // 移動モードでもダブルクリック編集は許可。preview 時のみ抑止
+  const editingDisabled = isPreview;
   const width = data.width ?? 70;
   const height = data.height ?? 40;
   const isSD = data.type === 'SD';
@@ -250,31 +251,42 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
           }}
         />
       ) : (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize,
-            fontWeight: data.style?.bold ?? true ? 700 : 400,
-            fontStyle: data.style?.italic ? 'italic' : 'normal',
-            textDecoration: data.style?.underline ? 'underline' : 'none',
-            fontFamily: data.style?.fontFamily ?? 'inherit',
-            color: textColor,
-            pointerEvents: 'none',
-            textAlign: 'center',
-            padding: 2,
-            writingMode: isVerticalLayout ? 'vertical-rl' : 'horizontal-tb',
-            textOrientation: isVerticalLayout ? ((data.asciiUpright ?? true) ? 'upright' : 'mixed') : undefined,
-          }}
-        >
-          {data.label}
-        </div>
+        (() => {
+          // Box と同じ: Grid の justifyItems/alignItems は writing-mode に依存せず
+          // 物理軸で動くため、縦書き/横書きいずれも同じマッピングで機能する
+          const gridMap: Record<string, string> = {
+            top: 'start', middle: 'center', bottom: 'end',
+            left: 'start', center: 'center', right: 'end',
+          };
+          const xAlign = gridMap[data.style?.textAlign ?? 'center'];
+          const yAlign = gridMap[data.style?.verticalAlign ?? 'middle'];
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'grid',
+                justifyItems: xAlign,
+                alignItems: yAlign,
+                fontSize,
+                fontWeight: data.style?.bold ?? true ? 700 : 400,
+                fontStyle: data.style?.italic ? 'italic' : 'normal',
+                textDecoration: data.style?.underline ? 'underline' : 'none',
+                fontFamily: data.style?.fontFamily ?? 'inherit',
+                color: textColor,
+                pointerEvents: 'none',
+                padding: 2,
+                writingMode: isVerticalLayout ? 'vertical-rl' : 'horizontal-tb',
+                textOrientation: isVerticalLayout ? ((data.asciiUpright ?? true) ? 'upright' : 'mixed') : undefined,
+              }}
+            >
+              {data.label}
+            </div>
+          );
+        })()
       )}
       {showTypeTag && (
         <div style={typeTagStyle}>

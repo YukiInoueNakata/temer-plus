@@ -854,7 +854,9 @@ export function TimeArrowOverlay({ onOpenSettings }: { onOpenSettings?: () => vo
           pointerEvents: editable ? 'auto' : 'none',
           cursor: editable ? 'pointer' : 'default',
         }}
-        onDoubleClick={editable ? (e) => { e.stopPropagation(); onOpenSettings?.(); } : undefined}
+        onMouseDown={editable ? (e) => e.stopPropagation() : undefined}
+        onClick={editable ? (e) => e.stopPropagation() : undefined}
+        onDoubleClick={editable ? (e) => { e.preventDefault(); e.stopPropagation(); onOpenSettings?.(); } : undefined}
         title={editable ? 'ダブルクリックで非可逆的時間タブを開く' : undefined}
       >
         {renderVerticalAwareText(arrow.label, isVert)}
