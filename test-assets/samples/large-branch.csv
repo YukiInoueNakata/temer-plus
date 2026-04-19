@@ -1,0 +1,10 @@
+label,type,timeLevel,itemLevel,description
+初職の経験,normal,0,0,大学新卒で入社
+業務課題,normal,1,0,初期の壁
+メンター相談,OPP,2,0,必須通過点
+キャリア迷い,BFP,3,0,分岐の発生
+職務継続,EFP,4,1,昇進ルートを選択
+転職挑戦,P-EFP,4,-1,想定された別ルート
+専門職化,2nd-EFP,6,2,さらに先の等至点
+独立起業,P-2nd-EFP,6,-2,もう一つの方向
+潜在的迷い,annotation,3,1,描かれなかった道

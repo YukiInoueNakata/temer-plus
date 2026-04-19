@@ -1,0 +1,6 @@
+label,type,timeLevel,itemLevel,subLabel,description
+高校卒業,normal,0,0,Aさん,高校を卒業した時点
+大学受験,OPP,1,0,,受験期間
+第一志望合格,BFP,2,0,,分岐の発生時期
+第一志望入学,EFP,3,1,,希望通りの進路
+第二志望入学,P-EFP,3,-1,,想定されていた別路

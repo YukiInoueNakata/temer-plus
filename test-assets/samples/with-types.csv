@@ -1,0 +1,6 @@
+label,type
+Start,normal
+必須通過点,OPP
+分岐点,BFP
+等至点,EFP
+別ルート,P-EFP
