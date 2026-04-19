@@ -17,6 +17,7 @@ export function Ribbon({
   onOpenExport,
   onOpenPaperReport,
   onOpenResize,
+  onOpenCSVImport,
   onSave,
   onSaveAs,
   onOpen,
@@ -28,6 +29,7 @@ export function Ribbon({
   onOpenExport: () => void;
   onOpenPaperReport: () => void;
   onOpenResize: () => void;
+  onOpenCSVImport: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -53,7 +55,7 @@ export function Ribbon({
         <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} />}
         {activeTab === 'home' && <HomeTab onOpenSettings={onOpenSettings} onOpenResize={onOpenResize} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
@@ -125,13 +127,14 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperReport }: {
+function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperReport, onOpenCSVImport }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
   onNew: () => void;
   onOpenExport: () => void;
   onOpenPaperReport: () => void;
+  onOpenCSVImport: () => void;
 }) {
   return (
     <>
@@ -140,6 +143,9 @@ function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperRep
         <RibbonButton label="開く (Ctrl+O)" icon="📂" onClick={onOpen} />
         <RibbonButton label="保存 (Ctrl+S)" icon="💾" onClick={onSave} />
         <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
+      </RibbonGroup>
+      <RibbonGroup title="インポート">
+        <RibbonButton label="CSV インポート..." icon="📥" onClick={onOpenCSVImport} title="CSV から Box を一括追加" />
       </RibbonGroup>
       <RibbonGroup title="出力">
         <RibbonButton label="出力..." icon="📤" onClick={onOpenExport} title="PNG / SVG / PDF / PPTX 出力（設定ダイアログ）" />

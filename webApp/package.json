@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@types/papaparse": "^5.5.2",
     "docx": "^9.0.3",
     "html-to-image": "^1.11.13",
     "i18next": "^24.0.2",
@@ -21,6 +22,7 @@
     "immer": "^10.1.1",
     "jspdf": "^2.5.2",
     "jszip": "^3.10.1",
+    "papaparse": "^5.5.3",
     "pptxgenjs": "^3.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

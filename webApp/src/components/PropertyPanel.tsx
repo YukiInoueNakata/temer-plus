@@ -364,7 +364,16 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
       {/* Box 自動拡張 */}
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>Box 自動調整</h5>
       <div className="prop-row">
-        <label>自動拡張モード</label>
+        <label>文字サイズを自動調整</label>
+        <input
+          type="checkbox"
+          checked={getCommon(boxes, 'autoFitText') === true}
+          onChange={(e) => updateBoxes(ids, { autoFitText: e.target.checked })}
+          title="Box に収まる最大サイズへ文字を縮小・拡大"
+        />
+      </div>
+      <div className="prop-row">
+        <label>自動拡張モード（Box サイズ変更）</label>
         <select
           value={getCommon(boxes, 'autoFitBoxMode') ?? ''}
           onChange={(e) => {
@@ -378,6 +387,9 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           <option value="height-fixed">高さ固定で横幅自動</option>
         </select>
       </div>
+      <p className="hint" style={{ margin: 0 }}>
+        文字サイズ自動調整が ON のとき自動拡張モードは停止します（同時有効不可）
+      </p>
       <div className="prop-row" style={{ flexWrap: 'wrap', gap: 4, justifyContent: 'flex-start' }}>
         <button
           className="ribbon-btn-small"

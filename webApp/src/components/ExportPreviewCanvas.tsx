@@ -118,7 +118,8 @@ function Inner({
         typeLabelAsciiUpright: b.typeLabelAsciiUpright,
         subLabelAsciiUpright: b.subLabelAsciiUpright,
         asciiUpright: b.asciiUpright,
-        autoFitBoxMode: 'none',  // プレビュー中は自動拡張を停止
+        autoFitBoxMode: 'none',  // プレビュー中は自動拡張・自動文字調整を停止
+        autoFitText: false,
       },
       style: { width: b.width, height: b.height, zIndex: b.zIndex ?? 0 },
     }));

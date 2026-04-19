@@ -73,6 +73,17 @@ interface Actions {
   matchBoxesFontSize: (ids: string[], basis?: 'first' | 'max' | 'min') => void;
   // シート全体のリサイズ（実データを変更）
   resizeActiveSheet: (scale: number, opts?: { includeFontSize?: boolean }) => void;
+  // CSV インポート: Box/Line を一括追加（シフト挿入対応）
+  importBoxes: (
+    newBoxes: Box[],
+    newLines: Line[],
+    opts?: {
+      targetSheetId?: string;           // 未指定ならアクティブシート
+      insertAfterBoxId?: string;        // 指定 Box の直後に挿入 → それ以降の Box を右シフト
+      insertBeforeBoxId?: string;       // 指定 Box の直前に挿入 → そちら以降を右シフト
+      gap?: number;                     // シフト時の Box 間ギャップ（px）
+    }
+  ) => void;
 
   // Line operations
   addLine: (from: string, to: string, patch?: Partial<Line>) => string;
@@ -403,6 +414,69 @@ export const useTEMStore = create<Store>()(
               if (mode === 'width' || mode === 'both') b.width = targetW;
               if (mode === 'height' || mode === 'both') b.height = targetH;
             });
+          }),
+          dirty: true,
+        }));
+      },
+      importBoxes: (newBoxes, newLines, opts) => {
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const layout = state.doc.settings.layout;
+            const isH = layout === 'horizontal';
+            const gap = opts?.gap ?? 20;
+
+            // 挿入後のシフト対象 Box を決める
+            let shiftFromTime = Infinity;
+            if (opts?.insertAfterBoxId) {
+              const anchor = sheet.boxes.find((b) => b.id === opts.insertAfterBoxId);
+              if (anchor) {
+                shiftFromTime = isH
+                  ? anchor.x + anchor.width
+                  : anchor.y + anchor.height;
+              }
+            } else if (opts?.insertBeforeBoxId) {
+              const anchor = sheet.boxes.find((b) => b.id === opts.insertBeforeBoxId);
+              if (anchor) {
+                shiftFromTime = isH ? anchor.x : anchor.y;
+              }
+            }
+
+            if (shiftFromTime !== Infinity && newBoxes.length > 0) {
+              // 新 Box の time 方向サイズ合計（配置に必要な幅）
+              const minNew = newBoxes.reduce(
+                (m, b) => Math.min(m, isH ? b.x : b.y),
+                Infinity,
+              );
+              const maxNew = newBoxes.reduce(
+                (m, b) => Math.max(m, isH ? b.x + b.width : b.y + b.height),
+                -Infinity,
+              );
+              const newSpan = Math.max(0, maxNew - minNew) + gap * 2;
+              // 既存 Box で shiftFromTime 以降は newSpan 分シフト
+              sheet.boxes.forEach((b) => {
+                const t = isH ? b.x : b.y;
+                if (t >= shiftFromTime) {
+                  if (isH) b.x += newSpan;
+                  else b.y += newSpan;
+                }
+              });
+              // 時期ラベルもシフト
+              sheet.periodLabels.forEach((p) => {
+                const pos_px = p.position * 100; // LEVEL_PX
+                if (pos_px >= shiftFromTime) {
+                  p.position = (pos_px + newSpan) / 100;
+                }
+              });
+              // 新 Box を挿入位置にオフセット
+              const offset = shiftFromTime + gap - minNew;
+              newBoxes.forEach((b) => {
+                if (isH) b.x += offset;
+                else b.y += offset;
+              });
+            }
+
+            sheet.boxes.push(...newBoxes);
+            sheet.lines.push(...newLines);
           }),
           dirty: true,
         }));

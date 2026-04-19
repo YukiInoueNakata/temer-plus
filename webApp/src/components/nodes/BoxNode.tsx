@@ -15,7 +15,7 @@ import { BOX_RENDER_SPECS } from '../../store/defaults';
 import { computeBoxDisplay } from '../../utils/typeDisplay';
 import { renderVerticalAwareText } from '../../utils/verticalText';
 import { renderRichText } from '../../utils/richText';
-import { computeAutoFitSize } from '../../utils/boxFit';
+import { computeAutoFitSize, computeFitFontSize } from '../../utils/boxFit';
 import { useTEMView } from '../../context/TEMViewContext';
 
 export interface BoxNodeData extends Pick<
@@ -27,7 +27,7 @@ export interface BoxNodeData extends Pick<
   'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' | 'typeLabelAsciiUpright' |
   'subLabelAsciiUpright' |
   'asciiUpright' |
-  'autoFitBoxMode'
+  'autoFitBoxMode' | 'autoFitText'
 > {}
 
 export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) {
@@ -84,8 +84,10 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   // --------------------------------------------------------------------------
   // autoFitBoxMode: ラベル/フォント変更時に必要サイズを計算して自動拡張
   // 既存サイズより大きい方向にのみ更新（ユーザ手動リサイズを尊重）
+  // autoFitText と同時有効時は autoFitText を優先し、autoFitBoxMode は停止
   // --------------------------------------------------------------------------
-  const mode = data.autoFitBoxMode ?? defaultMode ?? 'none';
+  const autoFitText = data.autoFitText ?? view.settings.defaultAutoFitText ?? false;
+  const mode = (autoFitText ? 'none' : (data.autoFitBoxMode ?? defaultMode ?? 'none'));
   useEffect(() => {
     if (editing) return;
     if (mode === 'none') return;
@@ -108,6 +110,33 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.label, fontSize, mode, isTextVertical, data.width, data.height, editing]);
+
+  // --------------------------------------------------------------------------
+  // autoFitText: Box サイズ固定で fontSize を Box に収まる最大値に自動調整
+  // 縮小も拡大も行う（6px〜72px の範囲で二分探索）
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    if (editing) return;
+    if (!autoFitText) return;
+    const fitted = computeFitFontSize(
+      data.label,
+      data.width,
+      data.height,
+      {
+        fontFamily: data.style?.fontFamily,
+        bold: data.style?.bold,
+        italic: data.style?.italic,
+        vertical: isTextVertical,
+        padding: 8,
+        minSize: 6,
+        maxSize: 72,
+      },
+    );
+    if (Math.abs(fitted - fontSize) >= 0.5) {
+      updateBox(nodeId, { style: { ...(data.style ?? {}), fontSize: fitted } });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.label, data.width, data.height, isTextVertical, autoFitText, editing]);
 
   // --------------------------------------------------------------------------
   // 見た目

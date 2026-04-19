@@ -101,3 +101,51 @@ export function computeAutoFitSize(
 export function computeFitToLabelSize(text: string, opts: MeasureOpts): Size {
   return measureLabel(text, opts);
 }
+
+/**
+ * Box に収まる最大フォントサイズを求める。
+ * - テキストを Box 内に収めるため、フォントサイズを 6〜72px の範囲で二分探索
+ * - Box サイズ固定、フォントのみ変更
+ * - 複数行/縦書き対応
+ */
+export function computeFitFontSize(
+  text: string,
+  boxWidth: number,
+  boxHeight: number,
+  opts: Omit<MeasureOpts, 'fontSize' | 'maxWidth' | 'maxHeight'> & {
+    minSize?: number;
+    maxSize?: number;
+    padding?: number;
+  },
+): number {
+  const min = opts.minSize ?? 6;
+  const max = opts.maxSize ?? 72;
+  const pad = opts.padding ?? 8;
+  const isVert = !!opts.vertical;
+  // 利用可能領域（padding 差引済、measureLabel 側で再度 padding 付加するので素のサイズで渡す）
+  const availW = Math.max(1, boxWidth);
+  const availH = Math.max(1, boxHeight);
+
+  const fits = (size: number): boolean => {
+    const m = measureLabel(text, {
+      ...opts,
+      fontSize: size,
+      padding: pad,
+      maxWidth: isVert ? undefined : availW,
+      maxHeight: isVert ? availH : undefined,
+    });
+    return m.width <= availW && m.height <= availH;
+  };
+
+  // 二分探索（小さい方が確実に収まる、大きい方ははみ出す前提）
+  let lo = min;
+  let hi = max;
+  if (!fits(lo)) return lo; // そもそも最小でも入らない場合は min を返す
+  if (fits(hi)) return hi;  // 最大でも収まる場合は上限を返す
+  while (hi - lo > 0.5) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) lo = mid;
+    else hi = mid;
+  }
+  return Math.floor(lo);
+}

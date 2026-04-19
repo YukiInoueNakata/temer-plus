@@ -11,6 +11,7 @@ import { PeriodLabelsDialog } from './components/PeriodLabelsDialog';
 import { ExportPreviewDialog } from './components/ExportPreviewDialog';
 import { PaperReportDialog } from './components/PaperReportDialog';
 import { ResizeDialog } from './components/ResizeDialog';
+import { CSVImportDialog } from './components/CSVImportDialog';
 import { useTEMStore } from './store/store';
 import {
   saveToFile,
@@ -28,6 +29,7 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [resizeOpen, setResizeOpen] = useState(false);
+  const [csvOpen, setCsvOpen] = useState(false);
   const openSettings = (tab?: string) => {
     setSettingsInitialTab(tab);
     setSettingsOpen(true);
@@ -211,6 +213,7 @@ export default function App() {
         onOpenExport={() => setExportOpen(true)}
         onOpenPaperReport={() => setReportOpen(true)}
         onOpenResize={() => setResizeOpen(true)}
+        onOpenCSVImport={() => setCsvOpen(true)}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpen={handleOpen}
@@ -235,6 +238,7 @@ export default function App() {
       <ExportPreviewDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <PaperReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
       <ResizeDialog open={resizeOpen} onClose={() => setResizeOpen(false)} />
+      <CSVImportDialog open={csvOpen} onClose={() => setCsvOpen(false)} />
     </div>
   );
 }

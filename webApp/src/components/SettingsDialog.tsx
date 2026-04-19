@@ -243,9 +243,23 @@ function GeneralSection() {
           <option value="height-fixed">高さ固定で横幅自動</option>
         </select>
       </div>
+      <div className="setting-row">
+        <label>文字サイズ自動調整（既定、全 Box）</label>
+        <input
+          type="checkbox"
+          checked={doc.settings.defaultAutoFitText === true}
+          onChange={(e) => {
+            useTEMStore.setState((state) => ({
+              doc: produce(state.doc, (d) => {
+                d.settings.defaultAutoFitText = e.target.checked;
+              }),
+            }));
+          }}
+        />
+      </div>
       <p className="hint">
-        ラベルが現在のサイズに収まらない時、どちら側を増やすかの既定設定。
-        Box 個別プロパティで上書き可能。
+        自動拡張: ラベルが収まらない時、どちら側を増やすか（Box 個別プロパティで上書き可）<br />
+        文字サイズ自動調整: Box に収まる最大文字サイズを自動設定（同時有効不可。個別設定優先）
       </p>
     </section>
   );
