@@ -39,10 +39,13 @@ export interface ExportTransform {
   timeArrowStrokeDelta: number;
   legendFontSizeDelta: number;
   periodLabelFontSizeDelta: number;
+  periodLabelStrokeDelta: number;  // 時期区分の境界線の太さ ±
 
   // 下限ガード
   minFontSize: number;
   minBorderWidth: number;
+  // 用紙内中央へ自動配置（要素 bbox の中心を用紙の短辺中央に合わせる）
+  autoCenterOnPaper?: boolean;
 }
 
 export const DEFAULT_EXPORT_TRANSFORM: ExportTransform = {
@@ -61,8 +64,10 @@ export const DEFAULT_EXPORT_TRANSFORM: ExportTransform = {
   timeArrowStrokeDelta: 0,
   legendFontSizeDelta: 0,
   periodLabelFontSizeDelta: 0,
+  periodLabelStrokeDelta: 0,
   minFontSize: 6,
   minBorderWidth: 0.5,
+  autoCenterOnPaper: true,
 };
 
 // ----------------------------------------------------------------------------
@@ -154,13 +159,43 @@ export function applyExportTransform(
     applyProjectAdjust(d, xf);
   });
 
-  // bounds も effectiveScale 適用後に再計算して返す
-  const newSheet = newDoc.sheets.find((s) => s.id === newDoc.activeSheetId);
-  const newBounds = newSheet
-    ? computeContentBounds(newSheet, newDoc.settings.layout, newDoc.settings)
+  // bounds を effectiveScale 適用後に再計算
+  const newSheet0 = newDoc.sheets.find((s) => s.id === newDoc.activeSheetId);
+  let newBounds = newSheet0
+    ? computeContentBounds(newSheet0, newDoc.settings.layout, newDoc.settings)
     : null;
 
-  return { doc: newDoc, effectiveScale, bbox: newBounds };
+  // 用紙中心へ自動配置（Box / SDSG / 時期ラベルをシフト）
+  let finalDoc = newDoc;
+  if (xf.autoCenterOnPaper && newBounds) {
+    const paper = getPaperPx(xf.paperSize);
+    const isH = newDoc.settings.layout === 'horizontal';
+    // 用紙中心（world 座標）: Level 0 は短辺中央
+    //   横型: 長辺=x なので paper.width は長辺、paper.height は短辺 → 中心 = (paper.width/2, 0)
+    //   縦型: 長辺=y なので paper.width は短辺、paper.height は長辺 → 中心 = (0, paper.height/2)
+    const targetCx = isH ? paper.width / 2 : 0;
+    const targetCy = isH ? 0 : paper.height / 2;
+    const bCx = newBounds.x + newBounds.width / 2;
+    const bCy = newBounds.y + newBounds.height / 2;
+    const ox = targetCx - bCx;
+    const oy = targetCy - bCy;
+    if (Math.abs(ox) > 0.5 || Math.abs(oy) > 0.5) {
+      finalDoc = produce(newDoc, (d) => {
+        for (const sh of d.sheets) {
+          sh.boxes.forEach((b) => { b.x += ox; b.y += oy; });
+          sh.periodLabels.forEach((p) => {
+            p.position += (isH ? ox : oy) / 100; // LEVEL_PX = 100
+          });
+        }
+      });
+      const finalSheet = finalDoc.sheets.find((s) => s.id === finalDoc.activeSheetId);
+      newBounds = finalSheet
+        ? computeContentBounds(finalSheet, finalDoc.settings.layout, finalDoc.settings)
+        : newBounds;
+    }
+  }
+
+  return { doc: finalDoc, effectiveScale, bbox: newBounds };
 }
 
 function transformBox(b: Box, scale: number) {
@@ -231,6 +266,10 @@ function applyProjectAdjust(d: TEMDocument, xf: ExportTransform) {
   d.settings.periodLabels.fontSize = Math.max(
     xf.minFontSize,
     d.settings.periodLabels.fontSize + xf.periodLabelFontSizeDelta,
+  );
+  d.settings.periodLabels.dividerStrokeWidth = Math.max(
+    xf.minBorderWidth,
+    d.settings.periodLabels.dividerStrokeWidth + xf.periodLabelStrokeDelta,
   );
 }
 

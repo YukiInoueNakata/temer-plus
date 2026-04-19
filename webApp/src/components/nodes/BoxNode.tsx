@@ -155,8 +155,10 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
     top: 'flex-start', middle: 'center', bottom: 'flex-end',
     left: 'flex-start', center: 'center', right: 'flex-end',
   };
-  const flexAlignItems = isTextVertical ? alignMap[textAlign] : alignMap[verticalAlign];
-  const flexJustify = isTextVertical ? alignMap[verticalAlign] : alignMap[textAlign];
+  // 揃えは常に Box の幅（左右）・高さ（上下）に対して適用
+  // 縦書きテキストでも flex 軸を保持（justifyContent=横、alignItems=縦）
+  const flexJustify = alignMap[textAlign];     // 左右方向 = Box 幅基準
+  const flexAlignItems = alignMap[verticalAlign]; // 上下方向 = Box 高さ基準
 
   const baseStyle: React.CSSProperties = {
     width: data.width,

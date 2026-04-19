@@ -874,6 +874,49 @@ export function LegendSettingsSection() {
       </section>
 
       <section className="settings-section">
+        <h4>サイズ（固定）</h4>
+        <p className="hint" style={{ marginTop: 0 }}>
+          凡例の幅・高さを固定すると、キャンバスのスクロールや zoom に関係なく同じ見た目になります。
+          未入力の場合は内容に合わせて自動。右下のハンドルをドラッグしても調整できます。
+        </p>
+        <div className="setting-row">
+          <label>幅 (px)</label>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={lg.width ?? ''}
+            placeholder="自動"
+            onChange={(e) => {
+              const v = e.target.value;
+              update({ width: v === '' ? undefined : Math.max(40, Number(v)) });
+            }}
+            style={{ width: 100 }}
+          />
+        </div>
+        <div className="setting-row">
+          <label>高さ (px)</label>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={lg.height ?? ''}
+            placeholder="自動"
+            onChange={(e) => {
+              const v = e.target.value;
+              update({ height: v === '' ? undefined : Math.max(20, Number(v)) });
+            }}
+            style={{ width: 100 }}
+          />
+        </div>
+        <div className="setting-row" style={{ justifyContent: 'flex-start', gap: 6 }}>
+          <button className="ribbon-btn-small" onClick={() => update({ width: undefined, height: undefined })}>
+            自動に戻す
+          </button>
+        </div>
+      </section>
+
+      <section className="settings-section">
         <h4>背景・枠線</h4>
         <div className="setting-row">
           <label>背景</label>
@@ -882,19 +925,19 @@ export function LegendSettingsSection() {
             onChange={(e) => update({ backgroundStyle: e.target.value as LegendBackgroundStyle })}
           >
             <option value="white">白</option>
-            <option value="none">背景なし</option>
+            <option value="none">透明（背景なし）</option>
           </select>
         </div>
         <div className="setting-row">
-          <label>枠線の太さ (px、0=なし)</label>
+          <label>枠線の太さ (px、0=透明)</label>
           <input
             type="number"
             min={0}
             max={10}
-            step={0.5}
+            step={0.1}
             value={lg.borderWidth ?? 1}
             onChange={(e) => update({ borderWidth: Math.max(0, Number(e.target.value)) })}
-            style={{ width: 70 }}
+            style={{ width: 80 }}
           />
         </div>
         <div className="setting-row">
@@ -903,6 +946,27 @@ export function LegendSettingsSection() {
             type="color"
             value={lg.borderColor ?? '#999999'}
             onChange={(e) => update({ borderColor: e.target.value })}
+          />
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h4>タイトルと項目の区切り線</h4>
+        <div className="setting-row">
+          <label>表示</label>
+          <input
+            type="checkbox"
+            checked={lg.titleSeparatorVisible !== false}
+            onChange={(e) => update({ titleSeparatorVisible: e.target.checked })}
+          />
+        </div>
+        <div className="setting-row">
+          <label>色</label>
+          <input
+            type="color"
+            value={lg.titleSeparatorColor ?? '#dddddd'}
+            onChange={(e) => update({ titleSeparatorColor: e.target.value })}
+            disabled={lg.titleSeparatorVisible === false}
           />
         </div>
       </section>

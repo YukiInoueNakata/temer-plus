@@ -288,6 +288,14 @@ export function ExportPreviewDialog({
                 />
               </div>
               <div className="setting-row">
+                <label>用紙中央に自動配置</label>
+                <input
+                  type="checkbox"
+                  checked={xf.autoCenterOnPaper !== false}
+                  onChange={(e) => update({ autoCenterOnPaper: e.target.checked })}
+                />
+              </div>
+              <div className="setting-row">
                 <label>タイプラベル ±</label>
                 <input
                   type="number"
@@ -334,6 +342,16 @@ export function ExportPreviewDialog({
                   step={1}
                   value={xf.periodLabelFontSizeDelta}
                   onChange={(e) => update({ periodLabelFontSizeDelta: Number(e.target.value) })}
+                  style={{ width: 80 }}
+                />
+              </div>
+              <div className="setting-row">
+                <label>時期区分 線太さ ±</label>
+                <input
+                  type="number"
+                  step={0.5}
+                  value={xf.periodLabelStrokeDelta}
+                  onChange={(e) => update({ periodLabelStrokeDelta: Number(e.target.value) })}
                   style={{ width: 80 }}
                 />
               </div>

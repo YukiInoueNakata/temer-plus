@@ -10,7 +10,7 @@ describe('computeFitScale', () => {
   it('manual モードは 1 を返す', () => {
     const s = computeFitScale(
       { width: 1000, height: 500 },
-      'A4',
+      'A4-landscape',
       'manual',
       0.05,
     );
@@ -53,6 +53,7 @@ describe('applyExportTransform: 不変性', () => {
       ...DEFAULT_EXPORT_TRANSFORM,
       fitMode: 'manual',
       globalScale: 2,
+      autoCenterOnPaper: false,  // 中心シフトを無効化してスケール単独を検証
     });
     const nb0 = newDoc.sheets[0].boxes[0];
     expect(nb0.x).toBeCloseTo(b0.x * 2);

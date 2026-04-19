@@ -88,6 +88,8 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     borderColor: '#999',
     sampleWidth: 32,
     sampleHeight: 18,
+    titleSeparatorVisible: true,
+    titleSeparatorColor: '#dddddd',
     itemOverrides: {},
   },
   periodLabels: {

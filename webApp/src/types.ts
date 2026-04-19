@@ -363,6 +363,12 @@ export interface LegendSettings {
   // サンプル図形サイズ（px 単位、zoom=1 の表示基準）
   sampleWidth: number;                      // 既定 32
   sampleHeight: number;                     // 既定 18
+  // 凡例全体の幅・高さ（px、未指定なら内容に合わせて自動）
+  width?: number;
+  height?: number;
+  // タイトルと項目の間の境界線
+  titleSeparatorVisible?: boolean;          // 既定 true
+  titleSeparatorColor?: string;             // 既定 '#dddddd'
   // 項目別上書き（キーは `${category}:${key}` 例: `box:EFP`, `line:RLine`）
   itemOverrides?: Record<string, LegendItemOverride>;
 }

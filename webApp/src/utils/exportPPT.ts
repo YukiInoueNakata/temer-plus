@@ -10,7 +10,6 @@
 // ============================================================================
 
 import PptxGenJS from 'pptxgenjs';
-import JSZip from 'jszip';
 import type {
   Box,
   Sheet,
@@ -43,10 +42,6 @@ export interface PPTXExportOptions {
 }
 
 const PX_PER_INCH = 96;
-// 二重線Boxを識別するためのマーカー色（視覚的にはほぼ黒、XML上でユニーク）
-// ポストプロセスで <a:srgbClr val="..."/> を検索して cmpd="dbl" を注入、色は通常の黒へ復元する
-const DBL_MARKER_COLOR = '2E2D2D';
-const DBL_REAL_COLOR = '222222';
 
 interface Transform {
   toX: (worldX: number) => number;  // world px → slide inch
@@ -92,11 +87,9 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   drawBoxes(pres, slide, opts.sheet, layout, opts.settings, t);
   drawLegend(pres, slide, opts.sheet, layout, opts.settings.legend, t);
 
-  // ArrayBuffer として書き出し
-  const raw = (await pres.write({ outputType: 'arraybuffer' })) as ArrayBuffer;
-  // 二重線ポストプロセス
-  const fixed = await postprocessDoubleLines(raw);
-  downloadArrayBuffer(fixed, filename);
+  // PptxGenJS の標準の writeFile でダウンロード（ポストプロセスなし、
+  // 二重線は 2 矩形重ね描きで視覚的に同等）
+  await pres.writeFile({ fileName: filename });
 }
 
 // ----------------------------------------------------------------------------
@@ -203,14 +196,23 @@ function renderBox(
 
   switch (b.type) {
     case 'EFP':
-    case '2nd-EFP':
-      // 二重線: マーカー色で識別、後段 XML で cmpd="dbl" を注入し色を戻す
+    case '2nd-EFP': {
+      // 二重線: 外枠 + 内枠の 2 矩形重ね描き（PptxGenJS が cmpd='dbl' を未サポート）
       slide.addShape(shapeType, {
         x, y, w, h,
         fill,
-        line: { color: DBL_MARKER_COLOR, width: 2.5 },
+        line: { color: borderColor, width: 1 },
+      });
+      const ins = Math.max(0.015, 0.025 * Math.min(w, h));
+      slide.addShape(shapeType, {
+        x: x + ins, y: y + ins,
+        w: Math.max(0.01, w - ins * 2),
+        h: Math.max(0.01, h - ins * 2),
+        fill: { color: 'FFFFFF', transparency: 100 },
+        line: { color: borderColor, width: 1 },
       });
       break;
+    }
     case 'OPP':
       slide.addShape(shapeType, {
         x, y, w, h,
@@ -1127,14 +1129,23 @@ function drawLegendIcon(
     const spec = BOX_RENDER_SPECS[item.key] ?? BOX_RENDER_SPECS.normal;
     const dashType = spec.borderStyle === 'dashed' ? 'dash' : spec.borderStyle === 'dotted' ? 'sysDot' : 'solid';
     if (item.key === 'EFP' || item.key === '2nd-EFP') {
-      // 二重線: マーカー色で識別、後段でcmpd="dbl"注入
+      // 二重線: 外枠 + 内枠の 2 矩形重ね描き
       slide.addShape(pres.ShapeType.rect, {
         x: t.toX(x),
         y: t.toY(y),
         w: t.toLen(w),
         h: t.toLen(h),
         fill: { color: 'FFFFFF' },
-        line: { color: DBL_MARKER_COLOR, width: 2 },
+        line: { color: '222222', width: 1 },
+      });
+      const ins = 2;
+      slide.addShape(pres.ShapeType.rect, {
+        x: t.toX(x + ins),
+        y: t.toY(y + ins),
+        w: t.toLen(Math.max(1, w - ins * 2)),
+        h: t.toLen(Math.max(1, h - ins * 2)),
+        fill: { color: 'FFFFFF', transparency: 100 },
+        line: { color: '222222', width: 1 },
       });
       return;
     }
@@ -1182,83 +1193,5 @@ function drawLegendIcon(
   }
 }
 
-// ----------------------------------------------------------------------------
-// 二重線ポストプロセス: altText=TEMER_DBL の <p:sp> の <a:ln> に cmpd="dbl" を注入
-// ----------------------------------------------------------------------------
-
-async function postprocessDoubleLines(raw: ArrayBuffer): Promise<ArrayBuffer> {
-  try {
-    const zip = await JSZip.loadAsync(raw);
-    // 全スライド XML を処理
-    const slideFiles = Object.keys(zip.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p));
-    for (const path of slideFiles) {
-      const file = zip.file(path);
-      if (!file) continue;
-      const xml = await file.async('string');
-      const patched = injectCompoundDouble(xml);
-      if (patched !== xml) {
-        zip.file(path, patched);
-      }
-    }
-    const out = await zip.generateAsync({ type: 'arraybuffer' });
-    return out;
-  } catch (e) {
-    // ポストプロセス失敗時は元のバイナリを返す（= 2矩形的な暫定表示にはならず、単線だが表示は可能）
-    console.warn('PPTX 二重線ポストプロセス失敗（altText解決など）:', e);
-    return raw;
-  }
-}
-
-/**
- * slide XML の <a:ln> タグのうち、
- * 内側に <a:srgbClr val="2E2D2D"/>（マーカー色）を含むものに対して
- *   - 開始タグに cmpd="dbl" 属性を付与（既にあれば上書き）
- *   - val="2E2D2D" を val="222222" に戻す（通常の黒）
- * を行って本物の二重線にする。
- */
-function injectCompoundDouble(xml: string): string {
-  // <a:ln ...>...</a:ln> のブロックを検出
-  return xml.replace(/<a:ln\b([^>]*)>([\s\S]*?)<\/a:ln>/g, (
-    _full: string,
-    attrs: string,
-    inner: string,
-  ) => {
-    const markerRe = new RegExp(`<a:srgbClr\\b[^>]*val="${DBL_MARKER_COLOR}"[^>]*/?>`, 'i');
-    const markerLowerRe = new RegExp(`<a:srgbClr\\b[^>]*val="${DBL_MARKER_COLOR.toLowerCase()}"[^>]*/?>`, 'i');
-    if (!markerRe.test(inner) && !markerLowerRe.test(inner)) {
-      return `<a:ln${attrs}>${inner}</a:ln>`;
-    }
-    // cmpd 属性を dbl に設定
-    let newAttrs = attrs;
-    if (/\bcmpd\s*=\s*"[^"]*"/.test(newAttrs)) {
-      newAttrs = newAttrs.replace(/\bcmpd\s*=\s*"[^"]*"/, 'cmpd="dbl"');
-    } else if (/\bcmpd\s*=\s*'[^']*'/.test(newAttrs)) {
-      newAttrs = newAttrs.replace(/\bcmpd\s*=\s*'[^']*'/, 'cmpd="dbl"');
-    } else {
-      newAttrs = ' cmpd="dbl"' + (attrs.startsWith(' ') || attrs === '' ? attrs : ' ' + attrs);
-    }
-    // マーカー色を通常色に戻す（大文字/小文字両方）
-    const restoredInner = inner
-      .replace(new RegExp(`val="${DBL_MARKER_COLOR}"`, 'g'), `val="${DBL_REAL_COLOR}"`)
-      .replace(new RegExp(`val="${DBL_MARKER_COLOR.toLowerCase()}"`, 'g'), `val="${DBL_REAL_COLOR}"`);
-    return `<a:ln${newAttrs}>${restoredInner}</a:ln>`;
-  });
-}
-
-// ----------------------------------------------------------------------------
-// ダウンロード
-// ----------------------------------------------------------------------------
-
-function downloadArrayBuffer(buf: ArrayBuffer, filename: string) {
-  const blob = new Blob([buf], {
-    type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
+// 二重線ポストプロセスは PowerPoint で壊れるケースがあったため廃止
+// 現在は外枠 + 内枠の 2 矩形重ね描きで視覚的に二重線を再現している

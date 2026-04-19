@@ -136,6 +136,18 @@ export default function App() {
     }
   };
 
+  // 別シートとして開く（現状シートはそのまま、ファイル内のシートを追加）
+  const handleOpenAsNewSheets = async () => {
+    try {
+      const result = await loadFromFile();
+      if (result) {
+        useTEMStore.getState().importSheetsFromDocument(result.doc);
+      }
+    } catch (e) {
+      alert('ファイルの読み込みに失敗しました: ' + (e as Error).message);
+    }
+  };
+
   // 新規作成
   const handleNew = () => {
     const state = useTEMStore.getState();
@@ -220,6 +232,7 @@ export default function App() {
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpen={handleOpen}
+        onOpenAsNewSheets={handleOpenAsNewSheets}
         onNew={handleNew}
       />
       <div className="main">

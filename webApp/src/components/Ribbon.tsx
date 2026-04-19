@@ -22,6 +22,7 @@ export function Ribbon({
   onSave,
   onSaveAs,
   onOpen,
+  onOpenAsNewSheets,
   onNew,
 }: {
   onOpenSettings: () => void;
@@ -35,6 +36,7 @@ export function Ribbon({
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
+  onOpenAsNewSheets: () => void;
   onNew: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<RibbonTab>('home');
@@ -57,7 +59,7 @@ export function Ribbon({
         <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onOpenSettings={onOpenSettings} />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onOpenAsNewSheets={onOpenAsNewSheets} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onOpenSettings={onOpenSettings} />}
         {activeTab === 'home' && <HomeTab onOpenResize={onOpenResize} onOpenShiftContent={onOpenShiftContent} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'view' && <ViewTab onOpenPeriodLabels={onOpenPeriodLabels} />}
@@ -129,10 +131,11 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperReport, onOpenCSVImport, onOpenSettings }: {
+function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExport, onOpenPaperReport, onOpenCSVImport, onOpenSettings }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
+  onOpenAsNewSheets: () => void;
   onNew: () => void;
   onOpenExport: () => void;
   onOpenPaperReport: () => void;
@@ -142,8 +145,9 @@ function FileTab({ onSave, onSaveAs, onOpen, onNew, onOpenExport, onOpenPaperRep
   return (
     <>
       <RibbonGroup title="ファイル操作">
-        <RibbonButton label="新規 (Ctrl+N)" icon="📄" onClick={onNew} />
-        <RibbonButton label="開く (Ctrl+O)" icon="📂" onClick={onOpen} />
+        <RibbonButton label="新規 (Ctrl+N)" icon="📄" onClick={onNew} title="空のシートで新規作成" />
+        <RibbonButton label="開く (Ctrl+O)" icon="📂" onClick={onOpen} title="現在のシートを破棄して開く" />
+        <RibbonButton label="別シートとして開く" icon="📂+" onClick={onOpenAsNewSheets} title="現状のシートはそのまま、ファイル内のシートを追加" />
         <RibbonButton label="保存 (Ctrl+S)" icon="💾" onClick={onSave} />
         <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
       </RibbonGroup>

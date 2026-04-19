@@ -18,6 +18,7 @@ import type {
 } from '../types';
 import {
   createSampleDocument,
+  createEmptyDocument,
   createEmptySheet,
   DEFAULT_VIEW_STATE,
   LEVEL_PX,
@@ -50,6 +51,7 @@ interface UIState {
 interface Actions {
   // Document-level
   loadDocument: (doc: TEMDocument) => void;
+  importSheetsFromDocument: (src: TEMDocument) => void;  // 他ドキュメントのシートを現ドキュメントに追加
   resetDocument: () => void;
   markSaved: () => void;
 
@@ -243,7 +245,32 @@ export const useTEMStore = create<Store>()(
 
       // --- Document-level ---
       loadDocument: (doc) => set({ doc, dirty: false, selection: { sheetId: doc.activeSheetId, boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] } }),
-      resetDocument: () => set({ doc: createSampleDocument(), dirty: false }),
+      importSheetsFromDocument: (src) => {
+        set((state) => {
+          // 既存 ID と衝突しないよう、新ドキュメントのシート ID にサフィックス付与
+          const existingSheetIds = new Set(state.doc.sheets.map((s) => s.id));
+          const existingOrder = state.doc.sheets.reduce((m, s) => Math.max(m, s.order), -1);
+          const newSheets = src.sheets.map((sh, i) => {
+            let id = sh.id;
+            let n = 2;
+            while (existingSheetIds.has(id)) {
+              id = `${sh.id}_${n++}`;
+            }
+            existingSheetIds.add(id);
+            return { ...sh, id, order: existingOrder + 1 + i };
+          });
+          const firstNewId = newSheets[0]?.id ?? state.doc.activeSheetId;
+          return {
+            doc: {
+              ...state.doc,
+              sheets: [...state.doc.sheets, ...newSheets],
+              activeSheetId: firstNewId,
+            },
+            dirty: true,
+          };
+        });
+      },
+      resetDocument: () => set({ doc: createEmptyDocument(), dirty: false }),
       markSaved: () => set({ dirty: false }),
 
       // --- Sheet management ---

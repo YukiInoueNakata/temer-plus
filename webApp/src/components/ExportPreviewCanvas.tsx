@@ -251,27 +251,39 @@ function Inner({
   );
 }
 
-// プレビュー用の用紙枠（world 座標 0,0 を起点、zoom/pan 追従）
+// プレビュー用の用紙枠（world 座標 0,0 を起点、zoom/pan 追従、枠外グレー）
 function PreviewPaperGuide({ width, height }: { width: number; height: number }) {
   const transform = useReactFlowStore((s) => s.transform);
   const [panX, panY, zoom] = transform;
+  const sx = panX;
+  const sy = panY;
+  const sw = width * zoom;
+  const sh = height * zoom;
   return (
-    <div
-      className="paper-guide-overlay"
-      style={{
-        position: 'absolute',
-        left: panX,
-        top: panY,
-        width: width * zoom,
-        height: height * zoom,
-        border: '2px dashed #ff6b6b',
-        pointerEvents: 'none',
-        zIndex: 0,
-      }}
-    >
-      <span style={{ position: 'absolute', top: -18, left: 0, fontSize: 10, color: '#ff6b6b', background: '#fff', padding: '0 4px', fontWeight: 600 }}>
-        用紙枠
-      </span>
-    </div>
+    <>
+      {/* 用紙枠外を薄グレーで mask */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: sy, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'absolute', top: sy + sh, left: 0, width: '100%', bottom: 0, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'absolute', top: sy, left: 0, width: sx, height: sh, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'absolute', top: sy, left: sx + sw, right: 0, height: sh, background: 'rgba(180,180,180,0.25)', pointerEvents: 'none', zIndex: 0 }} />
+      <div
+        className="paper-guide-overlay"
+        style={{
+          position: 'absolute',
+          left: sx,
+          top: sy,
+          width: sw,
+          height: sh,
+          border: '2px dashed #555',
+          pointerEvents: 'none',
+          zIndex: 0,
+          boxSizing: 'border-box',
+        }}
+      >
+        <span style={{ position: 'absolute', top: -18, left: 0, fontSize: 10, color: '#555', background: '#fff', padding: '0 4px', fontWeight: 600 }}>
+          用紙枠
+        </span>
+      </div>
+    </>
   );
 }

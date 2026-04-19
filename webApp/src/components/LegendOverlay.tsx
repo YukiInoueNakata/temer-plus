@@ -21,7 +21,8 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
   const isPreview = view.isPreview;
   const transform = useReactFlowStore((s) => s.transform);
   const [dragging, setDragging] = useState(false);
-  const startRef = useRef({ mouseX: 0, mouseY: 0, legendX: 0, legendY: 0 });
+  const [resizing, setResizing] = useState(false);
+  const startRef = useRef({ mouseX: 0, mouseY: 0, legendX: 0, legendY: 0, legendW: 0, legendH: 0 });
 
   useEffect(() => {
     if (!dragging) return;
@@ -53,6 +54,39 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
     };
   }, [dragging, transform, isPreview]);
 
+  // リサイズ用
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: MouseEvent) => {
+      if (isPreview) return;
+      const z = transform[2] || 1;
+      const dx = (e.clientX - startRef.current.mouseX) / z;
+      const dy = (e.clientY - startRef.current.mouseY) / z;
+      const newW = Math.max(80, startRef.current.legendW + dx);
+      const newH = Math.max(40, startRef.current.legendH + dy);
+      useTEMStore.setState((state) => ({
+        doc: {
+          ...state.doc,
+          settings: {
+            ...state.doc.settings,
+            legend: {
+              ...state.doc.settings.legend,
+              width: Math.round(newW),
+              height: Math.round(newH),
+            },
+          },
+        },
+      }));
+    };
+    const onUp = () => setResizing(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizing, transform, isPreview]);
+
   if (!sheet || !legend.alwaysVisible) return null;
   const items = computeLegendItems(sheet, legend);
   if (items.length === 0) return null;
@@ -61,7 +95,10 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
   const screenX = legend.position.x * zoom + panX;
   const screenY = legend.position.y * zoom + panY;
   const scaledFont = legend.fontSize * zoom;
-  const scaledMinWidth = legend.minWidth * zoom;
+  // 固定幅・固定高さが指定されていれば使用、なければ内容で自動
+  const fixedW = legend.width != null ? legend.width * zoom : undefined;
+  const fixedH = legend.height != null ? legend.height * zoom : undefined;
+  const scaledMinWidth = fixedW ?? legend.minWidth * zoom;
 
   const columns = Math.max(
     1,
@@ -97,6 +134,8 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
       mouseY: e.clientY,
       legendX: legend.position.x,
       legendY: legend.position.y,
+      legendW: legend.width ?? legend.minWidth ?? 200,
+      legendH: legend.height ?? 100,
     };
     setDragging(true);
   };
@@ -164,7 +203,9 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
         gap: 6 * zoom,
         marginBottom: 4 * zoom,
         paddingBottom: 4 * zoom,
-        borderBottom: legend.borderWidth > 0 ? '1px solid #ddd' : 'none',
+        borderBottom: legend.titleSeparatorVisible === false
+          ? 'none'
+          : `1px solid ${legend.titleSeparatorColor ?? '#dddddd'}`,
       }}
     >
       <div
@@ -281,19 +322,20 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
     position: 'absolute',
     left: screenX,
     top: screenY,
-    minWidth: scaledMinWidth,
+    width: fixedW,
+    height: fixedH,
+    minWidth: fixedW ?? scaledMinWidth,
     background: bg,
     border,
-    borderRadius: legend.borderWidth > 0 ? 4 : 0,
+    borderRadius: 0, // 角張らせる
     padding: 8 * zoom,
     fontSize: scaledFont,
     fontFamily: fontFamily ?? undefined,
-    boxShadow: legend.backgroundStyle === 'white' && legend.borderWidth > 0
-      ? '0 2px 6px rgba(0,0,0,0.08)'
-      : 'none',
+    boxShadow: 'none',
     zIndex: 5,
-    cursor: dragging ? 'grabbing' : 'default',
+    cursor: dragging ? 'grabbing' : resizing ? 'nwse-resize' : 'default',
     userSelect: 'none',
+    overflow: 'hidden',
   };
 
   const onSingleClick = (e: React.MouseEvent) => {
@@ -321,6 +363,38 @@ export function LegendOverlay({ onOpenSettings }: { onOpenSettings?: () => void 
           {titleBlockLeft}
           <div style={{ flex: 1, minWidth: 0 }}>{itemsGrid}</div>
         </div>
+      )}
+      {/* リサイズハンドル（右下） */}
+      {!isPreview && (
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const curW = fixedW != null ? legend.width! : (legend.minWidth ?? 200);
+            const curH = fixedH != null ? legend.height! : 100;
+            startRef.current = {
+              mouseX: e.clientX,
+              mouseY: e.clientY,
+              legendX: legend.position.x,
+              legendY: legend.position.y,
+              legendW: curW,
+              legendH: curH,
+            };
+            setResizing(true);
+          }}
+          title="ドラッグで凡例の大きさを変更"
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: 14,
+            height: 14,
+            cursor: 'nwse-resize',
+            background: 'linear-gradient(135deg, transparent 45%, #888 45%, #888 55%, transparent 55%)',
+            borderLeft: '1px solid #bbb',
+            borderTop: '1px solid #bbb',
+          }}
+        />
       )}
     </div>
   );

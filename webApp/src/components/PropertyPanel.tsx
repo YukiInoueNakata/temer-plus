@@ -337,28 +337,28 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
       )}
 
       <div className="prop-row">
-        <label>水平揃え</label>
+        <label>左右方向の揃え（Box 幅に対して）</label>
         <select
           value={commonTextAlign ?? ''}
           onChange={(e) => updateBoxes(ids, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
         >
           {commonTextAlign === undefined && <option value="">（混在）</option>}
-          <option value="left">左</option>
+          <option value="left">左揃え</option>
           <option value="center">中央</option>
-          <option value="right">右</option>
+          <option value="right">右揃え</option>
         </select>
       </div>
 
       <div className="prop-row">
-        <label>垂直揃え</label>
+        <label>上下方向の揃え（Box 高さに対して）</label>
         <select
           value={commonVAlign ?? ''}
           onChange={(e) => updateBoxes(ids, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
         >
           {commonVAlign === undefined && <option value="">（混在）</option>}
-          <option value="top">上</option>
+          <option value="top">上揃え</option>
           <option value="middle">中央</option>
-          <option value="bottom">下</option>
+          <option value="bottom">下揃え</option>
         </select>
       </div>
 
