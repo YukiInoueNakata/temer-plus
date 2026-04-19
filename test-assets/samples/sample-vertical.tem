@@ -1,0 +1,95 @@
+{
+  "version": "0.3",
+  "activeSheetId": "sheet_v",
+  "participants": [],
+  "sheets": [
+    {
+      "id": "sheet_v",
+      "name": "縦型サンプル",
+      "type": "individual",
+      "order": 0,
+      "boxes": [
+        { "id": "Item1",  "type": "normal", "label": "出発点",       "x": 0,    "y": 0,   "width": 70, "height": 60, "textOrientation": "horizontal" },
+        { "id": "OPP1",   "type": "OPP",    "label": "必須通過点",   "x": 0,    "y": 200, "width": 90, "height": 70, "textOrientation": "horizontal" },
+        { "id": "BFP1",   "type": "BFP",    "label": "分岐点",       "x": 0,    "y": 400, "width": 80, "height": 60, "textOrientation": "horizontal" },
+        { "id": "EFP1",   "type": "EFP",    "label": "等至点",       "x": -150, "y": 600, "width": 90, "height": 70, "textOrientation": "horizontal" },
+        { "id": "P_EFP1", "type": "P-EFP",  "label": "両極化等至点", "x": 150,  "y": 600, "width": 100, "height": 80, "textOrientation": "horizontal" }
+      ],
+      "lines": [
+        { "id": "RL_1", "type": "RLine", "from": "Item1", "to": "OPP1",   "connectionMode": "center-to-center", "shape": "straight" },
+        { "id": "RL_2", "type": "RLine", "from": "OPP1",  "to": "BFP1",   "connectionMode": "center-to-center", "shape": "straight" },
+        { "id": "RL_3", "type": "RLine", "from": "BFP1",  "to": "EFP1",   "connectionMode": "center-to-center", "shape": "straight" },
+        { "id": "XL_1", "type": "XLine", "from": "BFP1",  "to": "P_EFP1", "connectionMode": "center-to-center", "shape": "straight" }
+      ],
+      "sdsg": [
+        { "id": "SD1", "type": "SD", "label": "SD", "attachedTo": "BFP1", "itemOffset": 130,  "timeOffset": 0, "width": 70, "height": 40 },
+        { "id": "SG1", "type": "SG", "label": "SG", "attachedTo": "BFP1", "itemOffset": -120, "timeOffset": 0, "width": 70, "height": 40 }
+      ],
+      "annotations": [],
+      "comments": [],
+      "periodLabels": [
+        { "id": "pl_1", "position": 2, "label": "前期" },
+        { "id": "pl_2", "position": 5, "label": "後期" }
+      ]
+    }
+  ],
+  "settings": {
+    "layout": "vertical",
+    "locale": "ja",
+    "gridSize": 10,
+    "snap": { "alignGuides": true, "distanceSnap": true, "distancePx": 20, "gridSnap": true, "gridPx": 10 },
+    "showLegend": true,
+    "legendPosition": "right",
+    "timelineLabel": { "ja": "非可逆的時間", "en": "Irreversible Time" },
+    "timelineAutoInsert": true,
+    "defaultFont": "system-ui",
+    "defaultFontSize": 13,
+    "defaultBoxSize": { "width": 100, "height": 50 },
+    "defaultAutoFitText": false,
+    "defaultAutoFitBox": false,
+    "defaultAutoFitBoxMode": "width-fixed",
+    "uiFontSize": 13,
+    "levelStep": 0.5,
+    "paperGuides": [
+      { "enabled": false, "size": "A4-portrait", "baseSize": "A4", "color": "#000000", "pageCount": 2, "maskOutside": true }
+    ],
+    "timeArrow": {
+      "autoInsert": true, "alwaysVisible": true,
+      "timeStartExtension": -0.5, "timeEndExtension": 0.5,
+      "itemReference": "min", "itemOffset": -0.5,
+      "label": "非可逆的時間", "strokeWidth": 2.5, "fontSize": 14,
+      "labelSideHorizontal": "bottom", "labelSideVertical": "left",
+      "labelBold": false, "labelItalic": false, "labelUnderline": false,
+      "labelOffset": 4, "labelAlignHorizontal": "center", "labelAlignVertical": "center"
+    },
+    "legend": {
+      "autoGenerate": true, "alwaysVisible": true, "includeInExport": true,
+      "position": { "x": 400, "y": 50 },
+      "includeBoxes": true, "includeLines": true, "includeSDSG": true, "includeTimeArrow": true,
+      "title": "凡例", "fontSize": 11, "minWidth": 200,
+      "showDescriptions": false, "columns": 1, "columnsHorizontal": 1, "columnsVertical": 1,
+      "showTitle": true, "titleBold": true, "titleItalic": false, "titleUnderline": false,
+      "titleAlign": "left", "titlePosition": "top", "titleWritingMode": "horizontal", "titleVerticalAlign": "top",
+      "backgroundStyle": "white", "borderWidth": 1, "borderColor": "#999",
+      "sampleWidth": 32, "sampleHeight": 18, "itemOverrides": {}
+    },
+    "periodLabels": {
+      "alwaysVisible": true, "includeInExport": true,
+      "itemReference": "max", "itemOffset": 0.5,
+      "fontSize": 13, "showDividers": true, "dividerStrokeWidth": 1,
+      "bandStyle": "band", "labelSideHorizontal": "top", "labelSideVertical": "right"
+    },
+    "typeLabelVisibility": {
+      "BFP": true, "EFP": true, "P-EFP": true, "OPP": true,
+      "2nd-EFP": true, "P-2nd-EFP": true, "SD": true, "SG": true
+    }
+  },
+  "metadata": {
+    "title": "サンプル（縦型）",
+    "author": "TEMer Plus テスター",
+    "createdAt": "2026-04-21T00:00:00.000Z",
+    "modifiedAt": "2026-04-21T00:00:00.000Z",
+    "description": "縦型レイアウトのサンプル。時間が上から下へ流れる。"
+  },
+  "history": []
+}
