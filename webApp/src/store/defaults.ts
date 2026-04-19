@@ -35,7 +35,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
   defaultAutoFitBox: false,
   defaultAutoFitBoxMode: 'width-fixed',
   paperGuides: [
-    { enabled: false, size: 'A4-landscape', baseSize: 'A4', color: '#ff6b6b', pageCount: 1, maskOutside: true },
+    { enabled: false, size: 'A4-landscape', baseSize: 'A4', color: '#000000', pageCount: 2, maskOutside: true },
   ],
   uiFontSize: 13,
   levelStep: 0.5,

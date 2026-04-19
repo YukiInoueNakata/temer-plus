@@ -25,6 +25,7 @@ import type {
 } from '../types';
 import { FONT_OPTIONS } from '../store/defaults';
 import { computeLegendItems } from '../utils/legend';
+import type { PaperBaseKey } from '../types';
 
 type Tab = 'general' | 'snap' | 'typelabel' | 'timearrow' | 'legend' | 'period' | 'project';
 
@@ -224,6 +225,8 @@ function GeneralSection() {
       </div>
       <p className="hint">プロパティパネルで Item/Time レベルを矢印キー/スピナーで調整する際の刻み幅</p>
 
+      <PaperGuideSection />
+
       <h4 style={{ marginTop: 16 }}>Box 自動調整（既定）</h4>
       <div className="setting-row">
         <label>自動拡張モード（Box 個別未指定時）</label>
@@ -262,6 +265,101 @@ function GeneralSection() {
         文字サイズ自動調整: Box に収まる最大文字サイズを自動設定（同時有効不可。個別設定優先）
       </p>
     </section>
+  );
+}
+
+// ============================================================================
+// 用紙枠
+// ============================================================================
+function PaperGuideSection() {
+  const doc = useTEMStore((s) => s.doc);
+  const guide = doc.settings.paperGuides[0];
+  if (!guide) return null;
+
+  const update = (patch: Partial<typeof guide>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        d.settings.paperGuides[0] = { ...d.settings.paperGuides[0], ...patch };
+      }),
+    }));
+  };
+
+  const baseSize = guide.baseSize ?? 'A4';
+  const isCustom = baseSize === 'custom';
+
+  return (
+    <>
+      <h4 style={{ marginTop: 16 }}>用紙枠</h4>
+      <p className="hint" style={{ marginTop: 0 }}>
+        表示タブの「用紙枠」ボタンで ON/OFF。横型レイアウトは長辺=横、縦型は長辺=縦。
+        短辺中央が Level 0 になるよう描画、枠外は薄グレーでマスク。
+      </p>
+      <div className="setting-row">
+        <label>用紙サイズ</label>
+        <select
+          value={baseSize}
+          onChange={(e) => update({ baseSize: e.target.value as PaperBaseKey })}
+          style={{ maxWidth: 220 }}
+        >
+          <option value="A4">A4（1:√2 ≈ 1:1.414）</option>
+          <option value="A3">A3（A4 と同比率）</option>
+          <option value="16:9">16:9（スライド）</option>
+          <option value="4:3">4:3</option>
+          <option value="custom">カスタム</option>
+        </select>
+      </div>
+      {isCustom && (
+        <>
+          <div className="setting-row">
+            <label>カスタム短辺 (px)</label>
+            <input
+              type="number"
+              min={50}
+              value={guide.customWidth ?? 794}
+              onChange={(e) => update({ customWidth: Math.max(50, Number(e.target.value)) })}
+              style={{ width: 100 }}
+            />
+          </div>
+          <div className="setting-row">
+            <label>カスタム長辺 (px)</label>
+            <input
+              type="number"
+              min={50}
+              value={guide.customHeight ?? 1123}
+              onChange={(e) => update({ customHeight: Math.max(50, Number(e.target.value)) })}
+              style={{ width: 100 }}
+            />
+          </div>
+        </>
+      )}
+      <div className="setting-row">
+        <label>枚数（長辺方向）</label>
+        <input
+          type="number"
+          min={1}
+          max={50}
+          value={guide.pageCount ?? 1}
+          onChange={(e) => update({ pageCount: Math.max(1, Math.min(50, Number(e.target.value))) })}
+          style={{ width: 80 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>枠外を薄グレーで表示</label>
+        <input
+          type="checkbox"
+          checked={guide.maskOutside !== false}
+          onChange={(e) => update({ maskOutside: e.target.checked })}
+        />
+      </div>
+      <div className="setting-row">
+        <label>枠線の色</label>
+        <input
+          type="color"
+          value={guide.color ?? '#000000'}
+          onChange={(e) => update({ color: e.target.value })}
+        />
+      </div>
+    </>
   );
 }
 
