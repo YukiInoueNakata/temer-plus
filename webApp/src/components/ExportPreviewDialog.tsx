@@ -277,14 +277,27 @@ export function ExportPreviewDialog({
                 />
               </div>
               <div className="setting-row">
-                <label>Box間距離 ×</label>
+                <label>Box間距離 横 ×</label>
                 <input
                   type="number"
                   step={0.05}
                   min={0.1}
-                  value={xf.boxGapScale}
-                  onChange={(e) => update({ boxGapScale: Math.max(0.1, Number(e.target.value)) })}
+                  value={xf.boxGapScaleH}
+                  onChange={(e) => update({ boxGapScaleH: Math.max(0.1, Number(e.target.value)), boxGapScale: undefined })}
                   style={{ width: 80 }}
+                  title="Box のサイズは維持、横方向の中心間距離のみ拡縮（矢印の長さが変わる）"
+                />
+              </div>
+              <div className="setting-row">
+                <label>Box間距離 縦 ×</label>
+                <input
+                  type="number"
+                  step={0.05}
+                  min={0.1}
+                  value={xf.boxGapScaleV}
+                  onChange={(e) => update({ boxGapScaleV: Math.max(0.1, Number(e.target.value)), boxGapScale: undefined })}
+                  style={{ width: 80 }}
+                  title="Box のサイズは維持、縦方向の中心間距離のみ拡縮"
                 />
               </div>
               <div className="setting-row">

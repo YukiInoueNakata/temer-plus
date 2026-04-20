@@ -75,7 +75,12 @@ interface Actions {
   matchBoxesSize: (ids: string[], mode: 'width' | 'height' | 'both', basis?: 'first' | 'max' | 'min') => void;
   matchBoxesFontSize: (ids: string[], basis?: 'first' | 'max' | 'min') => void;
   // シート全体のリサイズ（実データを変更）
-  resizeActiveSheet: (scale: number, opts?: { includeFontSize?: boolean }) => void;
+  // scale は単一倍率 or { xScale, yScale } の独立倍率
+  // preserveBoxSize=true 時: Box / SDSG の width/height は維持し、中心間距離のみスケール
+  resizeActiveSheet: (
+    scale: number | { xScale: number; yScale: number },
+    opts?: { includeFontSize?: boolean; preserveBoxSize?: boolean }
+  ) => void;
   // Box / Line の始終点オフセット / SDSG を一括で timeLevel/itemLevel 方向に平行移動
   // （時期区分・時間矢印・凡例は不変）
   shiftActiveSheetContent: (deltaTimeLevel: number, deltaItemLevel: number) => void;
@@ -620,45 +625,69 @@ export const useTEMStore = create<Store>()(
         }));
       },
       resizeActiveSheet: (scale, opts) => {
-        if (!isFinite(scale) || scale <= 0 || scale === 1) return;
+        const xScale = typeof scale === 'number' ? scale : scale.xScale;
+        const yScale = typeof scale === 'number' ? scale : scale.yScale;
+        if (!isFinite(xScale) || !isFinite(yScale) || xScale <= 0 || yScale <= 0) return;
+        if (xScale === 1 && yScale === 1) return;
         const includeFontSize = opts?.includeFontSize ?? true;
+        const preserveBoxSize = opts?.preserveBoxSize ?? false;
+        // preserveBoxSize 時は Box / SDSG のサイズとフォントは不変
+        const sizeXS = preserveBoxSize ? 1 : xScale;
+        const sizeYS = preserveBoxSize ? 1 : yScale;
+        // フォントは xScale と yScale が異なるときは min（縮小寄り）を採用
+        const fontScale = includeFontSize && !preserveBoxSize ? Math.min(xScale, yScale) : 1;
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
+            const isH = state.doc.settings.layout === 'horizontal';
             sheet.boxes.forEach((b) => {
-              b.x *= scale;
-              b.y *= scale;
-              b.width *= scale;
-              b.height *= scale;
-              if (includeFontSize) {
+              b.x *= xScale;
+              b.y *= yScale;
+              b.width *= sizeXS;
+              b.height *= sizeYS;
+              if (fontScale !== 1) {
                 const curFS = b.style?.fontSize ?? state.doc.settings.defaultFontSize;
-                b.style = { ...(b.style ?? {}), fontSize: Math.max(6, curFS * scale) };
+                b.style = { ...(b.style ?? {}), fontSize: Math.max(6, curFS * fontScale) };
                 if (b.typeLabelFontSize != null) {
-                  b.typeLabelFontSize = Math.max(6, b.typeLabelFontSize * scale);
+                  b.typeLabelFontSize = Math.max(6, b.typeLabelFontSize * fontScale);
                 }
                 if (b.subLabelFontSize != null) {
-                  b.subLabelFontSize = Math.max(6, b.subLabelFontSize * scale);
+                  b.subLabelFontSize = Math.max(6, b.subLabelFontSize * fontScale);
                 }
               }
             });
             sheet.sdsg.forEach((sg) => {
-              if (sg.width != null) sg.width *= scale;
-              if (sg.height != null) sg.height *= scale;
-              sg.timeOffset = (sg.timeOffset ?? 0) * scale;
-              sg.itemOffset = (sg.itemOffset ?? 0) * scale;
-              if (includeFontSize && sg.style?.fontSize != null) {
-                sg.style = { ...sg.style, fontSize: Math.max(6, sg.style.fontSize * scale) };
+              if (!preserveBoxSize) {
+                if (sg.width != null) sg.width *= sizeXS;
+                if (sg.height != null) sg.height *= sizeYS;
               }
-              if (includeFontSize && sg.typeLabelFontSize != null) {
-                sg.typeLabelFontSize = Math.max(6, sg.typeLabelFontSize * scale);
+              // SDSG オフセット: preserveBoxSize でも、Box 中心からの距離は
+              // Box サイズと独立なので常に layout に応じて axis 相当の倍率を適用する
+              // timeOffset は Time 軸方向、itemOffset は Item 軸方向
+              const timeScale = isH ? xScale : yScale;
+              const itemScale = isH ? yScale : xScale;
+              // ただし preserveBoxSize=true の時は「Box は動かさず offset も不変＝Box に追従」が自然
+              // そこで preserveBoxSize 時はオフセット不変にする
+              if (!preserveBoxSize) {
+                sg.timeOffset = (sg.timeOffset ?? 0) * timeScale;
+                sg.itemOffset = (sg.itemOffset ?? 0) * itemScale;
               }
-              if (includeFontSize && sg.subLabelFontSize != null) {
-                sg.subLabelFontSize = Math.max(6, sg.subLabelFontSize * scale);
+              if (fontScale !== 1) {
+                if (sg.style?.fontSize != null) {
+                  sg.style = { ...sg.style, fontSize: Math.max(6, sg.style.fontSize * fontScale) };
+                }
+                if (sg.typeLabelFontSize != null) {
+                  sg.typeLabelFontSize = Math.max(6, sg.typeLabelFontSize * fontScale);
+                }
+                if (sg.subLabelFontSize != null) {
+                  sg.subLabelFontSize = Math.max(6, sg.subLabelFontSize * fontScale);
+                }
               }
             });
-            // 時期ラベル: position は timeLevel 値（= px / 100）
-            // Box 座標が scale されると timeLevel も scale 倍になるため整合のため乗算
+            // 時期ラベル: position は Time_Level 値（= px / 100）
+            // Time 軸は layout により x または y → 対応する倍率を適用
+            const periodScale = isH ? xScale : yScale;
             sheet.periodLabels.forEach((p) => {
-              p.position = p.position * scale;
+              p.position = p.position * periodScale;
             });
           }),
           dirty: true,

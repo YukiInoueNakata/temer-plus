@@ -25,10 +25,15 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   const [mode, setMode] = useState<Mode>('percent');
   const [percent, setPercent] = useState(100);
+  // 独立倍率（Box サイズ維持モード用）
+  const [independentAxes, setIndependentAxes] = useState(false);
+  const [xPercent, setXPercent] = useState(100);
+  const [yPercent, setYPercent] = useState(100);
   const [paperSize, setPaperSize] = useState<Exclude<PaperSizeKey, 'custom'>>('A4-landscape');
   const [fitMode, setFitMode] = useState<FitMode>('both');
   const [margin, setMargin] = useState(0.05);
   const [includeFontSize, setIncludeFontSize] = useState(true);
+  const [preserveBoxSize, setPreserveBoxSize] = useState(false);
 
   // ダイアログ位置
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -57,21 +62,28 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
     return computeContentBounds(sheet, doc.settings.layout, doc.settings);
   }, [sheet, doc.settings]);
 
-  // 計算される倍率
-  const computedScale = useMemo(() => {
+  // 計算される倍率（x/y 独立 or 同一）
+  const computed = useMemo<{ xScale: number; yScale: number }>(() => {
     if (mode === 'percent') {
-      return percent / 100;
+      if (independentAxes) {
+        return { xScale: xPercent / 100, yScale: yPercent / 100 };
+      }
+      const s = percent / 100;
+      return { xScale: s, yScale: s };
     }
-    if (!bbox) return 1;
+    if (!bbox) return { xScale: 1, yScale: 1 };
     const paper = getPaperPx(paperSize);
     const innerW = Math.max(1, paper.width * (1 - margin * 2));
     const innerH = Math.max(1, paper.height * (1 - margin * 2));
     const sx = innerW / Math.max(1, bbox.width);
     const sy = innerH / Math.max(1, bbox.height);
-    if (fitMode === 'width') return sx;
-    if (fitMode === 'height') return sy;
-    return Math.min(sx, sy);
-  }, [mode, percent, bbox, paperSize, fitMode, margin]);
+    if (fitMode === 'width') return { xScale: sx, yScale: sx };
+    if (fitMode === 'height') return { xScale: sy, yScale: sy };
+    // both: preserveBoxSize なら x/y 独立（用紙にぴったりフィット）、そうでなければ均等
+    if (preserveBoxSize) return { xScale: sx, yScale: sy };
+    const s = Math.min(sx, sy);
+    return { xScale: s, yScale: s };
+  }, [mode, percent, independentAxes, xPercent, yPercent, bbox, paperSize, fitMode, margin, preserveBoxSize]);
 
   if (!open) return null;
 
@@ -87,17 +99,23 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
     : { width: 480 };
 
   const applyResize = () => {
-    if (!isFinite(computedScale) || computedScale <= 0) {
+    const { xScale, yScale } = computed;
+    if (!isFinite(xScale) || !isFinite(yScale) || xScale <= 0 || yScale <= 0) {
       alert('倍率が不正です');
       return;
     }
-    if (computedScale === 1) {
+    if (xScale === 1 && yScale === 1) {
       alert('倍率が 1.0 のためリサイズ不要です');
       return;
     }
-    const pct = (computedScale * 100).toFixed(1);
-    if (!confirm(`現在のシートを ${pct}% にリサイズします。\n（Ctrl+Z で取り消し可能）`)) return;
-    resize(computedScale, { includeFontSize });
+    const xp = (xScale * 100).toFixed(1);
+    const yp = (yScale * 100).toFixed(1);
+    const msg = xScale === yScale
+      ? `現在のシートを ${xp}% にリサイズします。`
+      : `現在のシートを 横 ${xp}% / 縦 ${yp}% にリサイズします。`;
+    const extra = preserveBoxSize ? '\n（Box サイズは維持、位置間隔のみ調整）' : '';
+    if (!confirm(`${msg}${extra}\n（Ctrl+Z で取り消し可能）`)) return;
+    resize({ xScale, yScale }, { includeFontSize, preserveBoxSize });
     onClose();
   };
 
@@ -128,18 +146,58 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
               </select>
             </div>
             {mode === 'percent' && (
-              <div className="setting-row">
-                <label>倍率 (%)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  step={1}
-                  value={percent}
-                  onChange={(e) => setPercent(Math.max(1, Number(e.target.value)))}
-                  style={{ width: 90 }}
-                />
-              </div>
+              <>
+                <div className="setting-row">
+                  <label>縦横を独立して指定</label>
+                  <input
+                    type="checkbox"
+                    checked={independentAxes}
+                    onChange={(e) => setIndependentAxes(e.target.checked)}
+                  />
+                </div>
+                {!independentAxes && (
+                  <div className="setting-row">
+                    <label>倍率 (%)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={1000}
+                      step={1}
+                      value={percent}
+                      onChange={(e) => setPercent(Math.max(1, Number(e.target.value)))}
+                      style={{ width: 90 }}
+                    />
+                  </div>
+                )}
+                {independentAxes && (
+                  <>
+                    <div className="setting-row">
+                      <label>横倍率 (%)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={1000}
+                        step={1}
+                        value={xPercent}
+                        onChange={(e) => setXPercent(Math.max(1, Number(e.target.value)))}
+                        style={{ width: 90 }}
+                      />
+                    </div>
+                    <div className="setting-row">
+                      <label>縦倍率 (%)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={1000}
+                        step={1}
+                        value={yPercent}
+                        onChange={(e) => setYPercent(Math.max(1, Number(e.target.value)))}
+                        style={{ width: 90 }}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
             )}
             {mode === 'paper' && (
               <>
@@ -181,16 +239,31 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
 
           <section className="settings-section">
             <div className="setting-row">
+              <label>Box サイズを維持</label>
+              <input
+                type="checkbox"
+                checked={preserveBoxSize}
+                onChange={(e) => setPreserveBoxSize(e.target.checked)}
+              />
+            </div>
+            <p className="hint">
+              ON: Box / SDSG のサイズは不変、中心間距離（矢印の長さ）のみスケール。
+              「Box はそのままで用紙に収めたい」時に使用。文字サイズも維持されます<br />
+              OFF: Box サイズも倍率に従って拡縮
+            </p>
+            <div className="setting-row">
               <label>文字サイズも連動</label>
               <input
                 type="checkbox"
-                checked={includeFontSize}
+                checked={includeFontSize && !preserveBoxSize}
+                disabled={preserveBoxSize}
                 onChange={(e) => setIncludeFontSize(e.target.checked)}
               />
             </div>
             <p className="hint">
-              ON: Box / SDSG の fontSize、タイプラベル・サブラベルも同じ倍率でリサイズ<br />
-              OFF: 座標・寸法のみリサイズ（文字サイズは維持）
+              {preserveBoxSize
+                ? '（Box サイズ維持モードでは文字サイズも維持されます）'
+                : 'ON: Box / SDSG の fontSize、タイプラベル・サブラベルも同じ倍率でリサイズ / OFF: 座標・寸法のみ'}
             </p>
           </section>
 
@@ -207,15 +280,22 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
                 <div className="setting-row">
                   <span>リサイズ後:</span>
                   <span style={{ fontWeight: 600, color: '#2684ff' }}>
-                    {Math.round(bbox.width * computedScale)} × {Math.round(bbox.height * computedScale)} px
+                    {Math.round(bbox.width * computed.xScale)} × {Math.round(bbox.height * computed.yScale)} px
                   </span>
                 </div>
                 <div className="setting-row">
                   <span>倍率:</span>
                   <span style={{ fontWeight: 600 }}>
-                    {(computedScale * 100).toFixed(1)} %
+                    {computed.xScale === computed.yScale
+                      ? `${(computed.xScale * 100).toFixed(1)} %`
+                      : `横 ${(computed.xScale * 100).toFixed(1)} % / 縦 ${(computed.yScale * 100).toFixed(1)} %`}
                   </span>
                 </div>
+                {preserveBoxSize && (
+                  <p className="hint" style={{ margin: '4px 0 0', color: '#059' }}>
+                    ※ Box サイズは変わらず、Box 間隔（矢印の長さ）のみ調整されます
+                  </p>
+                )}
               </>
             )}
           </section>

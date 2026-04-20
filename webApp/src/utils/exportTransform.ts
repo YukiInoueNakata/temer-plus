@@ -30,7 +30,12 @@ export interface ExportTransform {
   fontSizeScale: number;
   boxBorderWidthDelta: number;
   lineStrokeWidthDelta: number;
-  boxGapScale: number;             // Box サイズは不変、中心間距離のみ拡縮
+  // Box サイズは不変、中心間距離のみ拡縮（x/y 独立）
+  // 横のみ圧縮 / 縦のみ伸長 等が可能。後方互換のため boxGapScale も残す
+  boxGapScaleH: number;
+  boxGapScaleV: number;
+  /** @deprecated boxGapScaleH/V に置き換え。値が指定されていれば H/V の両方に適用 */
+  boxGapScale?: number;
 
   // 補助要素
   typeLabelFontSizeDelta: number;
@@ -57,7 +62,8 @@ export const DEFAULT_EXPORT_TRANSFORM: ExportTransform = {
   fontSizeScale: 1,
   boxBorderWidthDelta: 0,
   lineStrokeWidthDelta: 0,
-  boxGapScale: 1,
+  boxGapScaleH: 1,
+  boxGapScaleV: 1,
   typeLabelFontSizeDelta: 0,
   subLabelFontSizeDelta: 0,
   timeArrowFontSizeDelta: 0,
@@ -111,14 +117,16 @@ export function applyExportTransform(
     : 1;
   const effectiveScale = xf.fitMode === 'manual' ? xf.globalScale : fitScale;
 
-  // 中心基準で Box gap を広げる
-  const boxGap = xf.boxGapScale;
+  // 中心基準で Box gap を広げる（x/y 独立）
+  // 後方互換: boxGapScale が指定されていれば H/V の両方に適用
+  const boxGapH = xf.boxGapScale != null && xf.boxGapScale !== 1 ? xf.boxGapScale : xf.boxGapScaleH;
+  const boxGapV = xf.boxGapScale != null && xf.boxGapScale !== 1 ? xf.boxGapScale : xf.boxGapScaleV;
 
   const newDoc = produce(doc, (d) => {
     // 各シート
     for (const sh of d.sheets) {
-      // 中心を求めて Box 間距離の倍率を適用（Box サイズは据え置き）
-      if (boxGap !== 1 && sh.boxes.length > 0) {
+      // 中心を求めて Box 間距離の倍率を適用（Box サイズは据え置き、x/y 独立）
+      if ((boxGapH !== 1 || boxGapV !== 1) && sh.boxes.length > 0) {
         const xs: number[] = [];
         const ys: number[] = [];
         sh.boxes.forEach((b) => {
@@ -130,14 +138,18 @@ export function applyExportTransform(
         sh.boxes.forEach((b) => {
           const bcx = b.x + b.width / 2;
           const bcy = b.y + b.height / 2;
-          const ncx = cx + (bcx - cx) * boxGap;
-          const ncy = cy + (bcy - cy) * boxGap;
+          const ncx = cx + (bcx - cx) * boxGapH;
+          const ncy = cy + (bcy - cy) * boxGapV;
           b.x = ncx - b.width / 2;
           b.y = ncy - b.height / 2;
         });
-        // 時期ラベル位置も連動
+        // 時期ラベル位置も連動（Time 軸 = layout により x or y）
+        const isH = d.settings.layout === 'horizontal';
+        const periodGap = isH ? boxGapH : boxGapV;
+        const periodCenter = isH ? cx : cy;
         sh.periodLabels.forEach((p) => {
-          p.position = cx + (p.position * 100 - cx) * boxGap; // position は Level 値 → px 換算
+          // position は Level 値 → px 換算で中心からの距離をスケール
+          p.position = (periodCenter + (p.position * 100 - periodCenter) * periodGap) / 100;
         });
       }
 
