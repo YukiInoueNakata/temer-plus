@@ -192,6 +192,8 @@ interface Actions {
   setUIFontSize: (size: number) => void;
   setRibbonFontSize: (size: number) => void;
   setGridPx: (px: number) => void;
+  setDefaultBoxSize: (size: { width?: number; height?: number }) => void;
+  setDefaultFontSize: (size: number) => void;
 
   // History (separate from undo/redo - persists in file)
   pushHistory: (entry: Omit<HistoryEntry, 'timestamp'>) => void;
@@ -363,11 +365,10 @@ export const useTEMStore = create<Store>()(
         }
         set((s) => {
           const layout = s.doc.settings.layout;
-          // 横型レイアウト→縦書きBox (縦長60×100)
-          // 縦型レイアウト→横書きBox (横長100×50)
+          // textOrientation のみ layout 依存、サイズは settings.defaultBoxSize を参照
           const defaultTextOrientation = layout === 'horizontal' ? 'vertical' : 'horizontal';
-          const defaultWidth = layout === 'horizontal' ? 60 : 100;
-          const defaultHeight = layout === 'horizontal' ? 100 : 50;
+          const defaultWidth = s.doc.settings.defaultBoxSize.width;
+          const defaultHeight = s.doc.settings.defaultBoxSize.height;
           return {
             doc: mutateSheet(s.doc, targetSheetId, (sh) => {
               const defaults: Box = {
@@ -1442,6 +1443,24 @@ export const useTEMStore = create<Store>()(
         const clamped = Math.max(2, Math.min(200, Math.round(px)));
         set((state) => ({
           doc: produce(state.doc, (d) => { d.settings.snap.gridPx = clamped; }),
+        }));
+      },
+      setDefaultBoxSize: (size) => {
+        set((state) => ({
+          doc: produce(state.doc, (d) => {
+            if (size.width != null) {
+              d.settings.defaultBoxSize.width = Math.max(20, Math.min(1000, Math.round(size.width)));
+            }
+            if (size.height != null) {
+              d.settings.defaultBoxSize.height = Math.max(20, Math.min(1000, Math.round(size.height)));
+            }
+          }),
+        }));
+      },
+      setDefaultFontSize: (size) => {
+        const clamped = Math.max(6, Math.min(72, Math.round(size)));
+        set((state) => ({
+          doc: produce(state.doc, (d) => { d.settings.defaultFontSize = clamped; }),
         }));
       },
 

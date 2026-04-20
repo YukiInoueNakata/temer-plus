@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
   timelineAutoInsert: true,
   defaultFont: 'system-ui',
   defaultFontSize: 13,
-  defaultBoxSize: { width: 100, height: 50 },
+  defaultBoxSize: { width: 60, height: 100 },
   defaultAutoFitText: false,
   defaultAutoFitBox: false,
   defaultAutoFitBoxMode: 'width-fixed',

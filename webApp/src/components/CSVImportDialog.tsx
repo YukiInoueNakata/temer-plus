@@ -148,6 +148,7 @@ export function CSVImportDialog({ open, onClose }: { open: boolean; onClose: () 
       defaultWidth: doc.settings.defaultBoxSize.width,
       defaultHeight: doc.settings.defaultBoxSize.height,
       defaultFontSize: doc.settings.defaultFontSize,
+      defaultTextOrientation: doc.settings.layout === 'horizontal' ? 'vertical' : 'horizontal',
       startTimeLevel: startTime,
       baseItemLevel: baseItem,
       autoConnect,

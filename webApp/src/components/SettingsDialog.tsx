@@ -527,8 +527,11 @@ function TypeLabelSection() {
 // ============================================================================
 function ProjectSection() {
   const doc = useTEMStore((s) => s.doc);
+  const setDefaultBoxSize = useTEMStore((s) => s.setDefaultBoxSize);
+  const setDefaultFontSize = useTEMStore((s) => s.setDefaultFontSize);
   return (
     <section className="settings-section">
+      <h4>プロジェクト情報</h4>
       <div className="setting-row">
         <label>タイトル</label>
         <input type="text" value={doc.metadata.title} readOnly style={{ width: 200 }} />
@@ -548,21 +551,62 @@ function ProjectSection() {
           {doc.history.length}/50件
         </span>
       </div>
+
+      <h4 style={{ marginTop: 16 }}>Box の既定サイズ</h4>
+      <p className="hint" style={{ marginTop: 0 }}>
+        「挿入」タブで Box を追加するときや CSV インポート時のデフォルトサイズ（ピクセル）。
+        テキスト方向は現在のレイアウトに応じて自動設定されます（横型 → 縦書き / 縦型 → 横書き）。
+      </p>
       <div className="setting-row">
-        <label>既定Box幅（px）</label>
-        <input type="number" value={doc.settings.defaultBoxSize.width} readOnly style={{ width: 80 }} />
+        <label>既定Box幅 (px)</label>
+        <input
+          type="number"
+          min={20}
+          max={1000}
+          value={doc.settings.defaultBoxSize.width}
+          onChange={(e) => setDefaultBoxSize({ width: Number(e.target.value) })}
+          style={{ width: 100 }}
+        />
       </div>
       <div className="setting-row">
-        <label>既定Box高さ（px）</label>
-        <input type="number" value={doc.settings.defaultBoxSize.height} readOnly style={{ width: 80 }} />
+        <label>既定Box高さ (px)</label>
+        <input
+          type="number"
+          min={20}
+          max={1000}
+          value={doc.settings.defaultBoxSize.height}
+          onChange={(e) => setDefaultBoxSize({ height: Number(e.target.value) })}
+          style={{ width: 100 }}
+        />
       </div>
+      <div className="setting-row" style={{ justifyContent: 'flex-start', gap: 6 }}>
+        <span style={{ color: '#555', fontSize: '0.9em' }}>プリセット:</span>
+        <button className="ribbon-btn-small" onClick={() => setDefaultBoxSize({ width: 60, height: 100 })}>
+          縦長 (60×100)
+        </button>
+        <button className="ribbon-btn-small" onClick={() => setDefaultBoxSize({ width: 100, height: 50 })}>
+          横長 (100×50)
+        </button>
+        <button className="ribbon-btn-small" onClick={() => setDefaultBoxSize({ width: 80, height: 80 })}>
+          正方形 (80×80)
+        </button>
+      </div>
+
+      <h4 style={{ marginTop: 16 }}>文字の既定</h4>
       <div className="setting-row">
         <label>既定フォント</label>
         <input type="text" value={doc.settings.defaultFont} readOnly style={{ width: 180 }} />
       </div>
       <div className="setting-row">
-        <label>既定サイズ（pt）</label>
-        <input type="number" value={doc.settings.defaultFontSize} readOnly style={{ width: 80 }} />
+        <label>既定サイズ (pt)</label>
+        <input
+          type="number"
+          min={6}
+          max={72}
+          value={doc.settings.defaultFontSize}
+          onChange={(e) => setDefaultFontSize(Number(e.target.value))}
+          style={{ width: 80 }}
+        />
       </div>
     </section>
   );

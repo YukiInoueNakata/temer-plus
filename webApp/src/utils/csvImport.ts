@@ -5,7 +5,7 @@
 // ============================================================================
 
 import Papa from 'papaparse';
-import type { Box, BoxType, Line } from '../types';
+import type { Box, BoxType, Line, TextOrientation } from '../types';
 
 export type CsvFieldKind =
   | 'ignore'
@@ -136,6 +136,7 @@ export interface ImportOptions {
   defaultWidth: number;
   defaultHeight: number;
   defaultFontSize: number;
+  defaultTextOrientation?: TextOrientation; // 通常 Box 挿入と揃えるため layout 由来で渡す
   // 挿入位置計算
   startTimeLevel: number;                // timeLevel 列がない場合の開始値
   baseItemLevel: number;                 // itemLevel 列がない場合の値
@@ -253,6 +254,7 @@ export function buildBoxesFromRows(rows: string[][], opts: ImportOptions): Impor
       y,
       width,
       height,
+      ...(opts.defaultTextOrientation ? { textOrientation: opts.defaultTextOrientation } : {}),
       ...(subLabel ? { subLabel } : {}),
       ...(description ? { description } : {}),
       style: { fontSize: opts.defaultFontSize },
