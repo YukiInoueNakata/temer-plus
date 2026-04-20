@@ -1,0 +1,89 @@
+﻿Label,Type,Time_Level,Item_Level
+"Be interested in
+foreign countries",OPP,2,0
+"Take an English
+class",Normal,3,1
+"Join an exchange
+program at high school
+and go to the U.S.",OPP,5,0
+"Not to be called
+her name from
+the teacher
+in the class",OPP,6,0
+"Feeling shocked
+and saddened",BFP,7,2
+"Wanting people to
+call her name",Normal,7.5,0
+"Take action to
+resolve the
+situation",Normal,8,0
+"Unable to take
+action to resolve
+the situation",Normal,8,3
+Go back to Japan,Normal,9,3
+"Go to study abroad
+in the Philippines",Normal,9,2
+"Experiencing name
+mispronunciation
+in various situations",OPP,10,2
+"Teacher suggest
+her to have an
+English name",Normal,10.5,1
+"Start using an
+English name",BFP,11,0
+"Satisfying herself
+with the solution",Normal,11.5,-1
+"Be able to
+communicate
+smoothly",Normal,12,-1
+"Do not use
+English name",Normal,11,4
+"Get people to
+pronounce her
+name correctly",Normal,12.5,3
+"No longer
+encountering the
+same situation",Normal,10.5,5
+"Do not Satisfying
+with the solution",Normal,12,4
+"Let the person
+call as they like",Normal,13,5
+"Want to go to
+long-term study abroad",Normal,13,-1
+"Do not go to the
+long-term study abroad",Normal,13.5,2
+Go back to Japan,Normal,13,0
+"Graduate a
+university",Normal,14,2
+"Start working
+in Japan",Normal,14.5,1
+"Decide to do
+what she really
+wants to do",Normal,15.5,0
+"Start Covid-19
+Pandemic",Normal,16,1
+Go to Canada,Normal,16.5,0
+"Keep using her
+English name",BFP,17,-1
+"Do not use her
+English name",Normal,17,3
+"Experiencing to
+be called her
+English name
+in various situations",OPP,18,-2
+"Getting used to be
+called her
+English name",Normal,18.5,-3
+"Do not get used to
+be called her
+English name",Normal,18.5,1
+"Not be able to
+communicate smoothly",Normal,18.5,4
+"Satisfying herself
+with the solution,
+and maintaining
+stable happiness",EFP,20,-2
+"Being unsatisfied
+with the result
+and experiencing
+unstable well-beings",P-EFP,20,2

@@ -1,0 +1,989 @@
+{
+  "version": "0.3",
+  "sheets": [
+    {
+      "id": "Sheet_875130_4704",
+      "name": "Bowwow",
+      "type": "individual",
+      "order": 0,
+      "boxes": [
+        {
+          "id": "OPP1",
+          "type": "OPP",
+          "label": "Be interested in\nforeign countries",
+          "x": 200,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item1",
+          "type": "normal",
+          "label": "Take an English\nclass",
+          "x": 300,
+          "y": -100,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP2",
+          "type": "OPP",
+          "label": "Join an exchange\nprogram at high school\nand go to the U.S.",
+          "x": 500,
+          "y": 0,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP3",
+          "type": "OPP",
+          "label": "Not to be called\nher name from\nthe teacher\nin the class",
+          "x": 600,
+          "y": 0,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "BFP1",
+          "type": "BFP",
+          "label": "Feeling shocked\nand saddened",
+          "x": 700,
+          "y": -200,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item2",
+          "type": "normal",
+          "label": "Wanting people to\ncall her name",
+          "x": 750.0,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item3",
+          "type": "normal",
+          "label": "Take action to\nresolve the\nsituation",
+          "x": 800,
+          "y": 0,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item4",
+          "type": "normal",
+          "label": "Unable to take\naction to resolve\nthe situation",
+          "x": 800,
+          "y": -300,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item5",
+          "type": "normal",
+          "label": "Go back to Japan",
+          "x": 900,
+          "y": -300,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item6",
+          "type": "normal",
+          "label": "Go to study abroad\nin the Philippines",
+          "x": 900,
+          "y": -200,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP4",
+          "type": "OPP",
+          "label": "Experiencing name\nmispronunciation\nin various situations",
+          "x": 1000,
+          "y": -200,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item7",
+          "type": "normal",
+          "label": "Teacher suggest\nher to have an\nEnglish name",
+          "x": 1050.0,
+          "y": -100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "BFP2",
+          "type": "BFP",
+          "label": "Start using an\nEnglish name",
+          "x": 1100,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item8",
+          "type": "normal",
+          "label": "Satisfying herself\nwith the solution",
+          "x": 1150.0,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item9",
+          "type": "normal",
+          "label": "Be able to\ncommunicate\nsmoothly",
+          "x": 1200,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item10",
+          "type": "normal",
+          "label": "Do not use\nEnglish name",
+          "x": 1100,
+          "y": -400,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item11",
+          "type": "normal",
+          "label": "Get people to\npronounce her\nname correctly",
+          "x": 1250.0,
+          "y": -300,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item12",
+          "type": "normal",
+          "label": "No longer\nencountering the\nsame situation",
+          "x": 1050.0,
+          "y": -500,
+          "width": 90,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item13",
+          "type": "normal",
+          "label": "Do not Satisfying\nwith the solution",
+          "x": 1200,
+          "y": -400,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item14",
+          "type": "normal",
+          "label": "Let the person\ncall as they like",
+          "x": 1300,
+          "y": -500,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item15",
+          "type": "normal",
+          "label": "Want to go to\nlong-term study abroad",
+          "x": 1300,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item16",
+          "type": "normal",
+          "label": "Do not go to the\nlong-term study abroad",
+          "x": 1350.0,
+          "y": -200,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item17",
+          "type": "normal",
+          "label": "Go back to Japan",
+          "x": 1300,
+          "y": 0,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item18",
+          "type": "normal",
+          "label": "Graduate a\nuniversity",
+          "x": 1400,
+          "y": -200,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item19",
+          "type": "normal",
+          "label": "Start working\nin Japan",
+          "x": 1450.0,
+          "y": -100,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item20",
+          "type": "normal",
+          "label": "Decide to do\nwhat she really\nwants to do",
+          "x": 1550.0,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item21",
+          "type": "normal",
+          "label": "Start Covid-19\nPandemic",
+          "x": 1600,
+          "y": -100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item22",
+          "type": "normal",
+          "label": "Go to Canada",
+          "x": 1650.0,
+          "y": 0,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "BFP3",
+          "type": "BFP",
+          "label": "Keep using her\nEnglish name",
+          "x": 1700,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item23",
+          "type": "normal",
+          "label": "Do not use her\nEnglish name",
+          "x": 1700,
+          "y": -300,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP5",
+          "type": "OPP",
+          "label": "Experiencing to\nbe called her\nEnglish name\nin various situations",
+          "x": 1800,
+          "y": 200,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item24",
+          "type": "normal",
+          "label": "Getting used to be\ncalled her\nEnglish name",
+          "x": 1850.0,
+          "y": 300,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item25",
+          "type": "normal",
+          "label": "Do not get used to\nbe called her\nEnglish name",
+          "x": 1850.0,
+          "y": -100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item26",
+          "type": "normal",
+          "label": "Not be able to\ncommunicate smoothly",
+          "x": 1850.0,
+          "y": -400,
+          "width": 90,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "EFP1",
+          "type": "EFP",
+          "label": "Satisfying herself\nwith the solution,\nand maintaining\nstable happiness",
+          "x": 2000,
+          "y": 200,
+          "width": 90,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "P_EFP1",
+          "type": "P-EFP",
+          "label": "Being unsatisfied\nwith the result\nand experiencing\nunstable well-beings",
+          "x": 2000,
+          "y": -200,
+          "width": 90,
+          "height": 200,
+          "textOrientation": "vertical"
+        }
+      ],
+      "lines": [
+        {
+          "id": "RL_OPP1_Item1",
+          "type": "RLine",
+          "from": "OPP1",
+          "to": "Item1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item1_OPP2",
+          "type": "RLine",
+          "from": "Item1",
+          "to": "OPP2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP2_OPP3",
+          "type": "RLine",
+          "from": "OPP2",
+          "to": "OPP3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP3_BFP1",
+          "type": "RLine",
+          "from": "OPP3",
+          "to": "BFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP1_Item3",
+          "type": "RLine",
+          "from": "BFP1",
+          "to": "Item3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP1_Item4",
+          "type": "XLine",
+          "from": "BFP1",
+          "to": "Item4",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item2_Item3",
+          "type": "RLine",
+          "from": "Item2",
+          "to": "Item3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item3_Item6",
+          "type": "RLine",
+          "from": "Item3",
+          "to": "Item6",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item4_Item5",
+          "type": "XLine",
+          "from": "Item4",
+          "to": "Item5",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item5_Item6",
+          "type": "XLine",
+          "from": "Item5",
+          "to": "Item6",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item6_OPP4",
+          "type": "RLine",
+          "from": "Item6",
+          "to": "OPP4",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP4_Item7",
+          "type": "RLine",
+          "from": "OPP4",
+          "to": "Item7",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item7_BFP2",
+          "type": "RLine",
+          "from": "Item7",
+          "to": "BFP2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP2_Item8",
+          "type": "RLine",
+          "from": "BFP2",
+          "to": "Item8",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP2_Item10",
+          "type": "XLine",
+          "from": "BFP2",
+          "to": "Item10",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item8_Item9",
+          "type": "RLine",
+          "from": "Item8",
+          "to": "Item9",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item9_Item15",
+          "type": "RLine",
+          "from": "Item9",
+          "to": "Item15",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item10_Item11",
+          "type": "XLine",
+          "from": "Item10",
+          "to": "Item11",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item10_Item12",
+          "type": "XLine",
+          "from": "Item10",
+          "to": "Item12",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item11_Item13",
+          "type": "XLine",
+          "from": "Item11",
+          "to": "Item13",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item13_Item14",
+          "type": "XLine",
+          "from": "Item13",
+          "to": "Item14",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item15_Item17",
+          "type": "RLine",
+          "from": "Item15",
+          "to": "Item17",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item16_Item18",
+          "type": "RLine",
+          "from": "Item16",
+          "to": "Item18",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item17_Item15",
+          "type": "RLine",
+          "from": "Item17",
+          "to": "Item15",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item18_Item19",
+          "type": "RLine",
+          "from": "Item18",
+          "to": "Item19",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item19_Item20",
+          "type": "RLine",
+          "from": "Item19",
+          "to": "Item20",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item20_Item22",
+          "type": "RLine",
+          "from": "Item20",
+          "to": "Item22",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item21_Item20",
+          "type": "RLine",
+          "from": "Item21",
+          "to": "Item20",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item22_BFP3",
+          "type": "RLine",
+          "from": "Item22",
+          "to": "BFP3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP3_OPP5",
+          "type": "RLine",
+          "from": "BFP3",
+          "to": "OPP5",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP3_Item23",
+          "type": "XLine",
+          "from": "BFP3",
+          "to": "Item23",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP5_Item24",
+          "type": "RLine",
+          "from": "OPP5",
+          "to": "Item24",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item23_Item25",
+          "type": "XLine",
+          "from": "Item23",
+          "to": "Item25",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item23_Item26",
+          "type": "XLine",
+          "from": "Item23",
+          "to": "Item26",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item24_EFP1",
+          "type": "RLine",
+          "from": "Item24",
+          "to": "EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item25_P_EFP1",
+          "type": "XLine",
+          "from": "Item25",
+          "to": "P_EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item26_P_EFP1",
+          "type": "XLine",
+          "from": "Item26",
+          "to": "P_EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        }
+      ],
+      "sdsg": [
+        {
+          "id": "SD1",
+          "type": "SD",
+          "label": "The lack of confidence\nin herself",
+          "attachedTo": "OPP3",
+          "itemOffset": -120,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SD2",
+          "type": "SD",
+          "label": "Her name is difficult\nto remember",
+          "attachedTo": "OPP3",
+          "itemOffset": -120,
+          "timeOffset": -80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SD3",
+          "type": "SD",
+          "label": "The lack of confidence\nin English",
+          "attachedTo": "BFP2",
+          "itemOffset": -120,
+          "timeOffset": -60,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SD4",
+          "type": "SD",
+          "label": "The lack of confidence\nabout herself and\nher English skill",
+          "attachedTo": "Item15",
+          "itemOffset": -120,
+          "timeOffset": 20,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SD5",
+          "type": "SD",
+          "label": "The reluctance to draw\non parents financially",
+          "attachedTo": "Item15",
+          "itemOffset": -120,
+          "timeOffset": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG1",
+          "type": "SG",
+          "label": "Were used to go to\nEnglish conversation classes",
+          "attachedTo": "OPP1",
+          "itemOffset": 130,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG2",
+          "type": "SG",
+          "label": "Her name is relatively\ndifficult for anyone\nto pronounce",
+          "attachedTo": "OPP4",
+          "itemOffset": 130,
+          "timeOffset": -40,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG3",
+          "type": "SG",
+          "label": "Mutually comfortable\nand stress-free",
+          "attachedTo": "BFP2",
+          "itemOffset": 150,
+          "timeOffset": 30,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG4",
+          "type": "SG",
+          "label": "Feel happy that people\ncall her with her\nEnglish name",
+          "attachedTo": "BFP2",
+          "itemOffset": 150,
+          "timeOffset": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG5",
+          "type": "SG",
+          "label": "Keep having a dream\nto live in a\nforeign country since a child",
+          "attachedTo": "Item18",
+          "itemOffset": 150,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG6",
+          "type": "SG",
+          "label": "Have money\nof her own",
+          "attachedTo": "Item20",
+          "itemOffset": 130,
+          "timeOffset": 40,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG7",
+          "type": "SG",
+          "label": "Already quite a\njob in Japan",
+          "attachedTo": "Item20",
+          "itemOffset": 130,
+          "timeOffset": -40,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG8",
+          "type": "SG",
+          "label": "A strong will\nto go there",
+          "attachedTo": "Item22",
+          "itemOffset": 130,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG9",
+          "type": "SG",
+          "label": "Be able to\ncommunicate smoothly",
+          "attachedTo": "BFP3",
+          "itemOffset": 150,
+          "timeOffset": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG10",
+          "type": "SG",
+          "label": "Mutually comfortable\nand stress-free with\nher English name",
+          "attachedTo": "OPP5",
+          "itemOffset": 150,
+          "timeOffset": 40,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "SG11",
+          "type": "SG",
+          "label": "Feel authentic when\nusing an English name",
+          "attachedTo": "EFP1",
+          "itemOffset": 130,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50
+        }
+      ],
+      "annotations": [],
+      "comments": [],
+      "periodLabels": [
+        {
+          "id": "P_875130_9357",
+          "position": 1,
+          "label": "Phase 1:\nPre-conflict"
+        },
+        {
+          "id": "P_875130_6005",
+          "position": 4.5,
+          "label": "Phase 2:\nInitial-conflict"
+        },
+        {
+          "id": "P_875130_2711",
+          "position": 10,
+          "label": "Phase 3:\nMid-conflict"
+        },
+        {
+          "id": "P_875130_5033",
+          "position": 15,
+          "label": "Phase 4:\nPost-conflict"
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "Sheet_875130_4704",
+  "participants": [
+    {
+      "id": "Part_875130_2204",
+      "pseudonym": "Bowwow"
+    }
+  ],
+  "settings": {
+    "layout": "horizontal",
+    "locale": "en",
+    "gridSize": 10,
+    "snap": {
+      "alignGuides": true,
+      "distanceSnap": true,
+      "distancePx": 20,
+      "gridSnap": false,
+      "gridPx": 10
+    },
+    "showLegend": true,
+    "legendPosition": "right",
+    "timelineLabel": {
+      "ja": "非可逆的時間",
+      "en": "Irreversible time"
+    },
+    "timelineAutoInsert": true,
+    "defaultFont": "system-ui",
+    "defaultFontSize": 11,
+    "defaultBoxSize": {
+      "width": 60,
+      "height": 100
+    },
+    "defaultAutoFitText": false,
+    "defaultAutoFitBox": false,
+    "defaultAutoFitBoxMode": "none",
+    "paperGuides": [
+      {
+        "enabled": false,
+        "size": "A4-landscape",
+        "baseSize": "A4",
+        "color": "#000000",
+        "pageCount": 2,
+        "maskOutside": true
+      }
+    ],
+    "uiFontSize": 13,
+    "ribbonFontSize": 12,
+    "levelStep": 0.5,
+    "timeArrow": {
+      "autoInsert": true,
+      "alwaysVisible": true,
+      "timeStartExtension": -0.5,
+      "timeEndExtension": 0.5,
+      "itemReference": "min",
+      "itemOffset": -1,
+      "label": "Irreversible Time",
+      "strokeWidth": 2.5,
+      "fontSize": 14,
+      "labelSideHorizontal": "bottom",
+      "labelSideVertical": "left",
+      "labelBold": false,
+      "labelItalic": false,
+      "labelUnderline": false,
+      "labelOffset": 4,
+      "labelAlignHorizontal": "center",
+      "labelAlignVertical": "center"
+    },
+    "legend": {
+      "autoGenerate": true,
+      "alwaysVisible": true,
+      "includeInExport": true,
+      "position": {
+        "x": 2100,
+        "y": -450
+      },
+      "includeBoxes": true,
+      "includeLines": true,
+      "includeSDSG": true,
+      "includeTimeArrow": true,
+      "title": "Legend",
+      "fontSize": 11,
+      "minWidth": 200,
+      "showDescriptions": false,
+      "columns": 1,
+      "columnsHorizontal": 1,
+      "columnsVertical": 1,
+      "showTitle": true,
+      "titleBold": true,
+      "titleItalic": false,
+      "titleUnderline": false,
+      "titleAlign": "left",
+      "titlePosition": "top",
+      "titleWritingMode": "horizontal",
+      "titleVerticalAlign": "top",
+      "backgroundStyle": "white",
+      "borderWidth": 1,
+      "borderColor": "#999",
+      "sampleWidth": 32,
+      "sampleHeight": 18,
+      "titleSeparatorVisible": true,
+      "titleSeparatorColor": "#dddddd",
+      "itemOverrides": {}
+    },
+    "periodLabels": {
+      "alwaysVisible": true,
+      "includeInExport": true,
+      "itemReference": "max",
+      "itemOffset": 1.5,
+      "fontSize": 13,
+      "showDividers": true,
+      "dividerStrokeWidth": 1,
+      "bandStyle": "band",
+      "labelSideHorizontal": "top",
+      "labelSideVertical": "right"
+    },
+    "typeLabelVisibility": {
+      "BFP": true,
+      "EFP": true,
+      "P-EFP": true,
+      "OPP": true,
+      "2nd-EFP": true,
+      "P-2nd-EFP": true,
+      "SD": true,
+      "SG": true
+    }
+  },
+  "metadata": {
+    "title": "Bowwow Demo (EN)",
+    "author": "Yuki Inoue Nakata",
+    "createdAt": "2026-04-20T00:00:00.000Z",
+    "modifiedAt": "2026-04-20T00:00:00.000Z"
+  },
+  "history": []
+}

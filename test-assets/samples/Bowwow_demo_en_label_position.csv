@@ -1,0 +1,89 @@
+﻿Label,Time_Level,Item_Level
+"Be interested in
+foreign countries",2,0
+"Take an English
+class",3,1
+"Join an exchange
+program at high school
+and go to the U.S.",5,0
+"Not to be called
+her name from
+the teacher
+in the class",6,0
+"Feeling shocked
+and saddened",7,2
+"Wanting people to
+call her name",7.5,0
+"Take action to
+resolve the
+situation",8,0
+"Unable to take
+action to resolve
+the situation",8,3
+Go back to Japan,9,3
+"Go to study abroad
+in the Philippines",9,2
+"Experiencing name
+mispronunciation
+in various situations",10,2
+"Teacher suggest
+her to have an
+English name",10.5,1
+"Start using an
+English name",11,0
+"Satisfying herself
+with the solution",11.5,-1
+"Be able to
+communicate
+smoothly",12,-1
+"Do not use
+English name",11,4
+"Get people to
+pronounce her
+name correctly",12.5,3
+"No longer
+encountering the
+same situation",10.5,5
+"Do not Satisfying
+with the solution",12,4
+"Let the person
+call as they like",13,5
+"Want to go to
+long-term study abroad",13,-1
+"Do not go to the
+long-term study abroad",13.5,2
+Go back to Japan,13,0
+"Graduate a
+university",14,2
+"Start working
+in Japan",14.5,1
+"Decide to do
+what she really
+wants to do",15.5,0
+"Start Covid-19
+Pandemic",16,1
+Go to Canada,16.5,0
+"Keep using her
+English name",17,-1
+"Do not use her
+English name",17,3
+"Experiencing to
+be called her
+English name
+in various situations",18,-2
+"Getting used to be
+called her
+English name",18.5,-3
+"Do not get used to
+be called her
+English name",18.5,1
+"Not be able to
+communicate smoothly",18.5,4
+"Satisfying herself
+with the solution,
+and maintaining
+stable happiness",20,-2
+"Being unsatisfied
+with the result
+and experiencing
+unstable well-beings",20,2
