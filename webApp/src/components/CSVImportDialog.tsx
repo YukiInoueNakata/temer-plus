@@ -65,6 +65,23 @@ export function CSVImportDialog({ open, onClose }: { open: boolean; onClose: () 
     };
   }, [dragging]);
 
+  // Hooks はすべて条件分岐（early return）より前で呼ぶ（Rules of Hooks）
+  const previewRows = useMemo(() => {
+    if (!parsed) return [] as string[][];
+    const rows = hasHeader ? parsed.rows.slice(1) : parsed.rows;
+    return rows.slice(0, 5);
+  }, [parsed, hasHeader]);
+
+  const existingIds = useMemo(() => {
+    const s = new Set<string>();
+    doc.sheets.forEach((sh) => {
+      sh.boxes.forEach((b) => s.add(b.id));
+      sh.lines.forEach((l) => s.add(l.id));
+      sh.sdsg.forEach((sg) => s.add(sg.id));
+    });
+    return s;
+  }, [doc]);
+
   if (!open) return null;
 
   const onHeaderMouseDown = (e: React.MouseEvent) => {
@@ -103,22 +120,6 @@ export function CSVImportDialog({ open, onClose }: { open: boolean; onClose: () 
       setError(`CSV パースに失敗: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
-
-  const previewRows = useMemo(() => {
-    if (!parsed) return [];
-    const rows = hasHeader ? parsed.rows.slice(1) : parsed.rows;
-    return rows.slice(0, 5);
-  }, [parsed, hasHeader]);
-
-  const existingIds = useMemo(() => {
-    const s = new Set<string>();
-    doc.sheets.forEach((sh) => {
-      sh.boxes.forEach((b) => s.add(b.id));
-      sh.lines.forEach((l) => s.add(l.id));
-      sh.sdsg.forEach((sg) => s.add(sg.id));
-    });
-    return s;
-  }, [doc]);
 
   const runImport = () => {
     if (!parsed) return;
