@@ -49,8 +49,7 @@ webApp/*.tsbuildinfo
 
 # Claude Code 関連（ローカルのみ、共有不要）
 CLAUDE.md
-HISTORY.md
-TODO.md
+# HISTORY.md / TODO.md はプロジェクト作業記録として共有
 
 # docs/（調査資料・文献PDF・画像はローカル保持）
 docs/
