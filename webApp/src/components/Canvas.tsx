@@ -876,7 +876,8 @@ export function TimeArrowOverlay({ onOpenSettings }: { onOpenSettings?: () => vo
 function CustomControls() {
   const rf = useReactFlow();
   const requestFit = useTEMStore((s) => s.requestFit);
-  const [interactive, setInteractive] = useState(true);
+  const canvasMode = useTEMStore((s) => s.view.canvasMode);
+  const setCanvasMode = useTEMStore((s) => s.setCanvasMode);
 
   const btn: React.CSSProperties = {
     width: 30,
@@ -890,14 +891,7 @@ function CustomControls() {
     alignItems: 'center',
     justifyContent: 'center',
   };
-
-  const toggleInteractive = () => {
-    const next = !interactive;
-    setInteractive(next);
-    // Node のドラッグ可能状態を切替: CSS で pointer-events を効かせる実装は難しいので
-    // React Flow の interactive を模倣するため body に class を追加
-    document.getElementById('diagram-canvas')?.classList.toggle('non-interactive', !next);
-  };
+  const activeBtn: React.CSSProperties = { ...btn, background: '#e3efff', borderColor: '#2684ff' };
 
   return (
     <div
@@ -921,12 +915,20 @@ function CustomControls() {
       <button style={btn} title="横幅フィット" onClick={() => requestFit('width')}>↔</button>
       <button style={btn} title="縦幅フィット" onClick={() => requestFit('height')}>↕</button>
       <button
-        style={{ ...btn, background: interactive ? '#fff' : '#e8e8e8' }}
-        title={interactive ? '編集をロック' : '編集を解放'}
-        onClick={toggleInteractive}
-      >
-        {interactive ? '🔓' : '🔒'}
-      </button>
+        style={canvasMode === 'move' ? activeBtn : btn}
+        title="移動モード（ドラッグで画面パン、図形編集ロック）"
+        onClick={() => setCanvasMode('move')}
+      >✋</button>
+      <button
+        style={canvasMode === 'pointer' ? activeBtn : btn}
+        title="選択モード（図形を自由に操作）"
+        onClick={() => setCanvasMode('pointer')}
+      >➤</button>
+      <button
+        style={canvasMode === 'select' ? activeBtn : btn}
+        title="範囲選択モード（ドラッグで矩形選択）"
+        onClick={() => setCanvasMode('select')}
+      >⊡</button>
     </div>
   );
 }
