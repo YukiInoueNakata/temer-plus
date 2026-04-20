@@ -1,126 +1,53 @@
 ﻿Label,Type
-"Be interested in
-foreign countries",OPP
-"Take an English
-class",Normal
-"Join an exchange
-program at high school
-and go to the U.S.",OPP
-"Not to be called
-her name from
-the teacher
-in the class",OPP
-"Feeling shocked
-and saddened",BFP
-"Wanting people to
-call her name",Normal
-"Take action to
-resolve the
-situation",Normal
-"Unable to take
-action to resolve
-the situation",Normal
+Be interested in foreign countries,OPP
+Take an English class,Normal
+Join an exchange program at high school and go to the U.S.,OPP
+Not to be called her name from the teacher in the class,OPP
+Feeling shocked and saddened,BFP
+Wanting people to call her name,Normal
+Take action to resolve the situation,Normal
+Unable to take action to resolve the situation,Normal
 Go back to Japan,Normal
-"Go to study abroad
-in the Philippines",Normal
-"Experiencing name
-mispronunciation
-in various situations",OPP
-"Teacher suggest
-her to have an
-English name",Normal
-"Start using an
-English name",BFP
-"Satisfying herself
-with the solution",Normal
-"Be able to
-communicate
-smoothly",Normal
-"Do not use
-English name",Normal
-"Get people to
-pronounce her
-name correctly",Normal
-"No longer
-encountering the
-same situation",Normal
-"Do not Satisfying
-with the solution",Normal
-"Let the person
-call as they like",Normal
-"Want to go to
-long-term study abroad",Normal
-"Do not go to the
-long-term study abroad",Normal
+Go to study abroad in the Philippines,Normal
+Experiencing name mispronunciation in various situations,OPP
+Teacher suggest her to have an English name,Normal
+Start using an English name,BFP
+Satisfying herself with the solution,Normal
+Be able to communicate smoothly,Normal
+Do not use English name,Normal
+Get people to pronounce her name correctly,Normal
+No longer encountering the same situation,Normal
+Do not Satisfying with the solution,Normal
+Let the person call as they like,Normal
+Want to go to long-term study abroad,Normal
+Do not go to the long-term study abroad,Normal
 Go back to Japan,Normal
-"Graduate a
-university",Normal
-"Start working
-in Japan",Normal
-"Decide to do
-what she really
-wants to do",Normal
-"Start Covid-19
-Pandemic",Normal
+Graduate a university,Normal
+Start working in Japan,Normal
+Decide to do what she really wants to do,Normal
+Start Covid-19 Pandemic,Normal
 Go to Canada,Normal
-"Keep using her
-English name",BFP
-"Do not use her
-English name",Normal
-"Experiencing to
-be called her
-English name
-in various situations",OPP
-"Getting used to be
-called her
-English name",Normal
-"Do not get used to
-be called her
-English name",Normal
-"Not be able to
-communicate smoothly",Normal
-"Satisfying herself
-with the solution,
-and maintaining
-stable happiness",EFP
-"Being unsatisfied
-with the result
-and experiencing
-unstable well-beings",P-EFP
-"The lack of confidence
-in herself",SD
-"Her name is difficult
-to remember",SD
-"The lack of confidence
-in English",SD
-"The lack of confidence
-about herself and
-her English skill",SD
-"The reluctance to draw
-on parents financially",SD
-"Were used to go to
-English conversation classes",SG
-"Her name is relatively
-difficult for anyone
-to pronounce",SG
-"Mutually comfortable
-and stress-free",SG
-"Feel happy that people
-call her with her
-English name",SG
-"Keep having a dream
-to live in a
-foreign country since a child",SG
-"Have money
-of her own",SG
-"Already quite a
-job in Japan",SG
-"A strong will
-to go there",SG
-"Be able to
-communicate smoothly",SG
-"Mutually comfortable
-and stress-free with
-her English name",SG
-"Feel authentic when
-using an English name",SG
+Keep using her English name,BFP
+Do not use her English name,Normal
+Experiencing to be called her English name in various situations,OPP
+Getting used to be called her English name,Normal
+Do not get used to be called her English name,Normal
+Not be able to communicate smoothly,Normal
+"Satisfying herself with the solution, and maintaining stable happiness",EFP
+Being unsatisfied with the result and experiencing unstable well-beings,P-EFP
+The lack of confidence in herself,SD
+Her name is difficult to remember,SD
+The lack of confidence in English,SD
+The lack of confidence about herself and her English skill,SD
+The reluctance to draw on parents financially,SD
+Were used to go to English conversation classes,SG
+Her name is relatively difficult for anyone to pronounce,SG
+Mutually comfortable and stress-free,SG
+Feel happy that people call her with her English name,SG
+Keep having a dream to live in a foreign country since a child,SG
+Have money of her own,SG
+Already quite a job in Japan,SG
+A strong will to go there,SG
+Be able to communicate smoothly,SG
+Mutually comfortable and stress-free with her English name,SG
+Feel authentic when using an English name,SG

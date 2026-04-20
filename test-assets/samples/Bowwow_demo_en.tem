@@ -2,7 +2,7 @@
   "version": "0.3",
   "sheets": [
     {
-      "id": "Sheet_875130_4704",
+      "id": "Sheet_181369_4411",
       "name": "Bowwow",
       "type": "individual",
       "order": 0,
@@ -10,7 +10,7 @@
         {
           "id": "OPP1",
           "type": "OPP",
-          "label": "Be interested in\nforeign countries",
+          "label": "Be interested in foreign countries",
           "x": 200,
           "y": 0,
           "width": 60,
@@ -20,7 +20,7 @@
         {
           "id": "Item1",
           "type": "normal",
-          "label": "Take an English\nclass",
+          "label": "Take an English class",
           "x": 300,
           "y": -100,
           "width": 60,
@@ -30,7 +30,7 @@
         {
           "id": "OPP2",
           "type": "OPP",
-          "label": "Join an exchange\nprogram at high school\nand go to the U.S.",
+          "label": "Join an exchange program at high school and go to the U.S.",
           "x": 500,
           "y": 0,
           "width": 60,
@@ -40,7 +40,7 @@
         {
           "id": "OPP3",
           "type": "OPP",
-          "label": "Not to be called\nher name from\nthe teacher\nin the class",
+          "label": "Not to be called her name from the teacher in the class",
           "x": 600,
           "y": 0,
           "width": 60,
@@ -50,7 +50,7 @@
         {
           "id": "BFP1",
           "type": "BFP",
-          "label": "Feeling shocked\nand saddened",
+          "label": "Feeling shocked and saddened",
           "x": 700,
           "y": -200,
           "width": 60,
@@ -60,7 +60,7 @@
         {
           "id": "Item2",
           "type": "normal",
-          "label": "Wanting people to\ncall her name",
+          "label": "Wanting people to call her name",
           "x": 750.0,
           "y": 0,
           "width": 60,
@@ -70,7 +70,7 @@
         {
           "id": "Item3",
           "type": "normal",
-          "label": "Take action to\nresolve the\nsituation",
+          "label": "Take action to resolve the situation",
           "x": 800,
           "y": 0,
           "width": 60,
@@ -80,7 +80,7 @@
         {
           "id": "Item4",
           "type": "normal",
-          "label": "Unable to take\naction to resolve\nthe situation",
+          "label": "Unable to take action to resolve the situation",
           "x": 800,
           "y": -300,
           "width": 60,
@@ -100,7 +100,7 @@
         {
           "id": "Item6",
           "type": "normal",
-          "label": "Go to study abroad\nin the Philippines",
+          "label": "Go to study abroad in the Philippines",
           "x": 900,
           "y": -200,
           "width": 60,
@@ -110,7 +110,7 @@
         {
           "id": "OPP4",
           "type": "OPP",
-          "label": "Experiencing name\nmispronunciation\nin various situations",
+          "label": "Experiencing name mispronunciation in various situations",
           "x": 1000,
           "y": -200,
           "width": 60,
@@ -120,7 +120,7 @@
         {
           "id": "Item7",
           "type": "normal",
-          "label": "Teacher suggest\nher to have an\nEnglish name",
+          "label": "Teacher suggest her to have an English name",
           "x": 1050.0,
           "y": -100,
           "width": 60,
@@ -130,7 +130,7 @@
         {
           "id": "BFP2",
           "type": "BFP",
-          "label": "Start using an\nEnglish name",
+          "label": "Start using an English name",
           "x": 1100,
           "y": 0,
           "width": 60,
@@ -140,7 +140,7 @@
         {
           "id": "Item8",
           "type": "normal",
-          "label": "Satisfying herself\nwith the solution",
+          "label": "Satisfying herself with the solution",
           "x": 1150.0,
           "y": 100,
           "width": 60,
@@ -150,7 +150,7 @@
         {
           "id": "Item9",
           "type": "normal",
-          "label": "Be able to\ncommunicate\nsmoothly",
+          "label": "Be able to communicate smoothly",
           "x": 1200,
           "y": 100,
           "width": 60,
@@ -160,7 +160,7 @@
         {
           "id": "Item10",
           "type": "normal",
-          "label": "Do not use\nEnglish name",
+          "label": "Do not use English name",
           "x": 1100,
           "y": -400,
           "width": 60,
@@ -170,7 +170,7 @@
         {
           "id": "Item11",
           "type": "normal",
-          "label": "Get people to\npronounce her\nname correctly",
+          "label": "Get people to pronounce her name correctly",
           "x": 1250.0,
           "y": -300,
           "width": 60,
@@ -180,7 +180,7 @@
         {
           "id": "Item12",
           "type": "normal",
-          "label": "No longer\nencountering the\nsame situation",
+          "label": "No longer encountering the same situation",
           "x": 1050.0,
           "y": -500,
           "width": 90,
@@ -190,7 +190,7 @@
         {
           "id": "Item13",
           "type": "normal",
-          "label": "Do not Satisfying\nwith the solution",
+          "label": "Do not Satisfying with the solution",
           "x": 1200,
           "y": -400,
           "width": 60,
@@ -200,7 +200,7 @@
         {
           "id": "Item14",
           "type": "normal",
-          "label": "Let the person\ncall as they like",
+          "label": "Let the person call as they like",
           "x": 1300,
           "y": -500,
           "width": 60,
@@ -210,7 +210,7 @@
         {
           "id": "Item15",
           "type": "normal",
-          "label": "Want to go to\nlong-term study abroad",
+          "label": "Want to go to long-term study abroad",
           "x": 1300,
           "y": 100,
           "width": 60,
@@ -220,7 +220,7 @@
         {
           "id": "Item16",
           "type": "normal",
-          "label": "Do not go to the\nlong-term study abroad",
+          "label": "Do not go to the long-term study abroad",
           "x": 1350.0,
           "y": -200,
           "width": 60,
@@ -240,7 +240,7 @@
         {
           "id": "Item18",
           "type": "normal",
-          "label": "Graduate a\nuniversity",
+          "label": "Graduate a university",
           "x": 1400,
           "y": -200,
           "width": 60,
@@ -250,7 +250,7 @@
         {
           "id": "Item19",
           "type": "normal",
-          "label": "Start working\nin Japan",
+          "label": "Start working in Japan",
           "x": 1450.0,
           "y": -100,
           "width": 60,
@@ -260,7 +260,7 @@
         {
           "id": "Item20",
           "type": "normal",
-          "label": "Decide to do\nwhat she really\nwants to do",
+          "label": "Decide to do what she really wants to do",
           "x": 1550.0,
           "y": 0,
           "width": 60,
@@ -270,7 +270,7 @@
         {
           "id": "Item21",
           "type": "normal",
-          "label": "Start Covid-19\nPandemic",
+          "label": "Start Covid-19 Pandemic",
           "x": 1600,
           "y": -100,
           "width": 60,
@@ -290,7 +290,7 @@
         {
           "id": "BFP3",
           "type": "BFP",
-          "label": "Keep using her\nEnglish name",
+          "label": "Keep using her English name",
           "x": 1700,
           "y": 100,
           "width": 60,
@@ -300,7 +300,7 @@
         {
           "id": "Item23",
           "type": "normal",
-          "label": "Do not use her\nEnglish name",
+          "label": "Do not use her English name",
           "x": 1700,
           "y": -300,
           "width": 60,
@@ -310,7 +310,7 @@
         {
           "id": "OPP5",
           "type": "OPP",
-          "label": "Experiencing to\nbe called her\nEnglish name\nin various situations",
+          "label": "Experiencing to be called her English name in various situations",
           "x": 1800,
           "y": 200,
           "width": 60,
@@ -320,7 +320,7 @@
         {
           "id": "Item24",
           "type": "normal",
-          "label": "Getting used to be\ncalled her\nEnglish name",
+          "label": "Getting used to be called her English name",
           "x": 1850.0,
           "y": 300,
           "width": 60,
@@ -330,7 +330,7 @@
         {
           "id": "Item25",
           "type": "normal",
-          "label": "Do not get used to\nbe called her\nEnglish name",
+          "label": "Do not get used to be called her English name",
           "x": 1850.0,
           "y": -100,
           "width": 60,
@@ -340,7 +340,7 @@
         {
           "id": "Item26",
           "type": "normal",
-          "label": "Not be able to\ncommunicate smoothly",
+          "label": "Not be able to communicate smoothly",
           "x": 1850.0,
           "y": -400,
           "width": 90,
@@ -350,7 +350,7 @@
         {
           "id": "EFP1",
           "type": "EFP",
-          "label": "Satisfying herself\nwith the solution,\nand maintaining\nstable happiness",
+          "label": "Satisfying herself with the solution, and maintaining stable happiness",
           "x": 2000,
           "y": 200,
           "width": 90,
@@ -360,7 +360,7 @@
         {
           "id": "P_EFP1",
           "type": "P-EFP",
-          "label": "Being unsatisfied\nwith the result\nand experiencing\nunstable well-beings",
+          "label": "Being unsatisfied with the result and experiencing unstable well-beings",
           "x": 2000,
           "y": -200,
           "width": 90,
@@ -670,7 +670,7 @@
         {
           "id": "SD1",
           "type": "SD",
-          "label": "The lack of confidence\nin herself",
+          "label": "The lack of confidence in herself",
           "attachedTo": "OPP3",
           "itemOffset": -120,
           "timeOffset": 0,
@@ -680,7 +680,7 @@
         {
           "id": "SD2",
           "type": "SD",
-          "label": "Her name is difficult\nto remember",
+          "label": "Her name is difficult to remember",
           "attachedTo": "OPP3",
           "itemOffset": -120,
           "timeOffset": -80,
@@ -690,7 +690,7 @@
         {
           "id": "SD3",
           "type": "SD",
-          "label": "The lack of confidence\nin English",
+          "label": "The lack of confidence in English",
           "attachedTo": "BFP2",
           "itemOffset": -120,
           "timeOffset": -60,
@@ -700,7 +700,7 @@
         {
           "id": "SD4",
           "type": "SD",
-          "label": "The lack of confidence\nabout herself and\nher English skill",
+          "label": "The lack of confidence about herself and her English skill",
           "attachedTo": "Item15",
           "itemOffset": -120,
           "timeOffset": 20,
@@ -710,7 +710,7 @@
         {
           "id": "SD5",
           "type": "SD",
-          "label": "The reluctance to draw\non parents financially",
+          "label": "The reluctance to draw on parents financially",
           "attachedTo": "Item15",
           "itemOffset": -120,
           "timeOffset": 80,
@@ -720,7 +720,7 @@
         {
           "id": "SG1",
           "type": "SG",
-          "label": "Were used to go to\nEnglish conversation classes",
+          "label": "Were used to go to English conversation classes",
           "attachedTo": "OPP1",
           "itemOffset": 130,
           "timeOffset": 0,
@@ -730,7 +730,7 @@
         {
           "id": "SG2",
           "type": "SG",
-          "label": "Her name is relatively\ndifficult for anyone\nto pronounce",
+          "label": "Her name is relatively difficult for anyone to pronounce",
           "attachedTo": "OPP4",
           "itemOffset": 130,
           "timeOffset": -40,
@@ -740,7 +740,7 @@
         {
           "id": "SG3",
           "type": "SG",
-          "label": "Mutually comfortable\nand stress-free",
+          "label": "Mutually comfortable and stress-free",
           "attachedTo": "BFP2",
           "itemOffset": 150,
           "timeOffset": 30,
@@ -750,7 +750,7 @@
         {
           "id": "SG4",
           "type": "SG",
-          "label": "Feel happy that people\ncall her with her\nEnglish name",
+          "label": "Feel happy that people call her with her English name",
           "attachedTo": "BFP2",
           "itemOffset": 150,
           "timeOffset": 80,
@@ -760,7 +760,7 @@
         {
           "id": "SG5",
           "type": "SG",
-          "label": "Keep having a dream\nto live in a\nforeign country since a child",
+          "label": "Keep having a dream to live in a foreign country since a child",
           "attachedTo": "Item18",
           "itemOffset": 150,
           "timeOffset": 0,
@@ -770,7 +770,7 @@
         {
           "id": "SG6",
           "type": "SG",
-          "label": "Have money\nof her own",
+          "label": "Have money of her own",
           "attachedTo": "Item20",
           "itemOffset": 130,
           "timeOffset": 40,
@@ -780,7 +780,7 @@
         {
           "id": "SG7",
           "type": "SG",
-          "label": "Already quite a\njob in Japan",
+          "label": "Already quite a job in Japan",
           "attachedTo": "Item20",
           "itemOffset": 130,
           "timeOffset": -40,
@@ -790,7 +790,7 @@
         {
           "id": "SG8",
           "type": "SG",
-          "label": "A strong will\nto go there",
+          "label": "A strong will to go there",
           "attachedTo": "Item22",
           "itemOffset": 130,
           "timeOffset": 0,
@@ -800,7 +800,7 @@
         {
           "id": "SG9",
           "type": "SG",
-          "label": "Be able to\ncommunicate smoothly",
+          "label": "Be able to communicate smoothly",
           "attachedTo": "BFP3",
           "itemOffset": 150,
           "timeOffset": 80,
@@ -810,7 +810,7 @@
         {
           "id": "SG10",
           "type": "SG",
-          "label": "Mutually comfortable\nand stress-free with\nher English name",
+          "label": "Mutually comfortable and stress-free with her English name",
           "attachedTo": "OPP5",
           "itemOffset": 150,
           "timeOffset": 40,
@@ -820,7 +820,7 @@
         {
           "id": "SG11",
           "type": "SG",
-          "label": "Feel authentic when\nusing an English name",
+          "label": "Feel authentic when using an English name",
           "attachedTo": "EFP1",
           "itemOffset": 130,
           "timeOffset": 0,
@@ -832,32 +832,32 @@
       "comments": [],
       "periodLabels": [
         {
-          "id": "P_875130_9357",
+          "id": "P_181369_4993",
           "position": 1,
-          "label": "Phase 1:\nPre-conflict"
+          "label": "Phase 1: Pre-conflict"
         },
         {
-          "id": "P_875130_6005",
+          "id": "P_181369_9429",
           "position": 4.5,
-          "label": "Phase 2:\nInitial-conflict"
+          "label": "Phase 2: Initial-conflict"
         },
         {
-          "id": "P_875130_2711",
+          "id": "P_181369_8064",
           "position": 10,
-          "label": "Phase 3:\nMid-conflict"
+          "label": "Phase 3: Mid-conflict"
         },
         {
-          "id": "P_875130_5033",
+          "id": "P_181369_1430",
           "position": 15,
-          "label": "Phase 4:\nPost-conflict"
+          "label": "Phase 4: Post-conflict"
         }
       ]
     }
   ],
-  "activeSheetId": "Sheet_875130_4704",
+  "activeSheetId": "Sheet_181369_4411",
   "participants": [
     {
-      "id": "Part_875130_2204",
+      "id": "Part_181369_1640",
       "pseudonym": "Bowwow"
     }
   ],

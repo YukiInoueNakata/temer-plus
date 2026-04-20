@@ -2,7 +2,7 @@
   "version": "0.3",
   "sheets": [
     {
-      "id": "Sheet_875135_3418",
+      "id": "Sheet_181372_4970",
       "name": "Bowwow",
       "type": "individual",
       "order": 0,
@@ -10,7 +10,7 @@
         {
           "id": "OPP1",
           "type": "OPP",
-          "label": "外国に\n興味を持つ",
+          "label": "外国に興味を持つ",
           "x": 200,
           "y": 0,
           "width": 60,
@@ -20,7 +20,7 @@
         {
           "id": "Item1",
           "type": "normal",
-          "label": "英語の授業を\n受ける",
+          "label": "英語の授業を受ける",
           "x": 300,
           "y": -100,
           "width": 60,
@@ -30,7 +30,7 @@
         {
           "id": "OPP2",
           "type": "OPP",
-          "label": "高校で交換\n留学プログラムに\n参加し渡米",
+          "label": "高校で交換留学プログラムに参加し渡米",
           "x": 500,
           "y": 0,
           "width": 60,
@@ -40,7 +40,7 @@
         {
           "id": "OPP3",
           "type": "OPP",
-          "label": "授業中に先生に\n名前を呼ばれ\nないようにする",
+          "label": "授業中に先生に名前を呼ばれないようにする",
           "x": 600,
           "y": 0,
           "width": 60,
@@ -50,7 +50,7 @@
         {
           "id": "BFP1",
           "type": "BFP",
-          "label": "ショックと\n悲しみを感じる",
+          "label": "ショックと悲しみを感じる",
           "x": 700,
           "y": -200,
           "width": 60,
@@ -60,7 +60,7 @@
         {
           "id": "Item2",
           "type": "normal",
-          "label": "人々に自分の\n名前を呼んで\nほしい",
+          "label": "人々に自分の名前を呼んでほしい",
           "x": 750.0,
           "y": 0,
           "width": 60,
@@ -70,7 +70,7 @@
         {
           "id": "Item3",
           "type": "normal",
-          "label": "状況を改善する\nために行動する",
+          "label": "状況を改善するために行動する",
           "x": 800,
           "y": 0,
           "width": 60,
@@ -80,7 +80,7 @@
         {
           "id": "Item4",
           "type": "normal",
-          "label": "状況を改善する\nために行動\nできない",
+          "label": "状況を改善するために行動できない",
           "x": 800,
           "y": -300,
           "width": 60,
@@ -100,7 +100,7 @@
         {
           "id": "Item6",
           "type": "normal",
-          "label": "フィリピンに\n留学する",
+          "label": "フィリピンに留学する",
           "x": 900,
           "y": -200,
           "width": 60,
@@ -110,7 +110,7 @@
         {
           "id": "OPP4",
           "type": "OPP",
-          "label": "様々な場面で\n名前の発音を\n間違えられる\n経験",
+          "label": "様々な場面で名前の発音を間違えられる経験",
           "x": 1000,
           "y": -200,
           "width": 60,
@@ -120,7 +120,7 @@
         {
           "id": "Item7",
           "type": "normal",
-          "label": "先生から英語名を\n持つことを\n提案される",
+          "label": "先生から英語名を持つことを提案される",
           "x": 1050.0,
           "y": -100,
           "width": 60,
@@ -130,7 +130,7 @@
         {
           "id": "BFP2",
           "type": "BFP",
-          "label": "英語名を\n使い始める",
+          "label": "英語名を使い始める",
           "x": 1100,
           "y": 0,
           "width": 60,
@@ -140,7 +140,7 @@
         {
           "id": "Item8",
           "type": "normal",
-          "label": "解決策に\n満足する",
+          "label": "解決策に満足する",
           "x": 1150.0,
           "y": 100,
           "width": 60,
@@ -150,7 +150,7 @@
         {
           "id": "Item9",
           "type": "normal",
-          "label": "スムーズに\nコミュニケーション\nできる",
+          "label": "スムーズにコミュニケーションできる",
           "x": 1200,
           "y": 100,
           "width": 60,
@@ -160,7 +160,7 @@
         {
           "id": "Item10",
           "type": "normal",
-          "label": "英語名を\n使わない",
+          "label": "英語名を使わない",
           "x": 1100,
           "y": -400,
           "width": 60,
@@ -170,7 +170,7 @@
         {
           "id": "Item11",
           "type": "normal",
-          "label": "名前を正しく\n発音してもらう\nよう努力",
+          "label": "名前を正しく発音してもらうよう努力",
           "x": 1250.0,
           "y": -300,
           "width": 60,
@@ -180,7 +180,7 @@
         {
           "id": "Item12",
           "type": "normal",
-          "label": "同じ状況に\n遭遇しなくなる",
+          "label": "同じ状況に遭遇しなくなる",
           "x": 1050.0,
           "y": -500,
           "width": 90,
@@ -190,7 +190,7 @@
         {
           "id": "Item13",
           "type": "normal",
-          "label": "解決策に\n満足しない",
+          "label": "解決策に満足しない",
           "x": 1200,
           "y": -400,
           "width": 60,
@@ -200,7 +200,7 @@
         {
           "id": "Item14",
           "type": "normal",
-          "label": "相手に好きな\nように呼ばせる",
+          "label": "相手に好きなように呼ばせる",
           "x": 1300,
           "y": -500,
           "width": 60,
@@ -210,7 +210,7 @@
         {
           "id": "Item15",
           "type": "normal",
-          "label": "長期留学に\n行きたい",
+          "label": "長期留学に行きたい",
           "x": 1300,
           "y": 100,
           "width": 60,
@@ -220,7 +220,7 @@
         {
           "id": "Item16",
           "type": "normal",
-          "label": "長期留学に\n行かない",
+          "label": "長期留学に行かない",
           "x": 1350.0,
           "y": -200,
           "width": 60,
@@ -260,7 +260,7 @@
         {
           "id": "Item20",
           "type": "normal",
-          "label": "本当にやりたい\nことをする\nことを決意",
+          "label": "本当にやりたいことをすることを決意",
           "x": 1550.0,
           "y": 0,
           "width": 60,
@@ -270,7 +270,7 @@
         {
           "id": "Item21",
           "type": "normal",
-          "label": "新型コロナ\nパンデミック開始",
+          "label": "新型コロナパンデミック開始",
           "x": 1600,
           "y": -100,
           "width": 60,
@@ -290,7 +290,7 @@
         {
           "id": "BFP3",
           "type": "BFP",
-          "label": "英語名を\n使い続ける",
+          "label": "英語名を使い続ける",
           "x": 1700,
           "y": 100,
           "width": 60,
@@ -300,7 +300,7 @@
         {
           "id": "Item23",
           "type": "normal",
-          "label": "英語名を\n使わない",
+          "label": "英語名を使わない",
           "x": 1700,
           "y": -300,
           "width": 60,
@@ -310,7 +310,7 @@
         {
           "id": "OPP5",
           "type": "OPP",
-          "label": "様々な場面で\n英語名で呼ばれる\n経験",
+          "label": "様々な場面で英語名で呼ばれる経験",
           "x": 1800,
           "y": 200,
           "width": 60,
@@ -320,7 +320,7 @@
         {
           "id": "Item24",
           "type": "normal",
-          "label": "英語名で呼ばれる\nことに慣れる",
+          "label": "英語名で呼ばれることに慣れる",
           "x": 1850.0,
           "y": 300,
           "width": 60,
@@ -330,7 +330,7 @@
         {
           "id": "Item25",
           "type": "normal",
-          "label": "英語名で呼ばれる\nことに慣れない",
+          "label": "英語名で呼ばれることに慣れない",
           "x": 1850.0,
           "y": -100,
           "width": 60,
@@ -340,7 +340,7 @@
         {
           "id": "Item26",
           "type": "normal",
-          "label": "スムーズに\nコミュニケーション\nできない",
+          "label": "スムーズにコミュニケーションできない",
           "x": 1850.0,
           "y": -400,
           "width": 90,
@@ -350,7 +350,7 @@
         {
           "id": "EFP1",
           "type": "EFP",
-          "label": "解決策に満足し\n安定した幸福を\n維持する",
+          "label": "解決策に満足し安定した幸福を維持する",
           "x": 2000,
           "y": 200,
           "width": 90,
@@ -360,7 +360,7 @@
         {
           "id": "P_EFP1",
           "type": "P-EFP",
-          "label": "結果に不満を\n感じ不安定な\nウェルビーイング",
+          "label": "結果に不満を感じ不安定なウェルビーイング",
           "x": 2000,
           "y": -200,
           "width": 90,
@@ -670,7 +670,7 @@
         {
           "id": "SD1",
           "type": "SD",
-          "label": "自分に対する\n自信の欠如",
+          "label": "自分に対する自信の欠如",
           "attachedTo": "OPP3",
           "itemOffset": -120,
           "timeOffset": 0,
@@ -680,7 +680,7 @@
         {
           "id": "SD2",
           "type": "SD",
-          "label": "名前が覚え\nにくい",
+          "label": "名前が覚えにくい",
           "attachedTo": "OPP3",
           "itemOffset": -120,
           "timeOffset": -80,
@@ -690,7 +690,7 @@
         {
           "id": "SD3",
           "type": "SD",
-          "label": "英語に対する\n自信の欠如",
+          "label": "英語に対する自信の欠如",
           "attachedTo": "BFP2",
           "itemOffset": -120,
           "timeOffset": -60,
@@ -700,7 +700,7 @@
         {
           "id": "SD4",
           "type": "SD",
-          "label": "自分と英語力に\n対する自信の欠如",
+          "label": "自分と英語力に対する自信の欠如",
           "attachedTo": "Item15",
           "itemOffset": -120,
           "timeOffset": 20,
@@ -710,7 +710,7 @@
         {
           "id": "SD5",
           "type": "SD",
-          "label": "経済的に親に\n頼りたくない",
+          "label": "経済的に親に頼りたくない",
           "attachedTo": "Item15",
           "itemOffset": -120,
           "timeOffset": 80,
@@ -720,7 +720,7 @@
         {
           "id": "SG1",
           "type": "SG",
-          "label": "英会話教室に\n通っていた",
+          "label": "英会話教室に通っていた",
           "attachedTo": "OPP1",
           "itemOffset": 130,
           "timeOffset": 0,
@@ -730,7 +730,7 @@
         {
           "id": "SG2",
           "type": "SG",
-          "label": "名前が誰にとっても\n発音しにくい",
+          "label": "名前が誰にとっても発音しにくい",
           "attachedTo": "OPP4",
           "itemOffset": 130,
           "timeOffset": -40,
@@ -740,7 +740,7 @@
         {
           "id": "SG3",
           "type": "SG",
-          "label": "互いに心地よく\nストレスフリー",
+          "label": "互いに心地よくストレスフリー",
           "attachedTo": "BFP2",
           "itemOffset": 150,
           "timeOffset": 30,
@@ -750,7 +750,7 @@
         {
           "id": "SG4",
           "type": "SG",
-          "label": "英語名で呼ばれて\n嬉しい",
+          "label": "英語名で呼ばれて嬉しい",
           "attachedTo": "BFP2",
           "itemOffset": 150,
           "timeOffset": 80,
@@ -760,7 +760,7 @@
         {
           "id": "SG5",
           "type": "SG",
-          "label": "子供の頃からの\n海外生活への夢",
+          "label": "子供の頃からの海外生活への夢",
           "attachedTo": "Item18",
           "itemOffset": 150,
           "timeOffset": 0,
@@ -770,7 +770,7 @@
         {
           "id": "SG6",
           "type": "SG",
-          "label": "自分のお金が\nある",
+          "label": "自分のお金がある",
           "attachedTo": "Item20",
           "itemOffset": 130,
           "timeOffset": 40,
@@ -780,7 +780,7 @@
         {
           "id": "SG7",
           "type": "SG",
-          "label": "日本でかなり\n仕事をした",
+          "label": "日本でかなり仕事をした",
           "attachedTo": "Item20",
           "itemOffset": 130,
           "timeOffset": -40,
@@ -790,7 +790,7 @@
         {
           "id": "SG8",
           "type": "SG",
-          "label": "そこに行く\n強い意志",
+          "label": "そこに行く強い意志",
           "attachedTo": "Item22",
           "itemOffset": 130,
           "timeOffset": 0,
@@ -800,7 +800,7 @@
         {
           "id": "SG9",
           "type": "SG",
-          "label": "スムーズに\nコミュニケーション\nできる",
+          "label": "スムーズにコミュニケーションできる",
           "attachedTo": "BFP3",
           "itemOffset": 150,
           "timeOffset": 80,
@@ -810,7 +810,7 @@
         {
           "id": "SG10",
           "type": "SG",
-          "label": "英語名で互いに\n心地よくストレスフリー",
+          "label": "英語名で互いに心地よくストレスフリー",
           "attachedTo": "OPP5",
           "itemOffset": 150,
           "timeOffset": 40,
@@ -820,7 +820,7 @@
         {
           "id": "SG11",
           "type": "SG",
-          "label": "英語名を使う時に\n本来の自分を\n感じる",
+          "label": "英語名を使う時に本来の自分を感じる",
           "attachedTo": "EFP1",
           "itemOffset": 130,
           "timeOffset": 0,
@@ -832,32 +832,32 @@
       "comments": [],
       "periodLabels": [
         {
-          "id": "P_875135_5824",
+          "id": "P_181372_4104",
           "position": 1,
-          "label": "第1期:\n紛争前段階"
+          "label": "第1期: 紛争前段階"
         },
         {
-          "id": "P_875135_8762",
+          "id": "P_181372_6308",
           "position": 4.5,
-          "label": "第2期:\n紛争初期段階"
+          "label": "第2期: 紛争初期段階"
         },
         {
-          "id": "P_875135_7454",
+          "id": "P_181372_4502",
           "position": 10,
-          "label": "第3期:\n紛争中期段階"
+          "label": "第3期: 紛争中期段階"
         },
         {
-          "id": "P_875135_5239",
+          "id": "P_181372_7938",
           "position": 15,
-          "label": "第4期:\n紛争後段階"
+          "label": "第4期: 紛争後段階"
         }
       ]
     }
   ],
-  "activeSheetId": "Sheet_875135_3418",
+  "activeSheetId": "Sheet_181372_4970",
   "participants": [
     {
-      "id": "Part_875135_3154",
+      "id": "Part_181372_4325",
       "pseudonym": "Bowwow"
     }
   ],
