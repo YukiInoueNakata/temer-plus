@@ -47,9 +47,10 @@ webApp/*.tsbuildinfo
 # CSV データ（個人情報を含む可能性）
 中田_2024_TEMシンポ*.csv
 
-# Claude Code 関連（ローカルのみ、共有不要）
-CLAUDE.md
-# HISTORY.md / TODO.md はプロジェクト作業記録として共有
+# Markdown ドキュメント（現在は非公開）
+*.md
+**/*.md
+# LICENSE はテキストファイルなので影響なし
 
 # docs/（調査資料・文献PDF・画像はローカル保持）
 docs/
