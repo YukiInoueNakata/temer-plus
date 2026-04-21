@@ -40,7 +40,12 @@ export function computeTimeArrow(
   });
 
   // SDSG座標も含める（位置は attachedTo + offset）
+  // ただし band モード（band-top / band-bottom）の SDSG は、位置が band 配置に依存し
+  // band は時間矢印自身の位置に依存し得る（reference='timearrow' の場合）ため、
+  // 循環依存を避けるため bbox に含めない（band の実位置は band 範囲内なので
+  // time arrow は Box 群ベースで配置しておけば大きくは外れない）
   sheet.sdsg.forEach((sg) => {
+    if (sg.spaceMode === 'band-top' || sg.spaceMode === 'band-bottom') return;
     const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
     if (!attached) return;
     const isH = layout === 'horizontal';

@@ -8,6 +8,12 @@ import type { Sheet, ProjectSettings, LayoutDirection } from '../types';
 import { computeTimeArrow } from './timeArrow';
 import { computePeriodLabels } from './periodLabels';
 import { computeLegendItems } from './legend';
+import {
+  computeSDSGBandLayout,
+  sdsgBandKey,
+  computeBandRowAssignments,
+  computeSDSGBandPosition,
+} from './sdsgSpaceLayout';
 
 export interface Rect {
   x: number;
@@ -30,8 +36,108 @@ export function computeContentBounds(
     ys.push(b.y, b.y + b.height);
   });
 
-  // SDSG
+  // SDSG - band / between / attached の 3 モードを区別
+  const isH = layout === 'horizontal';
+  const bandEnabled = settings.sdsgSpace?.enabled;
+
+  // band モード事前計算（有効時のみ）
+  const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
+  if (bandEnabled) {
+    sheet.sdsg.forEach((sg) => {
+      const bk = sdsgBandKey(sg);
+      if (!bk) return;
+      let tS: number, tE: number;
+      if (sg.anchorMode === 'between' && sg.attachedTo2) {
+        const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+        if (!a || !b) return;
+        const mode = sg.betweenMode ?? 'edge-to-edge';
+        const aT = isH ? a.x : a.y;
+        const bT = isH ? b.x : b.y;
+        const aSize = isH ? a.width : a.height;
+        const bSize = isH ? b.width : b.height;
+        const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
+        const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
+        if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
+        else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
+      } else {
+        const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        if (!attached) return;
+        const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
+        const w0 = sg.spaceWidth ?? sg.width ?? 70;
+        tS = centerT - w0 / 2;
+        tE = centerT + w0 / 2;
+      }
+      bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE, rowOverride: sg.spaceRowOverride });
+    });
+  }
+  const topRows = bandEnabled && settings.sdsgSpace?.autoArrange
+    ? computeBandRowAssignments(bandEntries.top) : new Map<string, number>();
+  const bottomRows = bandEnabled && settings.sdsgSpace?.autoArrange
+    ? computeBandRowAssignments(bandEntries.bottom) : new Map<string, number>();
+  const topTotalRows = Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1));
+  const bottomTotalRows = Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1));
+  const bandLayout = bandEnabled
+    ? computeSDSGBandLayout(sheet, layout, settings, { top: topTotalRows, bottom: bottomTotalRows })
+    : {};
+
   sheet.sdsg.forEach((sg) => {
+    // --- band モード: 帯内の実位置を使用 ---
+    const bk = sdsgBandKey(sg);
+    const band = bk === 'top' ? bandLayout.topBand : bk === 'bottom' ? bandLayout.bottomBand : undefined;
+    if (bandEnabled && bk && band) {
+      const entry = bandEntries[bk].find((e) => e.id === sg.id);
+      if (entry) {
+        const rowMap = bk === 'top' ? topRows : bottomRows;
+        const totalRows = bk === 'top' ? topTotalRows : bottomTotalRows;
+        const rowIdx = rowMap.get(sg.id) ?? 0;
+        const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
+        const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
+        const bandSettings = bk === 'top' ? settings.sdsgSpace?.bands.top : settings.sdsgSpace?.bands.bottom;
+        const pos = computeSDSGBandPosition(band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk,
+          { shrinkToFitRow: bandSettings?.shrinkToFitRow !== false });
+        xs.push(pos.x, pos.x + pos.width);
+        ys.push(pos.y, pos.y + pos.height);
+        return;
+      }
+    }
+
+    // --- between モード ---
+    if (sg.anchorMode === 'between' && sg.attachedTo2) {
+      const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+      if (a && b) {
+        const mode = sg.betweenMode ?? 'edge-to-edge';
+        let startPos: number, endPos: number;
+        if (isH) {
+          const leftBox = a.x <= b.x ? a : b;
+          const rightBox = a.x <= b.x ? b : a;
+          if (mode === 'edge-to-edge') { startPos = leftBox.x + leftBox.width; endPos = rightBox.x; }
+          else { startPos = leftBox.x + leftBox.width / 2; endPos = rightBox.x + rightBox.width / 2; }
+        } else {
+          const topBox = a.y <= b.y ? a : b;
+          const botBox = a.y <= b.y ? b : a;
+          if (mode === 'edge-to-edge') { startPos = topBox.y + topBox.height; endPos = botBox.y; }
+          else { startPos = topBox.y + topBox.height / 2; endPos = botBox.y + botBox.height / 2; }
+        }
+        const timeCenter = (startPos + endPos) / 2;
+        const timeSpan = Math.max(10, Math.abs(endPos - startPos));
+        const itemA = isH ? a.y + a.height / 2 : a.x + a.width / 2;
+        const itemB = isH ? b.y + b.height / 2 : b.x + b.width / 2;
+        const itemCenter = (itemA + itemB) / 2;
+        const w = isH ? timeSpan : (sg.width ?? 70);
+        const h = isH ? (sg.height ?? 40) : timeSpan;
+        const anchorX = isH ? timeCenter : itemCenter;
+        const anchorY = isH ? itemCenter : timeCenter;
+        const x = anchorX - w / 2 + (isH ? (sg.timeOffset ?? 0) : (sg.itemOffset ?? 0));
+        const y = anchorY - h / 2 + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
+        xs.push(x, x + w);
+        ys.push(y, y + h);
+        return;
+      }
+    }
+
+    // --- attached モード（既存ロジック） ---
     const attachedBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
     let ax = 0, ay = 0;
     if (attachedBox) {
@@ -48,7 +154,6 @@ export function computeContentBounds(
         }
       }
     }
-    const isH = layout === 'horizontal';
     const timeOff = sg.timeOffset ?? 0;
     const itemOff = sg.itemOffset ?? 0;
     const w = sg.width ?? 70;
