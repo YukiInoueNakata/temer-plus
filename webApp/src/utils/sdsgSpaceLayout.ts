@@ -96,20 +96,38 @@ export function computeSDSGBandLayout(
     if (refCoord == null) return undefined;
     const offsetPx = band.offsetLevel * LEVEL_PX;
     const heightPx = band.heightLevel * LEVEL_PX;
-    // side='top': refCoord は外側（小さい y）、帯は refCoord + offset で Box 群寄りへ
-    //   start (Box 群寄り) = refCoord + offset + heightPx
-    //   end   (外側)       = refCoord + offset
-    // side='bottom': refCoord は外側（大きい y）、帯は refCoord - offset で Box 群寄りへ
-    //   start (Box 群寄り) = refCoord - offset - heightPx
-    //   end   (外側)       = refCoord - offset
-    let start: number, end: number;
+    //
+    // 基準: bandTopEndY / bandBotEndY（= Box 群寄りの内側エッジ）を offsetLevel で固定、
+    //       heightLevel 分だけ外側（参照要素寄り）へ伸ばす
+    //
+    // side='top' (horizontal layout で y 小 = 外側, y 大 = Box 群寄り)
+    //   reference='period' / 'timearrow': refCoord < Box 群（上に配置）
+    //     bandTopEndY (inner, Box 群寄り) = refCoord + offsetPx  ← 内側へ offset
+    //     bandTopY    (outer, 参照寄り)   = bandTopEndY - heightPx
+    //   reference='boxes': refCoord = Box 群上端（= 内側側の境界）
+    //     bandTopEndY (inner, Box 群寄り) = refCoord - offsetPx  ← Box 群から offset 離す
+    //     bandTopY    (outer)             = bandTopEndY - heightPx
+    //
+    // side='bottom' (horizontal layout で y 大 = 外側, y 小 = Box 群寄り)
+    //   reference='period' / 'timearrow': refCoord > Box 群
+    //     bandBotEndY (inner, Box 群寄り) = refCoord - offsetPx
+    //     bandBotY    (outer, 参照寄り)   = bandBotEndY + heightPx
+    //   reference='boxes': refCoord = Box 群下端
+    //     bandBotEndY (inner)   = refCoord + offsetPx
+    //     bandBotY    (outer)   = bandBotEndY + heightPx
+    //
+    let inner: number, outer: number;
+    const referenceIsBoxes = band.reference === 'boxes';
     if (side === 'top') {
-      end = refCoord + offsetPx;
-      start = end + heightPx;
+      inner = referenceIsBoxes ? refCoord - offsetPx : refCoord + offsetPx;
+      outer = inner - heightPx;
     } else {
-      end = refCoord - offsetPx;
-      start = end - heightPx;
+      inner = referenceIsBoxes ? refCoord + offsetPx : refCoord - offsetPx;
+      outer = inner + heightPx;
     }
+    // start = inner (Box 群寄り), end = outer
+    const start = inner;
+    const end = outer;
     const center = (start + end) / 2;
     return {
       start,

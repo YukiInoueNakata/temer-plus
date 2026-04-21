@@ -293,6 +293,13 @@ function applyProjectAdjust(d: TEMDocument, xf: ExportTransform, effectiveScale:
   if (leg.titleFontSize != null) {
     leg.titleFontSize = Math.max(xf.minFontSize, leg.titleFontSize + xf.legendFontSizeDelta);
   }
+  // SD/SG 配置 band: 座標スケールに合わせて Level 単位の設定も乗算
+  if (d.settings.sdsgSpace && effectiveScale !== 1) {
+    d.settings.sdsgSpace.bands.top.heightLevel *= effectiveScale;
+    d.settings.sdsgSpace.bands.top.offsetLevel *= effectiveScale;
+    d.settings.sdsgSpace.bands.bottom.heightLevel *= effectiveScale;
+    d.settings.sdsgSpace.bands.bottom.offsetLevel *= effectiveScale;
+  }
   // 時期区分
   d.settings.periodLabels.fontSize = Math.max(
     xf.minFontSize,

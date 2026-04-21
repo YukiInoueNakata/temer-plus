@@ -22,6 +22,12 @@ import type {
 } from '../types';
 import { computeTimeArrow } from './timeArrow';
 import { computePeriodLabels } from './periodLabels';
+import {
+  computeSDSGBandLayout,
+  sdsgBandKey,
+  computeBandRowAssignments,
+  computeSDSGBandPosition,
+} from './sdsgSpaceLayout';
 import { computeLegendItems, type LegendItem } from './legend';
 import { computeContentBounds } from './fitBounds';
 import { BOX_RENDER_SPECS } from '../store/defaults';
@@ -478,33 +484,115 @@ function drawSDSGs(
   t: Transform,
 ) {
   const isH = layout === 'horizontal';
-  for (const sg of sheet.sdsg) {
-    let anchorX = 0, anchorY = 0;
-    const attBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
-    if (attBox) {
-      anchorX = attBox.x + attBox.width / 2;
-      anchorY = attBox.y + attBox.height / 2;
+
+  // --- band モードの事前計算 ---
+  const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
+  const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number }>> = { top: [], bottom: [] };
+  sheet.sdsg.forEach((sg) => {
+    const bk = sdsgBandKey(sg);
+    if (!bk) return;
+    let tS: number, tE: number;
+    if (sg.anchorMode === 'between' && sg.attachedTo2) {
+      const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+      if (!a || !b) return;
+      const mode = sg.betweenMode ?? 'edge-to-edge';
+      const aT = isH ? a.x : a.y; const bT = isH ? b.x : b.y;
+      const aSize = isH ? a.width : a.height; const bSize = isH ? b.width : b.height;
+      const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
+      const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
+      if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
+      else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
     } else {
-      const attLine = sheet.lines.find((l) => l.id === sg.attachedTo);
-      if (attLine) {
-        const fb = sheet.boxes.find((b) => b.id === attLine.from);
-        const tb = sheet.boxes.find((b) => b.id === attLine.to);
-        if (fb && tb) {
-          anchorX = (fb.x + fb.width / 2 + tb.x + tb.width / 2) / 2;
-          anchorY = (fb.y + fb.height / 2 + tb.y + tb.height / 2) / 2;
-        } else {
-          continue;
-        }
-      } else {
-        continue;
-      }
+      const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      if (!attached) return;
+      const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
+      const w0 = sg.spaceWidth ?? sg.width ?? 70;
+      tS = centerT - w0 / 2; tE = centerT + w0 / 2;
     }
-    const timeOff = sg.timeOffset ?? 0;
-    const itemOff = sg.itemOffset ?? 0;
-    const w = sg.width ?? 70;
-    const h = sg.height ?? 40;
-    const wx = anchorX - w / 2 + (isH ? timeOff : itemOff);
-    const wy = anchorY - h / 2 + (isH ? itemOff : timeOff);
+    bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE });
+  });
+  const topRows = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(bandEntries.top) : new Map<string, number>();
+  const bottomRows = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(bandEntries.bottom) : new Map<string, number>();
+  const topTotal = Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1));
+  const bottomTotal = Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1));
+
+  for (const sg of sheet.sdsg) {
+    let wx: number, wy: number, w: number, h: number;
+
+    // band モード
+    const bk = sdsgBandKey(sg);
+    const band = bk === 'top' ? bandLayout.topBand : bk === 'bottom' ? bandLayout.bottomBand : undefined;
+    if (bk && band) {
+      const entry = bandEntries[bk].find((e) => e.id === sg.id);
+      if (!entry) continue;
+      const rowMap = bk === 'top' ? topRows : bottomRows;
+      const totalRows = bk === 'top' ? topTotal : bottomTotal;
+      const rowIdx = rowMap.get(sg.id) ?? 0;
+      const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
+      const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
+      const pos = computeSDSGBandPosition(band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk);
+      wx = pos.x; wy = pos.y; w = pos.width; h = pos.height;
+    } else if (sg.anchorMode === 'between' && sg.attachedTo2) {
+      // between モード
+      const boxA = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      const boxB = sheet.boxes.find((b) => b.id === sg.attachedTo2);
+      if (!boxA || !boxB) continue;
+      const mode = sg.betweenMode ?? 'edge-to-edge';
+      let startPos: number, endPos: number;
+      if (isH) {
+        const leftBox = boxA.x <= boxB.x ? boxA : boxB;
+        const rightBox = boxA.x <= boxB.x ? boxB : boxA;
+        if (mode === 'edge-to-edge') { startPos = leftBox.x + leftBox.width; endPos = rightBox.x; }
+        else { startPos = leftBox.x + leftBox.width / 2; endPos = rightBox.x + rightBox.width / 2; }
+      } else {
+        const topBox = boxA.y <= boxB.y ? boxA : boxB;
+        const botBox = boxA.y <= boxB.y ? boxB : boxA;
+        if (mode === 'edge-to-edge') { startPos = topBox.y + topBox.height; endPos = botBox.y; }
+        else { startPos = topBox.y + topBox.height / 2; endPos = botBox.y + botBox.height / 2; }
+      }
+      const timeCenter = (startPos + endPos) / 2;
+      const timeSpan = Math.max(10, Math.abs(endPos - startPos));
+      const itemA = isH ? boxA.y + boxA.height / 2 : boxA.x + boxA.width / 2;
+      const itemB = isH ? boxB.y + boxB.height / 2 : boxB.x + boxB.width / 2;
+      const itemCenter = (itemA + itemB) / 2;
+      w = isH ? timeSpan : (sg.width ?? 70);
+      h = isH ? (sg.height ?? 40) : timeSpan;
+      const anchorX = isH ? timeCenter : itemCenter;
+      const anchorY = isH ? itemCenter : timeCenter;
+      wx = anchorX - w / 2 + (isH ? (sg.timeOffset ?? 0) : (sg.itemOffset ?? 0));
+      wy = anchorY - h / 2 + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
+    } else {
+      // single モード（既存）
+      let anchorX = 0, anchorY = 0;
+      const attBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      if (attBox) {
+        anchorX = attBox.x + attBox.width / 2;
+        anchorY = attBox.y + attBox.height / 2;
+      } else {
+        const attLine = sheet.lines.find((l) => l.id === sg.attachedTo);
+        if (attLine) {
+          const fb = sheet.boxes.find((b) => b.id === attLine.from);
+          const tb = sheet.boxes.find((b) => b.id === attLine.to);
+          if (fb && tb) {
+            anchorX = (fb.x + fb.width / 2 + tb.x + tb.width / 2) / 2;
+            anchorY = (fb.y + fb.height / 2 + tb.y + tb.height / 2) / 2;
+          } else { continue; }
+        } else { continue; }
+      }
+      const timeOff = sg.timeOffset ?? 0;
+      const itemOff = sg.itemOffset ?? 0;
+      w = sg.width ?? 70;
+      h = sg.height ?? 40;
+      wx = anchorX - w / 2 + (isH ? timeOff : itemOff);
+      wy = anchorY - h / 2 + (isH ? itemOff : timeOff);
+    }
+    // anchorX/anchorY 相当（回転矩形計算用）
+    const anchorX = wx + w / 2;
+    const anchorY = wy + h / 2;
+    const timeOff = 0;  // 既に wx/wy に織り込まれている
+    const itemOff = 0;
+    void timeOff; void itemOff; void anchorX; void anchorY;
 
     // ブロック矢印（rightArrow）は既定で右向き
     // 横型: SD=下向き(90°), SG=上向き(270°)
@@ -529,8 +617,9 @@ function drawSDSGs(
       rectW = h;
       rectH = w;
     }
-    const rectX = anchorX - rectW / 2 + (isH ? timeOff : itemOff);
-    const rectY = anchorY - rectH / 2 + (isH ? itemOff : timeOff);
+    // wx/wy は左上。中心は wx + w/2, wy + h/2。rectW/H に中心を合わせる
+    const rectX = wx + w / 2 - rectW / 2;
+    const rectY = wy + h / 2 - rectH / 2;
 
     slide.addShape(pres.ShapeType.rightArrow, {
       x: t.toX(rectX),
