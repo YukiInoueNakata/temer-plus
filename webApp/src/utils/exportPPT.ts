@@ -19,6 +19,7 @@ import type {
   LegendSettings,
   PeriodLabelSettings,
   TimeArrowSettings,
+  SDSGSpaceSettings,
 } from '../types';
 import { computeTimeArrow } from './timeArrow';
 import { computePeriodLabels } from './periodLabels';
@@ -86,8 +87,8 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   // 背景は未設定
 
   // 描画（背面 → 前面の順）
-  drawTimeArrow(pres, slide, opts.sheet, layout, opts.settings.timeArrow, t);
-  drawPeriodLabels(pres, slide, opts.sheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t);
+  drawTimeArrow(pres, slide, opts.sheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace);
+  drawPeriodLabels(pres, slide, opts.sheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace);
   drawLines(pres, slide, opts.sheet, layout, t);
   drawSDSGs(pres, slide, opts.sheet, layout, opts.settings, t);
   drawBoxes(pres, slide, opts.sheet, layout, opts.settings, t);
@@ -775,9 +776,10 @@ function drawTimeArrow(
   layout: LayoutDirection,
   settings: TimeArrowSettings,
   t: Transform,
+  sdsgSpace?: SDSGSpaceSettings,
 ) {
   if (!settings || !settings.autoInsert) return;
-  const arrow = computeTimeArrow(sheet, layout, settings);
+  const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace);
   if (!arrow) return;
 
   const minX = Math.min(arrow.startX, arrow.endX);
@@ -856,10 +858,11 @@ function drawPeriodLabels(
   settings: PeriodLabelSettings,
   timeArrow: TimeArrowSettings,
   t: Transform,
+  sdsgSpace?: SDSGSpaceSettings,
 ) {
   if (!settings || !settings.includeInExport) return;
   if (sheet.periodLabels.length === 0) return;
-  const geom = computePeriodLabels(sheet, layout, settings, timeArrow);
+  const geom = computePeriodLabels(sheet, layout, settings, timeArrow, sdsgSpace);
   if (!geom) return;
 
   const isH = layout === 'horizontal';

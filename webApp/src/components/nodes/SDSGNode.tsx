@@ -7,10 +7,11 @@
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { Handle, Position, type NodeProps } from 'reactflow';
+import { Handle, NodeResizer, Position, type NodeProps } from 'reactflow';
 import type { SDSG } from '../../types';
 import { renderVerticalAwareText } from '../../utils/verticalText';
 import { useTEMView } from '../../context/TEMViewContext';
+import { useTEMStore } from '../../store/store';
 
 export interface SDSGNodeData extends Pick<
   SDSG,
@@ -20,6 +21,8 @@ export interface SDSGNodeData extends Pick<
   'asciiUpright'
 > {
   id: string;
+  // 配置モード（resize 時に width/height か spaceWidth/spaceHeight を更新するか判定）
+  spaceMode?: 'attached' | 'band-top' | 'band-bottom';
   // 方向点を反転して描画するか（band 配置 + 種別ミスマッチ時に使用）
   flipDirection?: boolean;
   // 帯範囲クランプされてはみ出した表示用（赤枠）
@@ -32,10 +35,35 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const typeLabelVisibility = view.settings.typeLabelVisibility;
   const updateSDSG = view.updateSDSG;
   const isPreview = view.isPreview;
+  const editLocked = view.editLocked ?? false;
+  const resizeDisabled = isPreview || editLocked;
   // 移動モードでもダブルクリック編集は許可。preview 時のみ抑止
   const editingDisabled = isPreview;
   const width = data.width ?? 70;
   const height = data.height ?? 40;
+
+  // NodeResizer: 現在の配置モードに応じて width/height or spaceWidth/spaceHeight を更新
+  const isBandMode = data.spaceMode === 'band-top' || data.spaceMode === 'band-bottom';
+  const resizing = useRef(false);
+  const onResizeStart = () => {
+    if (resizing.current) return;
+    resizing.current = true;
+    useTEMStore.temporal.getState().pause();
+  };
+  const onResize = (_e: unknown, params: { width: number; height: number }) => {
+    const w = Math.max(10, Math.round(params.width));
+    const h = Math.max(10, Math.round(params.height));
+    if (isBandMode) {
+      updateSDSG(nodeId, { spaceWidth: w, spaceHeight: h });
+    } else {
+      updateSDSG(nodeId, { width: w, height: h });
+    }
+  };
+  const onResizeEnd = () => {
+    if (!resizing.current) return;
+    resizing.current = false;
+    useTEMStore.temporal.getState().resume();
+  };
   // flipDirection=true の場合は種別と逆向きに点を描画（band 配置時の方向点自動反転用）
   const isSD = data.flipDirection ? data.type === 'SG' : data.type === 'SD';
   const isHorizontalLayout = layout === 'horizontal';
@@ -84,14 +112,14 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
     }
   } else {
     // 縦型: 矩形左右、三角が左右に出る
-    // SD: 右向き（矩形左 + 三角右）
-    // SG: 左向き（三角左 + 矩形右）
+    // SD: 左向き（三角左 + 矩形右）→ SD は Box の右側にあり、Box を指す（左）
+    // SG: 右向き（矩形左 + 三角右）→ SG は Box の左側にあり、Box を指す（右）
     if (isSD) {
-      const rectRight = width * rectRatio;
-      points = `0,0 ${rectRight},0 ${width},${height / 2} ${rectRight},${height} 0,${height}`;
-    } else {
       const rectLeft = width * triRatio;
       points = `${rectLeft},0 ${width},0 ${width},${height} ${rectLeft},${height} 0,${height / 2}`;
+    } else {
+      const rectRight = width * rectRatio;
+      points = `0,0 ${rectRight},0 ${width},${height / 2} ${rectRight},${height} 0,${height}`;
     }
   }
 
@@ -109,13 +137,14 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const typeFontStyle = data.typeLabelItalic ? 'italic' : 'normal';
   const typeFontFamily = data.typeLabelFontFamily ?? 'inherit';
 
-  // SD = 上（横型）/ 左（縦型）、SG = 下（横型）/ 右（縦型）
+  // SD = 上（横型）/ 右（縦型）、SG = 下（横型）/ 左（縦型）
+  // typeTag は SDSG の外側（Box と反対側）に表示
   const typeTagStyle: React.CSSProperties = isVerticalLayout
     ? isSD
       ? {
           position: 'absolute',
           top: '50%',
-          right: `calc(100% + 6px)`,
+          left: `calc(100% + 6px)`,
           transform: 'translateY(-50%)',
           fontSize: typeFontSize,
           padding: '2px 4px',
@@ -131,7 +160,7 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
       : {
           position: 'absolute',
           top: '50%',
-          left: `calc(100% + 6px)`,
+          right: `calc(100% + 6px)`,
           transform: 'translateY(-50%)',
           fontSize: typeFontSize,
           padding: '2px 4px',
@@ -218,6 +247,16 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
         setEditing(true);
       }}
     >
+      <NodeResizer
+        isVisible={!!selected && !editing && !resizeDisabled}
+        minWidth={20}
+        minHeight={15}
+        handleStyle={{ width: 8, height: 8, borderRadius: 2, background: '#2684ff', border: '1px solid #fff' }}
+        lineStyle={{ borderColor: '#2684ff' }}
+        onResizeStart={onResizeStart}
+        onResize={onResize}
+        onResizeEnd={onResizeEnd}
+      />
       <svg
         width={width}
         height={height}

@@ -265,10 +265,18 @@ export function computeSDSGBandPosition(
     if (!isH && effectiveWidth > maxItemSize) effectiveWidth = maxItemSize;
   }
 
-  // row 配置の Item 軸座標
+  // row 配置: SDSG の apex (先端) が band の apex 側のエッジに揃うよう配置する。
+  //   横型: apex = Box 側（inner）。SG apex = 上（band inner = band.start）、SD apex = 下（band inner = band.start）。
+  //     → アンカー = band.start（Box 側）
+  //   縦型: apex = Box の反対側（outer）。SG apex = 右、SD apex = 左。
+  //     → アンカー = band.end（外側）
+  // row が増えるほど反対側のエッジに向かって積まれる。
   const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;
-  const dir = side === 'top' ? -1 : 1;
-  const rowCenter = band.start + dir * (rowSpan * (rowIndex + 0.5));
+  const anchorBandCoord = isH ? band.start : band.end;
+  const otherBandCoord = isH ? band.end : band.start;
+  const dir = Math.sign(otherBandCoord - anchorBandCoord) || (side === 'top' ? -1 : 1);
+  const itemAxisSize = isH ? effectiveHeight : effectiveWidth;
+  const rowCenter = anchorBandCoord + dir * (rowIndex * rowSpan + itemAxisSize / 2);
   const insetItem = sg.spaceInsetItem ?? 0;
   const axisCoord = rowCenter + insetItem;
 
@@ -277,24 +285,21 @@ export function computeSDSGBandPosition(
   const insetTime = isBetween ? 0 : (sg.spaceInsetTime ?? 0);
   const timeCoord = timeAnchor + insetTime;
 
-  // 帯範囲内に Item 軸をクランプ
-  const axisMin = Math.min(band.start, band.end);
-  const axisMax = Math.max(band.start, band.end);
-  const halfItem = (isH ? effectiveHeight : effectiveWidth) / 2;
-  const clamped = Math.max(axisMin + halfItem, Math.min(axisMax - halfItem, axisCoord));
-  const outOfRange = Math.abs(clamped - axisCoord) > 0.5;
+  // クランプは行わず、SDSG の実サイズと inset を尊重する。
+  // band 範囲を超えるときだけ outOfRange=true にして描画側で警告枠を出す。
+  const outOfRange = (rowIndex * rowSpan + itemAxisSize) > band.axisSpan + 1;
 
   if (isH) {
     return {
       x: timeCoord - effectiveWidth / 2,
-      y: clamped - effectiveHeight / 2,
+      y: axisCoord - effectiveHeight / 2,
       width: effectiveWidth,
       height: effectiveHeight,
       outOfRange,
     };
   }
   return {
-    x: clamped - effectiveWidth / 2,
+    x: axisCoord - effectiveWidth / 2,
     y: timeCoord - effectiveHeight / 2,
     width: effectiveWidth,
     height: effectiveHeight,

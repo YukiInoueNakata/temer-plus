@@ -2,7 +2,7 @@
 // 非可逆的時間矢印の計算
 // ============================================================================
 
-import type { Sheet, TimeArrowSettings, LayoutDirection } from '../types';
+import type { Sheet, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings } from '../types';
 import { LEVEL_PX } from '../store/defaults';
 
 export interface TimeArrowGeometry {
@@ -28,6 +28,9 @@ export function computeTimeArrow(
   sheet: Sheet,
   layout: LayoutDirection,
   settings: TimeArrowSettings,
+  // band 範囲を bbox に含めたいときに sdsgSpace を渡す。
+  // sdsgSpaceLayout からの呼び出しでは循環回避のため省略する。
+  sdsgSpace?: SDSGSpaceSettings,
 ): TimeArrowGeometry | null {
   if (sheet.boxes.length === 0) return null;
 
@@ -40,10 +43,8 @@ export function computeTimeArrow(
   });
 
   // SDSG座標も含める（位置は attachedTo + offset）
-  // ただし band モード（band-top / band-bottom）の SDSG は、位置が band 配置に依存し
-  // band は時間矢印自身の位置に依存し得る（reference='timearrow' の場合）ため、
-  // 循環依存を避けるため bbox に含めない（band の実位置は band 範囲内なので
-  // time arrow は Box 群ベースで配置しておけば大きくは外れない）
+  // band モード SDSG は band 配置に依存し循環のリスクがあるため、band 範囲を
+  // 「boxes 基準の最外エッジ」として近似的に xs/ys に追加する（下の sdsgSpace ブロック）。
   sheet.sdsg.forEach((sg) => {
     if (sg.spaceMode === 'band-top' || sg.spaceMode === 'band-bottom') return;
     const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
@@ -56,6 +57,30 @@ export function computeTimeArrow(
     xs.push(sgX, sgX + sgW);
     ys.push(sgY, sgY + sgH);
   });
+
+  // band 範囲を bbox に反映（band-mode SDSG が存在するときのみ）。
+  // 循環を避けるため、reference='timearrow' の band はスキップ（自己参照）。
+  if (sdsgSpace?.enabled && sheet.boxes.length > 0) {
+    const isHLocal = layout === 'horizontal';
+    const boxMinX = Math.min(...sheet.boxes.map((b) => b.x));
+    const boxMaxX = Math.max(...sheet.boxes.map((b) => b.x + b.width));
+    const boxMinY = Math.min(...sheet.boxes.map((b) => b.y));
+    const boxMaxY = Math.max(...sheet.boxes.map((b) => b.y + b.height));
+    const topHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-top');
+    const bottomHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-bottom');
+    if (topHasSDSG && sdsgSpace.bands.top.enabled && sdsgSpace.bands.top.reference !== 'timearrow') {
+      const b = sdsgSpace.bands.top;
+      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
+      if (isHLocal) ys.push(boxMinY - ext);
+      else xs.push(boxMinX - ext);
+    }
+    if (bottomHasSDSG && sdsgSpace.bands.bottom.enabled && sdsgSpace.bands.bottom.reference !== 'timearrow') {
+      const b = sdsgSpace.bands.bottom;
+      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
+      if (isHLocal) ys.push(boxMaxY + ext);
+      else xs.push(boxMaxX + ext);
+    }
+  }
 
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);

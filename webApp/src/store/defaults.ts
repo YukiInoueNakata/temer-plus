@@ -127,7 +127,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
         borderColor: '#9b59b6',
         fillStyle: 'tinted',
         labelPosition: 'top-left',
-        shrinkToFitRow: true,
+        shrinkToFitRow: false,
         autoExpandHeight: false,
       },
       bottom: {
@@ -139,7 +139,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
         borderColor: '#27ae60',
         fillStyle: 'tinted',
         labelPosition: 'top-left',
-        shrinkToFitRow: true,
+        shrinkToFitRow: false,
         autoExpandHeight: false,
       },
     },

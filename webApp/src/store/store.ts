@@ -865,13 +865,18 @@ export const useTEMStore = create<Store>()(
         const id = partial.id ?? `${prefix}${maxN + 1}`;
         set((st) => ({
           doc: mutateActiveSheet(st.doc, (sh) => {
+            // itemOffset 既定は layout に依存:
+            //   横型: IL+ = y-（上方向）。SD は +IL 方向なので itemOff=-80（y 減）。
+            //   縦型: IL+ = x+（右方向）。SD は +IL 方向なので itemOff=+80（x 増）。
+            const layout = st.doc.settings.layout;
+            const sdItemOff = layout === 'horizontal' ? -80 : 80;
+            const sgItemOff = -sdItemOff;
             const defaults: SDSG = {
               id,
               type: partial.type,
               label: partial.type,
               attachedTo: partial.attachedTo,
-              // SD は上方向（Item負方向）、SG は下方向（Item正方向）
-              itemOffset: partial.type === 'SD' ? -80 : 80,
+              itemOffset: partial.type === 'SD' ? sdItemOff : sgItemOff,
               timeOffset: 0,
               width: 70,
               height: 40,
@@ -902,20 +907,42 @@ export const useTEMStore = create<Store>()(
       setSDSGSpaceMode: (ids, mode) => {
         const set_ = new Set(ids);
         set((state) => ({
-          doc: mutateActiveSheet(state.doc, (sheet) => {
-            const allowMismatched = state.doc.settings.sdsgSpace?.allowMismatchedPlacement ?? false;
-            sheet.sdsg.forEach((s) => {
+          doc: produce(state.doc, (d) => {
+            // band モードへ切替時、sdsgSpace が未有効なら自動有効化
+            if (mode === 'band-top' || mode === 'band-bottom') {
+              if (!d.settings.sdsgSpace) return;
+              d.settings.sdsgSpace.enabled = true;
+              if (mode === 'band-top') {
+                d.settings.sdsgSpace.bands.top.enabled = true;
+                d.settings.sdsgSpace.bands.top.showBorder = true;
+              } else {
+                d.settings.sdsgSpace.bands.bottom.enabled = true;
+                d.settings.sdsgSpace.bands.bottom.showBorder = true;
+              }
+            }
+            const activeSheet = d.sheets.find((sh) => sh.id === d.activeSheetId);
+            if (!activeSheet) return;
+            const allowMismatched = d.settings.sdsgSpace?.allowMismatchedPlacement ?? false;
+            activeSheet.sdsg.forEach((s) => {
               if (!set_.has(s.id)) return;
               // 種別と帯の組合せチェック
               if (!allowMismatched) {
                 if (mode === 'band-top' && s.type === 'SG') return;   // skip
                 if (mode === 'band-bottom' && s.type === 'SD') return;
               }
+              const prevMode = s.spaceMode ?? 'attached';
               s.spaceMode = mode;
               // モード切替時は offset をリセット
               s.timeOffset = 0;
               s.itemOffset = 0;
               s.spaceInsetItem = 0;
+              s.spaceInsetTime = 0;
+              // attached → band の切替時は、現在の width/height を
+              // 必ず spaceWidth/spaceHeight に上書きコピー（元サイズの保持）
+              if ((mode === 'band-top' || mode === 'band-bottom') && prevMode === 'attached') {
+                s.spaceWidth = s.width ?? 70;
+                s.spaceHeight = s.height ?? 40;
+              }
             });
           }),
           dirty: true,
@@ -1516,17 +1543,46 @@ export const useTEMStore = create<Store>()(
         set((state) => {
           const currentLayout = state.doc.settings.layout;
           if (currentLayout === layout) return state;
-          // レイアウト切替時: 全Box の x/y, width/height をスワップ
-          // (時間軸が90度回転し、Box も縦長⇔横長に)
+          // レイアウト切替時: Item_Level の意味を保持するため、座標を 90° 回転させる。
+          // 座標系:
+          //   横型: ItemLevel = -(y + h/2)/100  (上=+)
+          //   縦型: ItemLevel =  (x + w/2)/100  (右=+)
+          // 回転後の top-left 座標式（中心基準の保存から導出）:
+          //   h → v: new_x = -(y + h),  new_y = x
+          //   v → h: new_x = y,          new_y = -(x + w)
+          //   いずれも new_w = old_h, new_h = old_w
           return {
             doc: produce(state.doc, (d) => {
               d.settings.layout = layout;
               d.metadata.modifiedAt = new Date().toISOString();
+              const toVertical = layout === 'vertical';
               d.sheets.forEach((sheet) => {
                 sheet.boxes.forEach((b) => {
-                  const tmpPos = b.x; b.x = b.y; b.y = tmpPos;
-                  const tmpSize = b.width; b.width = b.height; b.height = tmpSize;
+                  const ox = b.x, oy = b.y, ow = b.width, oh = b.height;
+                  if (toVertical) {
+                    b.x = -(oy + oh);
+                    b.y = ox;
+                  } else {
+                    b.x = oy;
+                    b.y = -(ox + ow);
+                  }
+                  b.width = oh;
+                  b.height = ow;
                   b.textOrientation = layout === 'horizontal' ? 'vertical' : 'horizontal';
+                });
+                // SDSG も同じ rotation を適用する:
+                //  - width/height, spaceWidth/spaceHeight は swap（視覚的な -90° 回転）
+                //  - itemOffset / spaceInsetItem は符号反転（IL 方向が反転するため）
+                //  - timeOffset / spaceInsetTime は据え置き（time 軸方向は保存される）
+                sheet.sdsg.forEach((sg) => {
+                  if (sg.width != null && sg.height != null) {
+                    const tw = sg.width; sg.width = sg.height; sg.height = tw;
+                  }
+                  if (sg.spaceWidth != null && sg.spaceHeight != null) {
+                    const tw = sg.spaceWidth; sg.spaceWidth = sg.spaceHeight; sg.spaceHeight = tw;
+                  }
+                  if (sg.itemOffset != null) sg.itemOffset = -sg.itemOffset;
+                  if (sg.spaceInsetItem != null) sg.spaceInsetItem = -sg.spaceInsetItem;
                 });
               });
             }),

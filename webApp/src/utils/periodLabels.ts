@@ -4,7 +4,7 @@
 // - 高さは最大Item_Level+2 がデフォルト（調整可）
 // ============================================================================
 
-import type { Sheet, PeriodLabelSettings, TimeArrowSettings, LayoutDirection } from '../types';
+import type { Sheet, PeriodLabelSettings, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings } from '../types';
 import { LEVEL_PX } from '../store/defaults';
 
 export interface PeriodLabelGeometry {
@@ -26,6 +26,9 @@ export function computePeriodLabels(
   layout: LayoutDirection,
   settings: PeriodLabelSettings,
   timeArrowSettings: TimeArrowSettings,
+  // band 範囲を bbox に含めたいときに sdsgSpace を渡す。
+  // sdsgSpaceLayout 自身からの呼び出しでは循環回避のため省略する。
+  sdsgSpace?: SDSGSpaceSettings,
 ): PeriodLabelGeometry | null {
   if (sheet.periodLabels.length === 0 && !settings.alwaysVisible) return null;
 
@@ -37,6 +40,8 @@ export function computePeriodLabels(
     ys.push(b.y, b.y + b.height);
   });
   sheet.sdsg.forEach((sg) => {
+    // band-mode SDSG は下の sdsgSpace ブロックで近似拡張する
+    if (sg.spaceMode === 'band-top' || sg.spaceMode === 'band-bottom') return;
     const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
     if (!attached) return;
     const isH = layout === 'horizontal';
@@ -47,6 +52,31 @@ export function computePeriodLabels(
     xs.push(sgX, sgX + sgW);
     ys.push(sgY, sgY + sgH);
   });
+
+  // band 範囲を bbox に反映（band-mode SDSG が存在するときのみ）。
+  // 循環を避けるため、reference='period' の band はスキップ（自己参照）。
+  if (sdsgSpace?.enabled && sheet.boxes.length > 0) {
+    const isHLocal = layout === 'horizontal';
+    const boxMinX = Math.min(...sheet.boxes.map((b) => b.x));
+    const boxMaxX = Math.max(...sheet.boxes.map((b) => b.x + b.width));
+    const boxMinY = Math.min(...sheet.boxes.map((b) => b.y));
+    const boxMaxY = Math.max(...sheet.boxes.map((b) => b.y + b.height));
+    const topHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-top');
+    const bottomHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-bottom');
+    if (topHasSDSG && sdsgSpace.bands.top.enabled && sdsgSpace.bands.top.reference !== 'period') {
+      const b = sdsgSpace.bands.top;
+      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
+      if (isHLocal) ys.push(boxMinY - ext);
+      else xs.push(boxMinX - ext);
+    }
+    if (bottomHasSDSG && sdsgSpace.bands.bottom.enabled && sdsgSpace.bands.bottom.reference !== 'period') {
+      const b = sdsgSpace.bands.bottom;
+      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
+      if (isHLocal) ys.push(boxMaxY + ext);
+      else xs.push(boxMaxX + ext);
+    }
+  }
+
   if (xs.length === 0) return null;
 
   const minX = Math.min(...xs);

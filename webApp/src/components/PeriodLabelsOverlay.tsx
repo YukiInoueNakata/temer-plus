@@ -15,12 +15,13 @@ export function PeriodLabelsOverlay({ onOpenSettings }: { onOpenSettings?: () =>
   const layout = view.settings.layout;
   const settings = view.settings.periodLabels;
   const timeArrowSettings = view.settings.timeArrow;
+  const sdsgSpace = view.settings.sdsgSpace;
   const transform = useReactFlowStore((s) => s.transform);
 
   if (!sheet || !settings.alwaysVisible) return null;
   if (sheet.periodLabels.length === 0) return null;
 
-  const geom = computePeriodLabels(sheet, layout, settings, timeArrowSettings);
+  const geom = computePeriodLabels(sheet, layout, settings, timeArrowSettings, sdsgSpace);
   if (!geom) return null;
 
   const [panX, panY, zoom] = transform;

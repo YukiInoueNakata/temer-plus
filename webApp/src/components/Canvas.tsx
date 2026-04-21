@@ -241,9 +241,12 @@ function CanvasInner({
         const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
         if (!attached) return;
         const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
-        const w = sg.spaceWidth ?? sg.width ?? 70;
-        timeStart = centerT - w / 2;
-        timeEnd = centerT + w / 2;
+        // time 軸方向のサイズ: 横型 = spaceWidth / 縦型 = spaceHeight
+        const timeAxisSize = isH
+          ? (sg.spaceWidth ?? sg.width ?? 70)
+          : (sg.spaceHeight ?? sg.height ?? 40);
+        timeStart = centerT - timeAxisSize / 2;
+        timeEnd = centerT + timeAxisSize / 2;
       }
       bandSdsgsByBand[bk].push({ id: sg.id, timeStart, timeEnd, rowOverride: sg.spaceRowOverride, ref: sg });
     });
@@ -296,6 +299,7 @@ function CanvasInner({
             data: {
               id: sg.id, type: sg.type, label: sg.label,
               width: pos.width, height: pos.height,
+              spaceMode: sg.spaceMode,
               style: sg.style, rectRatio: sg.rectRatio,
               flipDirection: shouldFlip,
               outOfRange: pos.outOfRange,
@@ -373,6 +377,7 @@ function CanvasInner({
           selected: selSdsgIds.has(sg.id),
           data: {
             id: sg.id, type: sg.type, label: sg.label, width: w, height: h,
+            spaceMode: sg.spaceMode,
             style: sg.style, rectRatio: sg.rectRatio,
             subLabel: sg.subLabel, subLabelOffsetX: sg.subLabelOffsetX,
             subLabelOffsetY: sg.subLabelOffsetY, subLabelFontSize: sg.subLabelFontSize,
@@ -420,6 +425,7 @@ function CanvasInner({
         selected: selSdsgIds.has(sg.id),
         data: {
           id: sg.id, type: sg.type, label: sg.label, width: w, height: h,
+          spaceMode: sg.spaceMode,
           style: sg.style, rectRatio: sg.rectRatio,
           subLabel: sg.subLabel, subLabelOffsetX: sg.subLabelOffsetX,
           subLabelOffsetY: sg.subLabelOffsetY, subLabelFontSize: sg.subLabelFontSize,
@@ -574,11 +580,13 @@ function CanvasInner({
                   .map((s) => {
                     const a = sheet.boxes.find((b) => b.id === s.attachedTo);
                     const centerT = a ? (isH ? a.x + a.width / 2 : a.y + a.height / 2) : 0;
-                    const w0 = s.spaceWidth ?? s.width ?? 70;
+                    const taxSize = isH
+                      ? (s.spaceWidth ?? s.width ?? 70)
+                      : (s.spaceHeight ?? s.height ?? 40);
                     return {
                       id: s.id,
-                      timeStart: centerT - w0 / 2,
-                      timeEnd: centerT + w0 / 2,
+                      timeStart: centerT - taxSize / 2,
+                      timeEnd: centerT + taxSize / 2,
                       rowOverride: s.spaceRowOverride,
                     };
                   });
@@ -587,8 +595,14 @@ function CanvasInner({
                 const totalRows = Math.max(1, ...Array.from(rowMap.values()).map((v) => v + 1));
                 const rowIdx = rowMap.get(sdsgItem.id) ?? 0;
                 const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;
-                const dir = bk === 'top' ? -1 : 1;
-                const rowCenter = band.start + dir * (rowSpan * (rowIdx + 0.5));
+                // rowCenter 計算は computeSDSGBandPosition と同じ layout 依存のアンカー
+                const anchorBandCoord = isH ? band.start : band.end;
+                const otherBandCoord = isH ? band.end : band.start;
+                const dir = Math.sign(otherBandCoord - anchorBandCoord) || (bk === 'top' ? -1 : 1);
+                const itemAxisSize = isH
+                  ? (sdsgItem.spaceHeight ?? sdsgItem.height ?? 40)
+                  : (sdsgItem.spaceWidth ?? sdsgItem.width ?? 70);
+                const rowCenter = anchorBandCoord + dir * (rowIdx * rowSpan + itemAxisSize / 2);
                 // ドラッグ後の中心座標
                 const w = sdsgItem.spaceWidth ?? sdsgItem.width ?? 70;
                 const h = sdsgItem.spaceHeight ?? sdsgItem.height ?? 40;
@@ -984,10 +998,11 @@ export function TimeArrowOverlay({ onOpenSettings }: { onOpenSettings?: () => vo
   const sheet = view.sheet;
   const layout = view.settings.layout;
   const settings = view.settings.timeArrow;
+  const sdsgSpace = view.settings.sdsgSpace;
   const transform = useReactFlowStore((s) => s.transform);
 
   if (!sheet || !settings.alwaysVisible) return null;
-  const arrow = computeTimeArrow(sheet, layout, settings);
+  const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace);
   if (!arrow) return null;
 
   const editable = !!onOpenSettings && !view.isPreview;
@@ -1387,6 +1402,11 @@ function SDSGBandOverlay() {
   const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
   const isH = layout === 'horizontal';
 
+  // 各 band に現在割り当てられている SDSG の数を集計
+  // （SDSG が存在しない帯はオーバーレイを表示しない：空の帯は出さないポリシー）
+  const topHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-top');
+  const bottomHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-bottom');
+
   // ラベル位置の style を返す
   const labelStyleFor = (pos: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'none', color: string, scale: number): React.CSSProperties | null => {
     if (pos === 'none') return null;
@@ -1455,10 +1475,10 @@ function SDSGBandOverlay() {
 
   return (
     <>
-      {bandLayout.topBand && settings.sdsgSpace?.bands.top.showBorder &&
-        renderBand(bandLayout.topBand, isH ? '上部帯 (SD)' : '左側帯 (SD)', settings.sdsgSpace.bands.top, '#9b59b6')}
-      {bandLayout.bottomBand && settings.sdsgSpace?.bands.bottom.showBorder &&
-        renderBand(bandLayout.bottomBand, isH ? '下部帯 (SG)' : '右側帯 (SG)', settings.sdsgSpace.bands.bottom, '#27ae60')}
+      {topHasSDSG && bandLayout.topBand && settings.sdsgSpace?.bands.top.showBorder &&
+        renderBand(bandLayout.topBand, isH ? '上部 (SD)' : '左側 (SD)', settings.sdsgSpace.bands.top, '#9b59b6')}
+      {bottomHasSDSG && bandLayout.bottomBand && settings.sdsgSpace?.bands.bottom.showBorder &&
+        renderBand(bandLayout.bottomBand, isH ? '下部 (SG)' : '右側 (SG)', settings.sdsgSpace.bands.bottom, '#27ae60')}
     </>
   );
 }

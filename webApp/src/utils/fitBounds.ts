@@ -64,9 +64,11 @@ export function computeContentBounds(
         const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
         if (!attached) return;
         const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
-        const w0 = sg.spaceWidth ?? sg.width ?? 70;
-        tS = centerT - w0 / 2;
-        tE = centerT + w0 / 2;
+        const timeAxisSize = isH
+          ? (sg.spaceWidth ?? sg.width ?? 70)
+          : (sg.spaceHeight ?? sg.height ?? 40);
+        tS = centerT - timeAxisSize / 2;
+        tE = centerT + timeAxisSize / 2;
       }
       bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE, rowOverride: sg.spaceRowOverride });
     });
@@ -166,7 +168,7 @@ export function computeContentBounds(
 
   // 時間矢印（alwaysVisible 問わず計算可能なら含める）
   if (settings.timeArrow) {
-    const arrow = computeTimeArrow(sheet, layout, settings.timeArrow);
+    const arrow = computeTimeArrow(sheet, layout, settings.timeArrow, settings.sdsgSpace);
     if (arrow) {
       xs.push(arrow.startX, arrow.endX, arrow.labelX);
       ys.push(arrow.startY, arrow.endY, arrow.labelY);
@@ -175,7 +177,7 @@ export function computeContentBounds(
 
   // 時期ラベル
   if (settings.periodLabels && sheet.periodLabels.length > 0) {
-    const geom = computePeriodLabels(sheet, layout, settings.periodLabels, settings.timeArrow);
+    const geom = computePeriodLabels(sheet, layout, settings.periodLabels, settings.timeArrow, settings.sdsgSpace);
     if (geom) {
       xs.push(geom.startX, geom.endX);
       ys.push(geom.startY, geom.endY);
