@@ -8,8 +8,13 @@ import { useTEMStore } from '../store/store';
 
 export function ShiftContentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const shift = useTEMStore((s) => s.shiftActiveSheetContent);
+  const layout = useTEMStore((s) => s.doc.settings.layout);
   const [dTime, setDTime] = useState(0);
   const [dItem, setDItem] = useState(0);
+  // レイアウトに応じた軸方向の説明
+  const isH = layout === 'horizontal';
+  const timeAxisLabel = isH ? 'Time_Level 方向（右=＋）' : 'Time_Level 方向（下=＋）';
+  const itemAxisLabel = isH ? 'Item_Level 方向（上=＋）' : 'Item_Level 方向（右=＋）';
 
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -74,7 +79,7 @@ export function ShiftContentDialog({ open, onClose }: { open: boolean; onClose: 
           </p>
           <section className="settings-section">
             <div className="setting-row">
-              <label>Time_Level 方向（右=＋）</label>
+              <label>{timeAxisLabel}</label>
               <input
                 type="number"
                 step={0.5}
@@ -84,7 +89,7 @@ export function ShiftContentDialog({ open, onClose }: { open: boolean; onClose: 
               />
             </div>
             <div className="setting-row">
-              <label>Item_Level 方向（上=＋）</label>
+              <label>{itemAxisLabel}</label>
               <input
                 type="number"
                 step={0.5}

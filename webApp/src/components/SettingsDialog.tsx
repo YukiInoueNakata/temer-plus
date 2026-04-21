@@ -556,8 +556,8 @@ function SDSGSpaceSection() {
   }
 
   const isH = layout === 'horizontal';
-  const topLabel = isH ? '上部帯（Item 軸の上側）' : '左側帯（Item 軸の小さい側）';
-  const bottomLabel = isH ? '下部帯（Item 軸の下側）' : '右側帯（Item 軸の大きい側）';
+  const topLabel = isH ? '上部 (SD)' : '左側 (SD)';
+  const bottomLabel = isH ? '下部 (SG)' : '右側 (SG)';
 
   return (
     <section className="settings-section">
@@ -574,7 +574,7 @@ function SDSGSpaceSection() {
           onChange={(e) => updateSpace({ enabled: e.target.checked })}
         />
       </div>
-      <p className="hint">OFF: 従来通り attachedTo Box に追従 / ON: band-top / band-bottom を選べる</p>
+      <p className="hint">OFF: 従来通り attachedTo Box に追従 / ON: 上部(SD)帯・下部(SG)帯を選べる</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 14 }}>
       <div>
@@ -790,7 +790,7 @@ function SDSGSpaceSection() {
         />
       </div>
       <p className="hint">
-        既定では SD は上部帯のみ、SG は下部帯のみに配置可能。ON にすると逆向き（SD を下部帯、SG を上部帯）も許可されます
+        既定では SD は上部(SD)帯のみ、SG は下部(SG)帯のみに配置可能。ON にすると逆向き（SD を下部(SG)帯、SG を上部(SD)帯）も許可されます
       </p>
       <div className="setting-row">
         <label>band 位置で方向点を自動反転</label>
@@ -801,7 +801,7 @@ function SDSGSpaceSection() {
         />
       </div>
       <p className="hint">
-        ON: 種別と band 位置が食い違う時（例: SD を下部帯、SG を上部帯）に五角形の点を反転させ、常に Box 群を指す向きにします。OFF: 種別固有の向き（SD=下向き / SG=上向き、横型の場合）を維持
+        ON: 種別と band 位置が食い違う時（例: SD を下部(SG)帯、SG を上部(SD)帯）に五角形の点を反転させ、常に Box 群を指す向きにします。OFF: 種別固有の向き（SD=下向き / SG=上向き、横型の場合）を維持
       </p>
 
       <h4 style={{ marginTop: 14 }}>一括配置</h4>
@@ -812,8 +812,8 @@ function SDSGSpaceSection() {
           onChange={(e) => updateSpace({ autoPlaceSD: e.target.value as 'none' | 'top' | 'bottom' })}
         >
           <option value="none">配置しない（attached）</option>
-          <option value="top">上部帯</option>
-          <option value="bottom">下部帯（要組合せ解除）</option>
+          <option value="top">上部(SD)帯</option>
+          <option value="bottom">下部(SG)帯（要組合せ解除）</option>
         </select>
       </div>
       <div className="setting-row">
@@ -823,8 +823,8 @@ function SDSGSpaceSection() {
           onChange={(e) => updateSpace({ autoPlaceSG: e.target.value as 'none' | 'top' | 'bottom' })}
         >
           <option value="none">配置しない（attached）</option>
-          <option value="top">上部帯（要組合せ解除）</option>
-          <option value="bottom">下部帯</option>
+          <option value="top">上部(SD)帯（要組合せ解除）</option>
+          <option value="bottom">下部(SG)帯</option>
         </select>
       </div>
       <div className="setting-row" style={{ justifyContent: 'flex-start', gap: 6, flexWrap: 'wrap' }}>

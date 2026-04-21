@@ -670,10 +670,14 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const removeSDSG = useTEMStore((s) => s.removeSDSG);
   const setSDSGSpaceMode = useTEMStore((s) => s.setSDSGSpaceMode);
   const sdsgSpace = useTEMStore((s) => s.doc.settings.sdsgSpace);
+  const sdsgLayout = useTEMStore((s) => s.doc.settings.layout);
   const sheet = useActiveSheet();
   const isMulti = sdsgs.length > 1;
   const first = sdsgs[0];
   const [tab, setTab] = useState<SDSGTab>('basic');
+  const isH = sdsgLayout === 'horizontal';
+  const topBandLabel = isH ? '上部 (SD) に配置' : '左側 (SD) に配置';
+  const bottomBandLabel = isH ? '下部 (SG) に配置' : '右側 (SG) に配置';
 
   const changeSpaceMode = (newMode: 'attached' | 'band-top' | 'band-bottom') => {
     const ids = sdsgs.map((s) => s.id);
@@ -687,7 +691,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
       );
       if (blocked) {
         alert(
-          `既定では SD は上部帯のみ、SG は下部帯のみ配置可能です。\n逆向きに配置するには設定 > SD/SG 配置 で「組合せ制限を解除」を ON にしてください。`,
+          `既定では SD は上部(SD)帯のみ、SG は下部(SG)帯のみ配置可能です。\n逆向きに配置するには設定 > SD/SG 配置 で「組合せ制限を解除」を ON にしてください。`,
         );
         return;
       }
@@ -743,20 +747,48 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
           </>}
 
           {tab === 'placement' && <>
-          {sdsgSpace?.enabled ? (
+          {/* 配置方式: attached / band の 2 択 */}
+          <div className="prop-row">
+            <label>配置方式</label>
+            <select
+              value={(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') ? 'band' : 'attached'}
+              onChange={(e) => {
+                const val = e.target.value as 'attached' | 'band';
+                if (val === 'attached') {
+                  changeSpaceMode('attached');
+                } else {
+                  // band 選択時: 種別既定 (SD→top, SG→bottom)。allowMismatched なしでも安全側。
+                  const target = first.type === 'SD' ? 'band-top' : 'band-bottom';
+                  changeSpaceMode(target);
+                }
+              }}
+            >
+              <option value="attached">attached（Box に追従）</option>
+              <option value="band">band（専用帯に配置）</option>
+            </select>
+          </div>
+
+          {/* band モード: 帯位置 + 帯専用項目のみ */}
+          {(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && (
             <>
               <div className="prop-row">
-                <label>配置モード</label>
+                <label>帯位置</label>
                 <select
-                  value={first.spaceMode ?? 'attached'}
-                  onChange={(e) => changeSpaceMode(e.target.value as 'attached' | 'band-top' | 'band-bottom')}
+                  value={first.spaceMode}
+                  onChange={(e) => changeSpaceMode(e.target.value as 'band-top' | 'band-bottom')}
                 >
-                  <option value="attached">attached（Box に追従）</option>
-                  <option value="band-top">上部帯に配置</option>
-                  <option value="band-bottom">下部帯に配置</option>
+                  <option value="band-top">{topBandLabel}</option>
+                  <option value="band-bottom">{bottomBandLabel}</option>
                 </select>
               </div>
-              {(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && !isMulti && (
+              {!sdsgSpace?.enabled && (
+                <div className="prop-row" style={{ padding: 6, background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4 }}>
+                  <span style={{ fontSize: '0.85em', color: '#856404' }}>
+                    ⚠ SD/SG 配置機能が OFF です。band モード変更時に自動で ON になります。
+                  </span>
+                </div>
+              )}
+              {!isMulti && (
                 <>
                   <div className="prop-row">
                     <label>帯内 Row 指定</label>
@@ -803,7 +835,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                       type="number"
                       value={first.spaceInsetTime ?? 0}
                       onChange={(e) => updateSDSG(first.id, { spaceInsetTime: Number(e.target.value) })}
-                      title="帯内での Time 軸方向の微調整（attached Box 中心からの相対）。同じ Box に複数 SDSG を横に並べる時に使用"
+                      title="帯内での Time 軸方向の微調整"
                     />
                   </div>
                   <div className="prop-row">
@@ -834,101 +866,91 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                 </>
               )}
             </>
-          ) : (
-            (first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && (
-              <div className="prop-row" style={{ padding: 6, background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4 }}>
-                <span style={{ fontSize: '0.85em', color: '#856404' }}>
-                  ⚠ この SDSG は「{first.spaceMode === 'band-top' ? '上部帯' : '下部帯'}」配置指定ですが、<br />
-                  SD/SG 配置機能が OFF のため標準位置（attached）で描画されています。<br />
-                  <a
-                    href="#"
-                    onClick={(e) => { e.preventDefault(); alert('設定 > 「SD/SG 配置」タブで機能を有効化してください'); }}
-                    style={{ color: '#2684ff' }}
-                  >
-                    機能を有効化する設定を開く
-                  </a>
-                </span>
-              </div>
-            )
           )}
-          <div className="prop-row">
-            <label>アンカー方式</label>
-            <select
-              value={first.anchorMode ?? 'single'}
-              onChange={(e) => {
-                const mode = e.target.value as 'single' | 'between';
-                if (mode === 'between' && !first.attachedTo2) {
-                  alert('between モードには 2 つ目の対象 Box の指定が必要です。下の「2 つ目の対象」で選択してください');
-                }
-                updateSDSG(first.id, { anchorMode: mode });
-              }}
-            >
-              <option value="single">single（単一 Box / Line に紐付け）</option>
-              <option value="between">between（2 アイテム間）</option>
-            </select>
-          </div>
-          {first.anchorMode === 'between' && (
+
+          {/* attached モード: attached 専用項目のみ */}
+          {(first.spaceMode == null || first.spaceMode === 'attached') && (
             <>
               <div className="prop-row">
-                <label>2 つ目の対象</label>
-                {sheet ? (
-                  <select
-                    value={first.attachedTo2 ?? ''}
-                    onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
-                  >
-                    <option value="">（未指定）</option>
-                    {sheet.boxes
-                      .filter((b) => b.id !== first.attachedTo)
-                      .map((b) => (
-                        <option key={b.id} value={b.id}>{b.id}: {b.label}</option>
-                      ))}
-                  </select>
-                ) : null}
+                <label>アンカー方式</label>
+                <select
+                  value={first.anchorMode ?? 'single'}
+                  onChange={(e) => {
+                    const mode = e.target.value as 'single' | 'between';
+                    if (mode === 'between' && !first.attachedTo2) {
+                      alert('between モードには 2 つ目の対象 Box の指定が必要です。下の「2 つ目の対象」で選択してください');
+                    }
+                    updateSDSG(first.id, { anchorMode: mode });
+                  }}
+                >
+                  <option value="single">single（単一 Box / Line に紐付け）</option>
+                  <option value="between">between（2 アイテム間）</option>
+                </select>
+              </div>
+              {first.anchorMode === 'between' && (
+                <>
+                  <div className="prop-row">
+                    <label>2 つ目の対象</label>
+                    {sheet ? (
+                      <select
+                        value={first.attachedTo2 ?? ''}
+                        onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
+                      >
+                        <option value="">（未指定）</option>
+                        {sheet.boxes
+                          .filter((b) => b.id !== first.attachedTo)
+                          .map((b) => (
+                            <option key={b.id} value={b.id}>{b.id}: {b.label}</option>
+                          ))}
+                      </select>
+                    ) : null}
+                  </div>
+                  <div className="prop-row">
+                    <label>幅の定義</label>
+                    <select
+                      value={first.betweenMode ?? 'edge-to-edge'}
+                      onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
+                    >
+                      <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
+                      <option value="center-to-center">Box 中心から Box 中心まで</option>
+                    </select>
+                  </div>
+                </>
+              )}
+              <div className="prop-row">
+                <label>時間オフセット (px)</label>
+                <input
+                  type="number"
+                  value={first.timeOffset ?? 0}
+                  onChange={(e) => updateSDSG(first.id, { timeOffset: Number(e.target.value) })}
+                />
               </div>
               <div className="prop-row">
-                <label>幅の定義</label>
-                <select
-                  value={first.betweenMode ?? 'edge-to-edge'}
-                  onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
-                >
-                  <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
-                  <option value="center-to-center">Box 中心から Box 中心まで</option>
-                </select>
+                <label>項目オフセット (px)</label>
+                <input
+                  type="number"
+                  value={first.itemOffset ?? 0}
+                  onChange={(e) => updateSDSG(first.id, { itemOffset: Number(e.target.value) })}
+                />
+              </div>
+              <div className="prop-row">
+                <label>サイズ W / H</label>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <input
+                    type="number"
+                    value={first.width ?? 70}
+                    onChange={(e) => updateSDSG(first.id, { width: Number(e.target.value) })}
+                    title={first.anchorMode === 'between' ? '※ between モードでは Time 軸方向は自動計算のためこの値は無視されます' : ''}
+                  />
+                  <input
+                    type="number"
+                    value={first.height ?? 40}
+                    onChange={(e) => updateSDSG(first.id, { height: Number(e.target.value) })}
+                  />
+                </div>
               </div>
             </>
           )}
-          <div className="prop-row">
-            <label>時間オフセット (px)</label>
-            <input
-              type="number"
-              value={first.timeOffset ?? 0}
-              onChange={(e) => updateSDSG(first.id, { timeOffset: Number(e.target.value) })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>項目オフセット (px)</label>
-            <input
-              type="number"
-              value={first.itemOffset ?? 0}
-              onChange={(e) => updateSDSG(first.id, { itemOffset: Number(e.target.value) })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>サイズ W / H</label>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <input
-                type="number"
-                value={first.width ?? 70}
-                onChange={(e) => updateSDSG(first.id, { width: Number(e.target.value) })}
-                title={first.anchorMode === 'between' ? '※ between モードでは Time 軸方向は自動計算のためこの値は無視されます' : ''}
-              />
-              <input
-                type="number"
-                value={first.height ?? 40}
-                onChange={(e) => updateSDSG(first.id, { height: Number(e.target.value) })}
-              />
-            </div>
-          </div>
           <div className="prop-row">
             <label>矩形部分の比率</label>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>

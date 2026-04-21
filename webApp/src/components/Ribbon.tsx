@@ -561,26 +561,26 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
       </RibbonGroup>
       <RibbonGroup title="SD/SG 配置">
         <RibbonButton
-          label="選択を帯上へ"
+          label="上部(SD)帯へ"
           icon="↥"
           onClick={() => {
             const ids = useTEMStore.getState().selection.sdsgIds;
             if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
-            if (!confirm('選択した SD/SG を上部帯に配置します（オフセットはリセット）')) return;
+            if (!confirm('選択した SD/SG を上部(SD)帯に配置します（オフセットはリセット）')) return;
             useTEMStore.getState().setSDSGSpaceMode(ids, 'band-top');
           }}
-          title="選択中の SD/SG を上部帯に配置"
+          title="選択中の SD/SG を上部(SD)帯に配置（縦型では右側）"
         />
         <RibbonButton
-          label="選択を帯下へ"
+          label="下部(SG)帯へ"
           icon="↧"
           onClick={() => {
             const ids = useTEMStore.getState().selection.sdsgIds;
             if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
-            if (!confirm('選択した SD/SG を下部帯に配置します（オフセットはリセット）')) return;
+            if (!confirm('選択した SD/SG を下部(SG)帯に配置します（オフセットはリセット）')) return;
             useTEMStore.getState().setSDSGSpaceMode(ids, 'band-bottom');
           }}
-          title="選択中の SD/SG を下部帯に配置"
+          title="選択中の SD/SG を下部(SG)帯に配置（縦型では左側）"
         />
         <RibbonButton
           label="attached に"
@@ -708,7 +708,7 @@ function ViewTab({ onOpenPeriodSettings, onOpenPeriodLabels: _onOpenPeriodLabels
           label={sdsgSpaceEnabled ? 'SDSG 帯 ✓' : 'SDSG 帯'}
           icon="▤"
           onClick={toggleSDSGSpace}
-          title="SD/SG を上部帯・下部帯に配置するモードの ON/OFF（詳細は設定 > SD/SG 配置）"
+          title="SD/SG を上部(SD)帯・下部(SG)帯に配置するモードの ON/OFF（詳細は設定 > SD/SG 配置）"
           active={sdsgSpaceEnabled}
         />
       </RibbonGroup>
