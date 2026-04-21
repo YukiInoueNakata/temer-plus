@@ -140,10 +140,19 @@ export interface SDSG {
   type: SDSGType;
   label: string;
   attachedTo: string;                  // Box or Line ID
+  // 2 アイテム間に配置するモード用: 2 つ目の Box ID
+  attachedTo2?: string;
+  // アンカー方式: 'single' = attachedTo のみ / 'between' = attachedTo と attachedTo2 の間
+  anchorMode?: 'single' | 'between';
+  // between モード時の横幅定義方式: 'edge-to-edge'（既定）= 隣接する Box 端どうし / 'center-to-center' = Box 中心どうし
+  betweenMode?: 'edge-to-edge' | 'center-to-center';
   itemOffset: number;
   timeOffset: number;
   width?: number;
   height?: number;
+  // 五角形の矩形部分の高さ比率（0-1、既定 0.55）
+  // 1 に近いほど矩形部分が大きく、三角の点が浅くなる
+  rectRatio?: number;
   style?: BoxStyle;
   description?: string;
   noDescriptionNeeded?: boolean;

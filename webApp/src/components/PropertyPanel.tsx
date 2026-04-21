@@ -666,6 +666,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
 function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const updateSDSG = useTEMStore((s) => s.updateSDSG);
   const removeSDSG = useTEMStore((s) => s.removeSDSG);
+  const sheet = useActiveSheet();
   const isMulti = sdsgs.length > 1;
   const first = sdsgs[0];
 
@@ -697,6 +698,52 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
           </div>
           <div className="prop-row">
+            <label>アンカー方式</label>
+            <select
+              value={first.anchorMode ?? 'single'}
+              onChange={(e) => {
+                const mode = e.target.value as 'single' | 'between';
+                if (mode === 'between' && !first.attachedTo2) {
+                  alert('between モードには 2 つ目の対象 Box の指定が必要です。下の「2 つ目の対象」で選択してください');
+                }
+                updateSDSG(first.id, { anchorMode: mode });
+              }}
+            >
+              <option value="single">single（単一 Box / Line に紐付け）</option>
+              <option value="between">between（2 アイテム間）</option>
+            </select>
+          </div>
+          {first.anchorMode === 'between' && (
+            <>
+              <div className="prop-row">
+                <label>2 つ目の対象</label>
+                {sheet ? (
+                  <select
+                    value={first.attachedTo2 ?? ''}
+                    onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
+                  >
+                    <option value="">（未指定）</option>
+                    {sheet.boxes
+                      .filter((b) => b.id !== first.attachedTo)
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>{b.id}: {b.label}</option>
+                      ))}
+                  </select>
+                ) : null}
+              </div>
+              <div className="prop-row">
+                <label>幅の定義</label>
+                <select
+                  value={first.betweenMode ?? 'edge-to-edge'}
+                  onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
+                >
+                  <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
+                  <option value="center-to-center">Box 中心から Box 中心まで</option>
+                </select>
+              </div>
+            </>
+          )}
+          <div className="prop-row">
             <label>時間オフセット (px)</label>
             <input
               type="number"
@@ -719,11 +766,35 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                 type="number"
                 value={first.width ?? 70}
                 onChange={(e) => updateSDSG(first.id, { width: Number(e.target.value) })}
+                title={first.anchorMode === 'between' ? '※ between モードでは Time 軸方向は自動計算のためこの値は無視されます' : ''}
               />
               <input
                 type="number"
                 value={first.height ?? 40}
                 onChange={(e) => updateSDSG(first.id, { height: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <div className="prop-row">
+            <label>矩形部分の比率</label>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input
+                type="range"
+                min={0.1}
+                max={0.9}
+                step={0.05}
+                value={first.rectRatio ?? 0.55}
+                onChange={(e) => updateSDSG(first.id, { rectRatio: Number(e.target.value) })}
+                style={{ width: 90 }}
+              />
+              <input
+                type="number"
+                min={0.1}
+                max={0.9}
+                step={0.05}
+                value={first.rectRatio ?? 0.55}
+                onChange={(e) => updateSDSG(first.id, { rectRatio: Number(e.target.value) })}
+                style={{ width: 60 }}
               />
             </div>
           </div>

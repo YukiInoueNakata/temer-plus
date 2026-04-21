@@ -14,7 +14,7 @@ import { useTEMView } from '../../context/TEMViewContext';
 
 export interface SDSGNodeData extends Pick<
   SDSG,
-  'type' | 'label' | 'width' | 'height' | 'style' |
+  'type' | 'label' | 'width' | 'height' | 'style' | 'rectRatio' |
   'subLabel' | 'subLabelOffsetX' | 'subLabelOffsetY' | 'subLabelFontSize' | 'subLabelAsciiUpright' |
   'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' | 'typeLabelAsciiUpright' |
   'asciiUpright'
@@ -60,18 +60,33 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
     setDraft(data.label);
   };
 
+  // 矩形部分の比率（0-1、既定 0.55）。1 に近いほど矩形部分が大きく三角が浅くなる
+  const rectRatio = Math.max(0.05, Math.min(0.95, data.rectRatio ?? 0.55));
+  // triRatio = 1 - rectRatio だが、点の位置計算で直接使う値
+  const triRatio = 1 - rectRatio;
+
   let points: string;
   if (isHorizontalLayout) {
+    // 横型: 矩形上側、三角が上下いずれかに出る
+    // SD 下向き: 矩形上 + 三角下、rectRatio = 矩形高さ / 全高
+    // SG 上向き: 三角上 + 矩形下
     if (isSD) {
-      points = `0,0 ${width},0 ${width},${height * 0.55} ${width / 2},${height} 0,${height * 0.55}`;
+      const rectBottom = height * rectRatio;
+      points = `0,0 ${width},0 ${width},${rectBottom} ${width / 2},${height} 0,${rectBottom}`;
     } else {
-      points = `${width / 2},0 ${width},${height * 0.45} ${width},${height} 0,${height} 0,${height * 0.45}`;
+      const rectTop = height * triRatio;
+      points = `${width / 2},0 ${width},${rectTop} ${width},${height} 0,${height} 0,${rectTop}`;
     }
   } else {
+    // 縦型: 矩形左右、三角が左右に出る
+    // SD: 右向き（矩形左 + 三角右）
+    // SG: 左向き（三角左 + 矩形右）
     if (isSD) {
-      points = `0,0 ${width * 0.55},0 ${width},${height / 2} ${width * 0.55},${height} 0,${height}`;
+      const rectRight = width * rectRatio;
+      points = `0,0 ${rectRight},0 ${width},${height / 2} ${rectRight},${height} 0,${height}`;
     } else {
-      points = `${width * 0.45},0 ${width},0 ${width},${height} ${width * 0.45},${height} 0,${height / 2}`;
+      const rectLeft = width * triRatio;
+      points = `${rectLeft},0 ${width},0 ${width},${height} ${rectLeft},${height} 0,${height / 2}`;
     }
   }
 

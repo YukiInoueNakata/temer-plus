@@ -499,6 +499,23 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
     addSDSG({ type, attachedTo, label: type });
   };
 
+  // 2 Box 選択時、2 アイテム間に配置する SD/SG を追加
+  const handleAddSDSGBetween = (type: 'SD' | 'SG') => {
+    const { boxIds } = selection;
+    if (boxIds.length !== 2) {
+      alert('Box を 2 つ選択してください（2 アイテム間に配置します）');
+      return;
+    }
+    addSDSG({
+      type,
+      attachedTo: boxIds[0],
+      attachedTo2: boxIds[1],
+      anchorMode: 'between',
+      betweenMode: 'edge-to-edge',
+      label: type,
+    });
+  };
+
   const handleAddLine = (type: 'RLine' | 'XLine') => {
     if (selection.boxIds.length !== 2) {
       alert('Box を 2つ選択してください（選択順に矢印を引きます）');
@@ -537,8 +554,10 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
         <RibbonButton label="順次接続(点線)" icon="⇢⇢" onClick={() => handleSequentialArrow('XLine')} />
       </RibbonGroup>
       <RibbonGroup title="SD/SG">
-        <RibbonButton label="SD追加" icon="▽" onClick={() => handleAddSDSG('SD')} />
-        <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} />
+        <RibbonButton label="SD追加" icon="▽" onClick={() => handleAddSDSG('SD')} title="選択中の Box / Line に紐づく SD を追加" />
+        <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} title="選択中の Box / Line に紐づく SG を追加" />
+        <RibbonButton label="SD (2 アイテム間)" icon="⊳⊲" onClick={() => handleAddSDSGBetween('SD')} title="選択した 2 Box の間に配置する SD を追加" />
+        <RibbonButton label="SG (2 アイテム間)" icon="⊲⊳" onClick={() => handleAddSDSGBetween('SG')} title="選択した 2 Box の間に配置する SG を追加" />
       </RibbonGroup>
       <RibbonGroup title="その他">
         <RibbonButton label="時期ラベル..." icon="🏷" onClick={onOpenPeriodLabels} />

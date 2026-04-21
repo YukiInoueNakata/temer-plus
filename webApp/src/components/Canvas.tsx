@@ -196,26 +196,102 @@ function CanvasInner({
     }));
   }, [sheet, storeBoxIds]);
 
-  // SDSG nodes - 位置は attachedTo Box/Line + offset から計算
+  // SDSG nodes - 位置は attachedTo Box/Line + offset から計算（between モード時は 2 Box の間）
   const sdsgNodes: Node<SDSGNodeData>[] = useMemo(() => {
     if (!sheet) return [];
     const selSdsgIds = new Set(storeSdsgIds);
+    const isH = layout === 'horizontal';
     return sheet.sdsg.map((sg) => {
+      const timeOff = sg.timeOffset ?? 0;
+      const itemOff = sg.itemOffset ?? 0;
+
+      // between モード: 2 つの Box の間に配置
+      if (sg.anchorMode === 'between' && sg.attachedTo2) {
+        const boxA = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        const boxB = sheet.boxes.find((b) => b.id === sg.attachedTo2);
+        if (!boxA || !boxB) return null;
+        // Time 軸（layout により x/y）で先頭/末尾を自動判定
+        const betweenMode = sg.betweenMode ?? 'edge-to-edge';
+        let startPos: number;
+        let endPos: number;
+        if (isH) {
+          // Time = X 軸
+          const aLeft = boxA.x, aRight = boxA.x + boxA.width;
+          const bLeft = boxB.x, bRight = boxB.x + boxB.width;
+          // どちらが左（時間的に先）かを判定
+          const leftBox = aLeft <= bLeft ? boxA : boxB;
+          const rightBox = aLeft <= bLeft ? boxB : boxA;
+          if (betweenMode === 'edge-to-edge') {
+            startPos = leftBox.x + leftBox.width;  // 左 Box の右端
+            endPos = rightBox.x;                    // 右 Box の左端
+          } else {
+            // center-to-center
+            startPos = leftBox.x + leftBox.width / 2;
+            endPos = rightBox.x + rightBox.width / 2;
+          }
+          void aRight; void bRight;
+        } else {
+          // Time = Y 軸
+          const aTop = boxA.y, aBottom = boxA.y + boxA.height;
+          const bTop = boxB.y, bBottom = boxB.y + boxB.height;
+          const topBox = aTop <= bTop ? boxA : boxB;
+          const bottomBox = aTop <= bTop ? boxB : boxA;
+          if (betweenMode === 'edge-to-edge') {
+            startPos = topBox.y + topBox.height;
+            endPos = bottomBox.y;
+          } else {
+            startPos = topBox.y + topBox.height / 2;
+            endPos = bottomBox.y + bottomBox.height / 2;
+          }
+          void aBottom; void bBottom;
+        }
+        const timeCenter = (startPos + endPos) / 2;
+        const timeSpan = Math.max(10, Math.abs(endPos - startPos));
+        // Item 軸のアンカー = 2 Box の中心の平均
+        const itemA = isH ? boxA.y + boxA.height / 2 : boxA.x + boxA.width / 2;
+        const itemB = isH ? boxB.y + boxB.height / 2 : boxB.x + boxB.width / 2;
+        const itemCenter = (itemA + itemB) / 2;
+        // SDSG サイズ: Time 軸方向は 2 Box 間の距離、Item 軸方向は sg.height/width
+        const w = isH ? timeSpan : (sg.width ?? 70);
+        const h = isH ? (sg.height ?? 40) : timeSpan;
+        const anchorX = isH ? timeCenter : itemCenter;
+        const anchorY = isH ? itemCenter : timeCenter;
+        const x = anchorX - w / 2 + (isH ? timeOff : itemOff);
+        const y = anchorY - h / 2 + (isH ? itemOff : timeOff);
+        return {
+          id: sg.id,
+          type: 'sdsg' as const,
+          position: { x, y },
+          selected: selSdsgIds.has(sg.id),
+          data: {
+            id: sg.id, type: sg.type, label: sg.label, width: w, height: h,
+            style: sg.style, rectRatio: sg.rectRatio,
+            subLabel: sg.subLabel, subLabelOffsetX: sg.subLabelOffsetX,
+            subLabelOffsetY: sg.subLabelOffsetY, subLabelFontSize: sg.subLabelFontSize,
+            subLabelAsciiUpright: sg.subLabelAsciiUpright,
+            typeLabelFontSize: sg.typeLabelFontSize, typeLabelBold: sg.typeLabelBold,
+            typeLabelItalic: sg.typeLabelItalic, typeLabelFontFamily: sg.typeLabelFontFamily,
+            typeLabelAsciiUpright: sg.typeLabelAsciiUpright,
+            asciiUpright: sg.asciiUpright,
+          } as SDSGNodeData,
+          style: { width: w, height: h, zIndex: sg.zIndex ?? 0 },
+          draggable: true,
+        };
+      }
+
+      // single モード（既定）: 既存ロジック
       let anchorX = 0;
       let anchorY = 0;
-      // Box に attached ?
       const attachedBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
       if (attachedBox) {
         anchorX = attachedBox.x + attachedBox.width / 2;
         anchorY = attachedBox.y + attachedBox.height / 2;
       } else {
-        // Line に attached ?
         const attachedLine = sheet.lines.find((l) => l.id === sg.attachedTo);
         if (attachedLine) {
           const fromBox = sheet.boxes.find((b) => b.id === attachedLine.from);
           const toBox = sheet.boxes.find((b) => b.id === attachedLine.to);
           if (fromBox && toBox) {
-            // 線の中点
             anchorX = (fromBox.x + fromBox.width / 2 + toBox.x + toBox.width / 2) / 2;
             anchorY = (fromBox.y + fromBox.height / 2 + toBox.y + toBox.height / 2) / 2;
           } else {
@@ -225,35 +301,23 @@ function CanvasInner({
           return null;
         }
       }
-      const isH = layout === 'horizontal';
-      const timeOff = sg.timeOffset ?? 0;
-      const itemOff = sg.itemOffset ?? 0;
       const w = sg.width ?? 70;
       const h = sg.height ?? 40;
-      // SDSG 左上座標 = anchor - (w/2, h/2) + offset
       const x = anchorX - w / 2 + (isH ? timeOff : itemOff);
       const y = anchorY - h / 2 + (isH ? itemOff : timeOff);
       return {
         id: sg.id,
-        type: 'sdsg',
+        type: 'sdsg' as const,
         position: { x, y },
         selected: selSdsgIds.has(sg.id),
         data: {
-          id: sg.id,
-          type: sg.type,
-          label: sg.label,
-          width: w,
-          height: h,
-          style: sg.style,
-          subLabel: sg.subLabel,
-          subLabelOffsetX: sg.subLabelOffsetX,
-          subLabelOffsetY: sg.subLabelOffsetY,
-          subLabelFontSize: sg.subLabelFontSize,
+          id: sg.id, type: sg.type, label: sg.label, width: w, height: h,
+          style: sg.style, rectRatio: sg.rectRatio,
+          subLabel: sg.subLabel, subLabelOffsetX: sg.subLabelOffsetX,
+          subLabelOffsetY: sg.subLabelOffsetY, subLabelFontSize: sg.subLabelFontSize,
           subLabelAsciiUpright: sg.subLabelAsciiUpright,
-          typeLabelFontSize: sg.typeLabelFontSize,
-          typeLabelBold: sg.typeLabelBold,
-          typeLabelItalic: sg.typeLabelItalic,
-          typeLabelFontFamily: sg.typeLabelFontFamily,
+          typeLabelFontSize: sg.typeLabelFontSize, typeLabelBold: sg.typeLabelBold,
+          typeLabelItalic: sg.typeLabelItalic, typeLabelFontFamily: sg.typeLabelFontFamily,
           typeLabelAsciiUpright: sg.typeLabelAsciiUpright,
           asciiUpright: sg.asciiUpright,
         } as SDSGNodeData,

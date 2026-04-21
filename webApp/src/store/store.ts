@@ -731,6 +731,13 @@ export const useTEMStore = create<Store>()(
             sheet.boxes = sheet.boxes.filter((b) => b.id !== id);
             sheet.lines = sheet.lines.filter((l) => l.from !== id && l.to !== id);
             sheet.sdsg = sheet.sdsg.filter((s) => s.attachedTo !== id);
+            // attachedTo2 が削除された Box を参照している場合は single モードに戻す
+            sheet.sdsg.forEach((s) => {
+              if (s.attachedTo2 === id) {
+                s.attachedTo2 = undefined;
+                s.anchorMode = 'single';
+              }
+            });
           }),
           dirty: true,
         }));
@@ -742,6 +749,12 @@ export const useTEMStore = create<Store>()(
             sheet.boxes = sheet.boxes.filter((b) => !set_.has(b.id));
             sheet.lines = sheet.lines.filter((l) => !set_.has(l.from) && !set_.has(l.to));
             sheet.sdsg = sheet.sdsg.filter((s) => !set_.has(s.attachedTo));
+            sheet.sdsg.forEach((s) => {
+              if (s.attachedTo2 && set_.has(s.attachedTo2)) {
+                s.attachedTo2 = undefined;
+                s.anchorMode = 'single';
+              }
+            });
           }),
           dirty: true,
         }));
