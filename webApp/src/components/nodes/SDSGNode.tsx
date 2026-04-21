@@ -20,6 +20,10 @@ export interface SDSGNodeData extends Pick<
   'asciiUpright'
 > {
   id: string;
+  // 方向点を反転して描画するか（band 配置 + 種別ミスマッチ時に使用）
+  flipDirection?: boolean;
+  // 帯範囲クランプされてはみ出した表示用（赤枠）
+  outOfRange?: boolean;
 }
 
 export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>) {
@@ -32,7 +36,8 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const editingDisabled = isPreview;
   const width = data.width ?? 70;
   const height = data.height ?? 40;
-  const isSD = data.type === 'SD';
+  // flipDirection=true の場合は種別と逆向きに点を描画（band 配置時の方向点自動反転用）
+  const isSD = data.flipDirection ? data.type === 'SG' : data.type === 'SD';
   const isHorizontalLayout = layout === 'horizontal';
   const isVerticalLayout = !isHorizontalLayout;
 
@@ -221,13 +226,17 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
           top: 0,
           left: 0,
           overflow: 'visible',
-          filter: selected ? 'drop-shadow(0 0 2px #2684ff)' : undefined,
+          filter: selected
+            ? 'drop-shadow(0 0 2px #2684ff)'
+            : data.outOfRange
+              ? 'drop-shadow(0 0 3px #e74c3c)'
+              : undefined,
         }}
       >
         <polygon
           points={points}
           fill={bgColor}
-          stroke={borderColor}
+          stroke={data.outOfRange ? '#e74c3c' : borderColor}
           strokeWidth={1.5}
         />
       </svg>

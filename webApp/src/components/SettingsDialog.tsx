@@ -699,6 +699,17 @@ function SDSGSpaceSection() {
       <p className="hint">
         既定では SD は上部帯のみ、SG は下部帯のみに配置可能。ON にすると逆向き（SD を下部帯、SG を上部帯）も許可されます
       </p>
+      <div className="setting-row">
+        <label>band 位置で方向点を自動反転</label>
+        <input
+          type="checkbox"
+          checked={space.autoFlipDirectionInBand}
+          onChange={(e) => updateSpace({ autoFlipDirectionInBand: e.target.checked })}
+        />
+      </div>
+      <p className="hint">
+        ON: 種別と band 位置が食い違う時（例: SD を下部帯、SG を上部帯）に五角形の点を反転させ、常に Box 群を指す向きにします。OFF: 種別固有の向き（SD=下向き / SG=上向き、横型の場合）を維持
+      </p>
 
       <h4 style={{ marginTop: 14 }}>一括配置</h4>
       <div className="setting-row">

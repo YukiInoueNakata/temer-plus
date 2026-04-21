@@ -150,6 +150,8 @@ export interface SDSG {
   spaceMode?: 'attached' | 'band-top' | 'band-bottom';
   // 帯内での Item 軸方向の微調整（px、0=自動配置）
   spaceInsetItem?: number;
+  // 帯内での Time 軸方向の微調整（px、attached Box 中心からの相対、0=Box 中心）
+  spaceInsetTime?: number;
   // 帯内で使う個別 width/height（未指定なら width/height を使用）
   spaceWidth?: number;
   spaceHeight?: number;
@@ -477,6 +479,8 @@ export interface SDSGSpaceSettings {
   allowMismatchedPlacement: boolean;
   // 重なり回避の自動整列 ON/OFF
   autoArrange: boolean;
+  // band 位置に応じて五角形の方向点を自動反転（SD を下部帯に入れたら上向きにする等）
+  autoFlipDirectionInBand: boolean;
 }
 
 // ----------------------------------------------------------------------------

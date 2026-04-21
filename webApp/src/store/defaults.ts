@@ -137,6 +137,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     autoPlaceSG: 'bottom',
     allowMismatchedPlacement: false,
     autoArrange: true,
+    autoFlipDirectionInBand: false,
   },
 };
 

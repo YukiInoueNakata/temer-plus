@@ -720,7 +720,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             <label>紐付け対象ID</label>
             <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
           </div>
-          {sdsgSpace?.enabled && (
+          {sdsgSpace?.enabled ? (
             <>
               <div className="prop-row">
                 <label>配置モード</label>
@@ -736,12 +736,21 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               {(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && !isMulti && (
                 <>
                   <div className="prop-row">
-                    <label>帯内 Item オフセット</label>
+                    <label>帯内 Time オフセット (px)</label>
+                    <input
+                      type="number"
+                      value={first.spaceInsetTime ?? 0}
+                      onChange={(e) => updateSDSG(first.id, { spaceInsetTime: Number(e.target.value) })}
+                      title="帯内での Time 軸方向の微調整（attached Box 中心からの相対）。同じ Box に複数 SDSG を横に並べる時に使用"
+                    />
+                  </div>
+                  <div className="prop-row">
+                    <label>帯内 Item オフセット (px)</label>
                     <input
                       type="number"
                       value={first.spaceInsetItem ?? 0}
                       onChange={(e) => updateSDSG(first.id, { spaceInsetItem: Number(e.target.value) })}
-                      title="帯内での Item 軸方向の微調整（px）。範囲外はクランプされます"
+                      title="帯内での Item 軸方向の微調整。範囲外はクランプされます"
                     />
                   </div>
                   <div className="prop-row">
@@ -763,6 +772,22 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                 </>
               )}
             </>
+          ) : (
+            (first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && (
+              <div className="prop-row" style={{ padding: 6, background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4 }}>
+                <span style={{ fontSize: '0.85em', color: '#856404' }}>
+                  ⚠ この SDSG は「{first.spaceMode === 'band-top' ? '上部帯' : '下部帯'}」配置指定ですが、<br />
+                  SD/SG 配置機能が OFF のため標準位置（attached）で描画されています。<br />
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); alert('設定 > 「SD/SG 配置」タブで機能を有効化してください'); }}
+                    style={{ color: '#2684ff' }}
+                  >
+                    機能を有効化する設定を開く
+                  </a>
+                </span>
+              </div>
+            )
           )}
           <div className="prop-row">
             <label>アンカー方式</label>

@@ -174,9 +174,11 @@ function Inner({
     const sdsgNodes: Node<SDSGNodeData>[] = sheet.sdsg.map((sg) => {
       let x: number, y: number, w: number, h: number;
 
-      // band モード
+      // band モード（機能 OFF なら single モードで描画）
       const bk = sdsgBandKey(sg);
-      const band = bk === 'top' ? bandLayout.topBand : bk === 'bottom' ? bandLayout.bottomBand : undefined;
+      const bandEnabled = doc.settings.sdsgSpace?.enabled;
+      const band = bandEnabled && (bk === 'top' ? bandLayout.topBand : bk === 'bottom' ? bandLayout.bottomBand : undefined);
+      let flipDirection = false;
       if (bk && band) {
         const entry = bandEntries[bk].find((e) => e.id === sg.id);
         if (entry) {
@@ -187,6 +189,11 @@ function Inner({
           const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
           const pos = computeSDSGBandPosition(band, doc.settings.layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk);
           x = pos.x; y = pos.y; w = pos.width; h = pos.height;
+          const autoFlip = doc.settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
+          flipDirection = autoFlip && (
+            (bk === 'top' && sg.type === 'SG') ||
+            (bk === 'bottom' && sg.type === 'SD')
+          );
         } else { return null as unknown as Node<SDSGNodeData>; }
       } else if (sg.anchorMode === 'between' && sg.attachedTo2) {
         // between モード
@@ -250,6 +257,7 @@ function Inner({
         data: {
           id: sg.id, type: sg.type, label: sg.label,
           width: w, height: h, style: sg.style, rectRatio: sg.rectRatio,
+          flipDirection,
           subLabel: sg.subLabel,
           subLabelOffsetX: sg.subLabelOffsetX,
           subLabelOffsetY: sg.subLabelOffsetY,

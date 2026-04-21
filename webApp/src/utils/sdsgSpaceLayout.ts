@@ -18,11 +18,15 @@ import { computePeriodLabels } from './periodLabels';
 
 export interface BandRange {
   // layout=horizontal: y 座標範囲 / layout=vertical: x 座標範囲
-  start: number;       // 帯の開始位置（Box 群寄りの辺）
+  start: number;       // 帯の開始位置（Box 群寄りの辺＝ bandTopEndY / bandBotEndY）
   end: number;         // 帯の終了位置（外側）
   center: number;      // 帯の中心
   axisFixed: number;   // Item 軸の固定座標（layout=horizontal では y、vertical では x の中心）
   axisSpan: number;    // 帯の厚み（= |end - start|）
+  // 警告: 指定された heightLevel が offsetLevel 超過で自動クランプされた
+  heightClamped?: boolean;
+  // 警告: 指定 reference が無効だったため 'boxes' にフォールバック
+  referenceFallback?: boolean;
 }
 
 export interface SDSGBandLayout {
@@ -63,26 +67,25 @@ export function computeSDSGBandLayout(
   // 「内側」= Box 群に近い側
   const result: SDSGBandLayout = {};
 
+  // reference が無効なとき 'boxes' にフォールバック（フォールバック情報も返す）
   const resolveReference = (
     band: SDSGSpaceBandSettings,
     side: 'top' | 'bottom',
-  ): number | null => {
-    // side: horizontal 時は y の上（min）/ 下（max）、vertical 時は x の左（min）/ 右（max）
-    // side='top'  → Item 軸方向で Box 群より外側（負方向、y の min より上）
-    // side='bottom' → Box 群より外側（正方向、y の max より下）
+  ): { coord: number; fallback: boolean } | null => {
+    const boxesCoord = () => (side === 'top' ? boxBounds.min : boxBounds.max);
     if (band.reference === 'boxes') {
-      return side === 'top' ? boxBounds.min : boxBounds.max;
+      return { coord: boxesCoord(), fallback: false };
     }
     if (band.reference === 'period') {
       const geom = computePeriodLabels(sheet, layout, settings.periodLabels, settings.timeArrow);
-      if (!geom) return null;
-      // computePeriodLabels は Time 軸方向の線を返す。Item 軸座標 (startY / startX) を使う
-      return isH ? geom.startY : geom.startX;
+      if (geom) return { coord: isH ? geom.startY : geom.startX, fallback: false };
+      // 時期ラベルが無い → boxes にフォールバック
+      return { coord: boxesCoord(), fallback: true };
     }
     if (band.reference === 'timearrow') {
       const geom = computeTimeArrow(sheet, layout, settings.timeArrow);
-      if (!geom) return null;
-      return isH ? geom.startY : geom.startX;
+      if (geom) return { coord: isH ? geom.startY : geom.startX, fallback: false };
+      return { coord: boxesCoord(), fallback: true };
     }
     return null;
   };
@@ -92,32 +95,25 @@ export function computeSDSGBandLayout(
     side: 'top' | 'bottom',
   ): BandRange | undefined => {
     if (!band.enabled) return undefined;
-    const refCoord = resolveReference(band, side);
-    if (refCoord == null) return undefined;
+    const ref = resolveReference(band, side);
+    if (ref == null) return undefined;
+    const { coord: refCoord, fallback: referenceFallback } = ref;
     const offsetPx = band.offsetLevel * LEVEL_PX;
-    const heightPx = band.heightLevel * LEVEL_PX;
-    //
-    // 基準: bandTopEndY / bandBotEndY（= Box 群寄りの内側エッジ）を offsetLevel で固定、
-    //       heightLevel 分だけ外側（参照要素寄り）へ伸ばす
-    //
-    // side='top' (horizontal layout で y 小 = 外側, y 大 = Box 群寄り)
-    //   reference='period' / 'timearrow': refCoord < Box 群（上に配置）
-    //     bandTopEndY (inner, Box 群寄り) = refCoord + offsetPx  ← 内側へ offset
-    //     bandTopY    (outer, 参照寄り)   = bandTopEndY - heightPx
-    //   reference='boxes': refCoord = Box 群上端（= 内側側の境界）
-    //     bandTopEndY (inner, Box 群寄り) = refCoord - offsetPx  ← Box 群から offset 離す
-    //     bandTopY    (outer)             = bandTopEndY - heightPx
-    //
-    // side='bottom' (horizontal layout で y 大 = 外側, y 小 = Box 群寄り)
-    //   reference='period' / 'timearrow': refCoord > Box 群
-    //     bandBotEndY (inner, Box 群寄り) = refCoord - offsetPx
-    //     bandBotY    (outer, 参照寄り)   = bandBotEndY + heightPx
-    //   reference='boxes': refCoord = Box 群下端
-    //     bandBotEndY (inner)   = refCoord + offsetPx
-    //     bandBotY    (outer)   = bandBotEndY + heightPx
-    //
+    let heightPx = band.heightLevel * LEVEL_PX;
+    let heightClamped = false;
+
+    // reference が 'period' / 'timearrow' の場合は heightLevel が offsetLevel を超えると
+    // band が reference を越えてしまう。クランプして reference に接するまでに制限。
+    // fallback=true（reference 無効で boxes に降格）の場合は制限なし。
+    const referenceIsBoxes = band.reference === 'boxes' || referenceFallback;
+    if (!referenceIsBoxes && heightPx > Math.max(0, offsetPx - 1)) {
+      heightPx = Math.max(1, offsetPx - 1);
+      heightClamped = true;
+    }
+
     let inner: number, outer: number;
-    const referenceIsBoxes = band.reference === 'boxes';
+    // 基準: inner (bandTopEndY / bandBotEndY = Box 群寄りの内側エッジ) を offset で固定、
+    //       outer を height で伸ばす
     if (side === 'top') {
       inner = referenceIsBoxes ? refCoord - offsetPx : refCoord + offsetPx;
       outer = inner - heightPx;
@@ -125,7 +121,6 @@ export function computeSDSGBandLayout(
       inner = referenceIsBoxes ? refCoord + offsetPx : refCoord - offsetPx;
       outer = inner + heightPx;
     }
-    // start = inner (Box 群寄り), end = outer
     const start = inner;
     const end = outer;
     const center = (start + end) / 2;
@@ -135,6 +130,8 @@ export function computeSDSGBandLayout(
       center,
       axisFixed: center,
       axisSpan: Math.abs(start - end),
+      heightClamped,
+      referenceFallback,
     };
   };
 
@@ -210,31 +207,32 @@ export function computeSDSGBandPosition(
 ): SDSGBandPosition {
   const isH = layout === 'horizontal';
   const w = sg.spaceWidth ?? sg.width ?? 70;
+  // between モードの場合 timeWidth は 2 Box 間の距離、single は sg.width
   const effectiveWidth = isH ? timeWidth : w;
   const effectiveHeight = isH ? (sg.spaceHeight ?? sg.height ?? 40) : timeWidth;
 
-  // 帯内 row 中心の Item 軸座標
-  // row 0 が内側（Box 群寄り = start）、最後の row が外側（end）に来る
-  // 帯の厚み = axisSpan。各 row の Item 幅を自動圧縮
+  // row 配置の Item 軸座標
   const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;
-  // side='top': start > end（start は Box 群寄り＝大きい y）
-  // side='bottom': start < end（start は Box 群寄り＝小さい y）
-  const dir = side === 'top' ? -1 : 1;  // row が増えるほど外側に向かう方向
+  const dir = side === 'top' ? -1 : 1;
   const rowCenter = band.start + dir * (rowSpan * (rowIndex + 0.5));
-  const inset = sg.spaceInsetItem ?? 0;
-  const axisCoord = rowCenter + inset;
+  const insetItem = sg.spaceInsetItem ?? 0;
+  const axisCoord = rowCenter + insetItem;
 
-  // 帯範囲外（clamp）
+  // Time 軸方向の微調整（between モードでは使わない方が自然なので single モードのみ適用）
+  const isBetween = sg.anchorMode === 'between' && sg.attachedTo2;
+  const insetTime = isBetween ? 0 : (sg.spaceInsetTime ?? 0);
+  const timeCoord = timeAnchor + insetTime;
+
+  // 帯範囲内に Item 軸をクランプ
   const axisMin = Math.min(band.start, band.end);
   const axisMax = Math.max(band.start, band.end);
   const halfItem = (isH ? effectiveHeight : effectiveWidth) / 2;
   const clamped = Math.max(axisMin + halfItem, Math.min(axisMax - halfItem, axisCoord));
-  const outOfRange = clamped !== axisCoord;
+  const outOfRange = Math.abs(clamped - axisCoord) > 0.5;
 
-  // Time 軸中心を timeAnchor に合わせる
   if (isH) {
     return {
-      x: timeAnchor - effectiveWidth / 2,
+      x: timeCoord - effectiveWidth / 2,
       y: clamped - effectiveHeight / 2,
       width: effectiveWidth,
       height: effectiveHeight,
@@ -243,7 +241,7 @@ export function computeSDSGBandPosition(
   }
   return {
     x: clamped - effectiveWidth / 2,
-    y: timeAnchor - effectiveHeight / 2,
+    y: timeCoord - effectiveHeight / 2,
     width: effectiveWidth,
     height: effectiveHeight,
     outOfRange,

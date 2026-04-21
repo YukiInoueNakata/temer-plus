@@ -520,9 +520,11 @@ function drawSDSGs(
   for (const sg of sheet.sdsg) {
     let wx: number, wy: number, w: number, h: number;
 
-    // band モード
+    // band モード（機能 OFF なら single モードへ falls through）
     const bk = sdsgBandKey(sg);
-    const band = bk === 'top' ? bandLayout.topBand : bk === 'bottom' ? bandLayout.bottomBand : undefined;
+    const bandEnabled = settings.sdsgSpace?.enabled;
+    const band = bandEnabled && (bk === 'top' ? bandLayout.topBand : bk === 'bottom' ? bandLayout.bottomBand : undefined);
+    let flipDirection = false;
     if (bk && band) {
       const entry = bandEntries[bk].find((e) => e.id === sg.id);
       if (!entry) continue;
@@ -533,6 +535,11 @@ function drawSDSGs(
       const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
       const pos = computeSDSGBandPosition(band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk);
       wx = pos.x; wy = pos.y; w = pos.width; h = pos.height;
+      const autoFlip = settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
+      flipDirection = autoFlip && (
+        (bk === 'top' && sg.type === 'SG') ||
+        (bk === 'bottom' && sg.type === 'SD')
+      );
     } else if (sg.anchorMode === 'between' && sg.attachedTo2) {
       // between モード
       const boxA = sheet.boxes.find((b) => b.id === sg.attachedTo);
@@ -597,7 +604,9 @@ function drawSDSGs(
     // ブロック矢印（rightArrow）は既定で右向き
     // 横型: SD=下向き(90°), SG=上向き(270°)
     // 縦型: SD=右向き(0°), SG=左向き(180°)
-    const isSD = sg.type === 'SD';
+    // flipDirection=true の場合は種別と逆の向き
+    const effectiveType = flipDirection ? (sg.type === 'SD' ? 'SG' : 'SD') : sg.type;
+    const isSD = effectiveType === 'SD';
     const rotate = isH ? (isSD ? 90 : 270) : (isSD ? 0 : 180);
 
     const bgColor = rgbToHex(sg.style?.backgroundColor ?? '#ffffff');

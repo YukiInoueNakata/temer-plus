@@ -261,10 +261,12 @@ function CanvasInner({
       const itemOff = sg.itemOffset ?? 0;
 
       // --- band モード: 帯内に配置 ---
+      // band 機能 OFF / 帯 OFF の場合は single モードで描画（#3: 警告は PropertyPanel 側）
       const bk = sdsgBandKey(sg);
-      if (bk && (bk === 'top' ? bandLayout.topBand : bandLayout.bottomBand)) {
+      const bandEnabled = settings.sdsgSpace?.enabled && bk && (bk === 'top' ? bandLayout.topBand : bandLayout.bottomBand);
+      if (bandEnabled) {
         const band = bk === 'top' ? bandLayout.topBand! : bandLayout.bottomBand!;
-        const entry = bandSdsgsByBand[bk].find((e) => e.id === sg.id);
+        const entry = bandSdsgsByBand[bk!].find((e) => e.id === sg.id);
         if (entry) {
           const rowMap = bk === 'top' ? topRowAssignments : bottomRowAssignments;
           const totalRows = bk === 'top' ? topTotalRows : bottomTotalRows;
@@ -272,7 +274,13 @@ function CanvasInner({
           const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
           const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
           const pos = computeSDSGBandPosition(
-            band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk,
+            band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk!,
+          );
+          // 方向点自動反転: band 位置と種別のミスマッチ時に反転
+          const autoFlip = settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
+          const shouldFlip = autoFlip && (
+            (bk === 'top' && sg.type === 'SG') ||
+            (bk === 'bottom' && sg.type === 'SD')
           );
           return {
             id: sg.id,
@@ -283,6 +291,8 @@ function CanvasInner({
               id: sg.id, type: sg.type, label: sg.label,
               width: pos.width, height: pos.height,
               style: sg.style, rectRatio: sg.rectRatio,
+              flipDirection: shouldFlip,
+              outOfRange: pos.outOfRange,
               subLabel: sg.subLabel, subLabelOffsetX: sg.subLabelOffsetX,
               subLabelOffsetY: sg.subLabelOffsetY, subLabelFontSize: sg.subLabelFontSize,
               subLabelAsciiUpright: sg.subLabelAsciiUpright,
@@ -537,7 +547,56 @@ function CanvasInner({
           // SDSG node か Box node か判別
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
           if (sdsgItem) {
-            // anchor を再計算
+            const isH = layout === 'horizontal';
+            const bandModeActive = settings.sdsgSpace?.enabled &&
+              (sdsgItem.spaceMode === 'band-top' || sdsgItem.spaceMode === 'band-bottom');
+
+            // --- band モード時のドラッグ: spaceInsetItem / spaceInsetTime に反映 ---
+            if (bandModeActive) {
+              const bk = sdsgItem.spaceMode === 'band-top' ? 'top' : 'bottom';
+              const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
+              const band = bk === 'top' ? bandLayout.topBand : bandLayout.bottomBand;
+              if (band) {
+                // 現在の描画位置を再計算（auto-arrange の row を考慮）
+                // まず Time anchor（attached Box center）
+                const attached = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
+                if (!attached) { return; }
+                const anchorTime = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
+                // row 割り当てを再計算（現在の描画と同じ）
+                const bandEntries = sheet.sdsg
+                  .filter((s) => sdsgBandKey(s) === bk)
+                  .map((s) => {
+                    const a = sheet.boxes.find((b) => b.id === s.attachedTo);
+                    const centerT = a ? (isH ? a.x + a.width / 2 : a.y + a.height / 2) : 0;
+                    const w0 = s.spaceWidth ?? s.width ?? 70;
+                    return { id: s.id, timeStart: centerT - w0 / 2, timeEnd: centerT + w0 / 2 };
+                  });
+                const rowMap = settings.sdsgSpace?.autoArrange
+                  ? computeBandRowAssignments(bandEntries) : new Map<string, number>();
+                const totalRows = Math.max(1, ...Array.from(rowMap.values()).map((v) => v + 1));
+                const rowIdx = rowMap.get(sdsgItem.id) ?? 0;
+                const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;
+                const dir = bk === 'top' ? -1 : 1;
+                const rowCenter = band.start + dir * (rowSpan * (rowIdx + 0.5));
+                // ドラッグ後の中心座標
+                const w = sdsgItem.spaceWidth ?? sdsgItem.width ?? 70;
+                const h = sdsgItem.spaceHeight ?? sdsgItem.height ?? 40;
+                const newCenterX = x + w / 2;
+                const newCenterY = y + h / 2;
+                // isH: Time=X, Item=Y / !isH: Time=Y, Item=X
+                const newItemAxis = isH ? newCenterY : newCenterX;
+                const newTimeAxis = isH ? newCenterX : newCenterY;
+                const insetItem = newItemAxis - rowCenter;
+                const insetTime = newTimeAxis - anchorTime;
+                updateSDSG(ch.id, {
+                  spaceInsetItem: insetItem,
+                  spaceInsetTime: insetTime,
+                });
+                return;
+              }
+            }
+
+            // --- attached / between モード: 従来通り offset 逆算 ---
             let anchorX = 0, anchorY = 0;
             const attachedBox = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
             if (attachedBox) {
@@ -556,7 +615,6 @@ function CanvasInner({
             }
             const w = sdsgItem.width ?? 70;
             const h = sdsgItem.height ?? 40;
-            const isH = layout === 'horizontal';
             // 新規左上座標 → offset へ逆算
             const dx = x + w / 2 - anchorX;
             const dy = y + h / 2 - anchorY;
@@ -569,7 +627,7 @@ function CanvasInner({
         }
       }
     },
-    [sheet, updateBox, updateSDSG, snapEnabled, gridPx, layout]
+    [sheet, updateBox, updateSDSG, snapEnabled, gridPx, layout, settings]
   );
 
   const onConnect = useCallback(
