@@ -1,0 +1,1039 @@
+{
+  "version": "0.3",
+  "sheets": [
+    {
+      "id": "Sheet_181372_4970",
+      "name": "Bowwow",
+      "type": "individual",
+      "order": 0,
+      "boxes": [
+        {
+          "id": "OPP1",
+          "type": "OPP",
+          "label": "外国に興味を持つ",
+          "x": 200,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item1",
+          "type": "normal",
+          "label": "英語の授業を受ける",
+          "x": 300,
+          "y": -100,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP2",
+          "type": "OPP",
+          "label": "高校で交換留学プログラムに参加し渡米",
+          "x": 500,
+          "y": 0,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP3",
+          "type": "OPP",
+          "label": "授業中に先生に名前を呼ばれないようにする",
+          "x": 600,
+          "y": 0,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "BFP1",
+          "type": "BFP",
+          "label": "ショックと悲しみを感じる",
+          "x": 700,
+          "y": -200,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item2",
+          "type": "normal",
+          "label": "人々に自分の名前を呼んでほしい",
+          "x": 750.0,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item3",
+          "type": "normal",
+          "label": "状況を改善するために行動する",
+          "x": 800,
+          "y": 0,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item4",
+          "type": "normal",
+          "label": "状況を改善するために行動できない",
+          "x": 800,
+          "y": -300,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item5",
+          "type": "normal",
+          "label": "日本に帰国",
+          "x": 900,
+          "y": -300,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item6",
+          "type": "normal",
+          "label": "フィリピンに留学する",
+          "x": 900,
+          "y": -200,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP4",
+          "type": "OPP",
+          "label": "様々な場面で名前の発音を間違えられる経験",
+          "x": 1000,
+          "y": -200,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item7",
+          "type": "normal",
+          "label": "先生から英語名を持つことを提案される",
+          "x": 1050.0,
+          "y": -100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "BFP2",
+          "type": "BFP",
+          "label": "英語名を使い始める",
+          "x": 1100,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item8",
+          "type": "normal",
+          "label": "解決策に満足する",
+          "x": 1150.0,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item9",
+          "type": "normal",
+          "label": "スムーズにコミュニケーションできる",
+          "x": 1200,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item10",
+          "type": "normal",
+          "label": "英語名を使わない",
+          "x": 1100,
+          "y": -400,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item11",
+          "type": "normal",
+          "label": "名前を正しく発音してもらうよう努力",
+          "x": 1250.0,
+          "y": -300,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item12",
+          "type": "normal",
+          "label": "同じ状況に遭遇しなくなる",
+          "x": 1050.0,
+          "y": -500,
+          "width": 90,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item13",
+          "type": "normal",
+          "label": "解決策に満足しない",
+          "x": 1200,
+          "y": -400,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item14",
+          "type": "normal",
+          "label": "相手に好きなように呼ばせる",
+          "x": 1300,
+          "y": -500,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item15",
+          "type": "normal",
+          "label": "長期留学に行きたい",
+          "x": 1300,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item16",
+          "type": "normal",
+          "label": "長期留学に行かない",
+          "x": 1350.0,
+          "y": -200,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item17",
+          "type": "normal",
+          "label": "日本に帰国",
+          "x": 1300,
+          "y": 0,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item18",
+          "type": "normal",
+          "label": "大学を卒業",
+          "x": 1400,
+          "y": -200,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item19",
+          "type": "normal",
+          "label": "日本で就職",
+          "x": 1450.0,
+          "y": -100,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item20",
+          "type": "normal",
+          "label": "本当にやりたいことをすることを決意",
+          "x": 1550.0,
+          "y": 0,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item21",
+          "type": "normal",
+          "label": "新型コロナパンデミック開始",
+          "x": 1600,
+          "y": -100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item22",
+          "type": "normal",
+          "label": "カナダに行く",
+          "x": 1650.0,
+          "y": 0,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "BFP3",
+          "type": "BFP",
+          "label": "英語名を使い続ける",
+          "x": 1700,
+          "y": 100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item23",
+          "type": "normal",
+          "label": "英語名を使わない",
+          "x": 1700,
+          "y": -300,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP5",
+          "type": "OPP",
+          "label": "様々な場面で英語名で呼ばれる経験",
+          "x": 1800,
+          "y": 200,
+          "width": 60,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item24",
+          "type": "normal",
+          "label": "英語名で呼ばれることに慣れる",
+          "x": 1850.0,
+          "y": 300,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item25",
+          "type": "normal",
+          "label": "英語名で呼ばれることに慣れない",
+          "x": 1850.0,
+          "y": -100,
+          "width": 60,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "Item26",
+          "type": "normal",
+          "label": "スムーズにコミュニケーションできない",
+          "x": 1850.0,
+          "y": -400,
+          "width": 90,
+          "height": 150,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "EFP1",
+          "type": "EFP",
+          "label": "解決策に満足し安定した幸福を維持する",
+          "x": 2000,
+          "y": 200,
+          "width": 90,
+          "height": 200,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "P_EFP1",
+          "type": "P-EFP",
+          "label": "結果に不満を感じ不安定なウェルビーイング",
+          "x": 2000,
+          "y": -200,
+          "width": 90,
+          "height": 200,
+          "textOrientation": "vertical"
+        }
+      ],
+      "lines": [
+        {
+          "id": "RL_OPP1_Item1",
+          "type": "RLine",
+          "from": "OPP1",
+          "to": "Item1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item1_OPP2",
+          "type": "RLine",
+          "from": "Item1",
+          "to": "OPP2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP2_OPP3",
+          "type": "RLine",
+          "from": "OPP2",
+          "to": "OPP3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP3_BFP1",
+          "type": "RLine",
+          "from": "OPP3",
+          "to": "BFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP1_Item3",
+          "type": "RLine",
+          "from": "BFP1",
+          "to": "Item3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP1_Item4",
+          "type": "XLine",
+          "from": "BFP1",
+          "to": "Item4",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item2_Item3",
+          "type": "RLine",
+          "from": "Item2",
+          "to": "Item3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item3_Item6",
+          "type": "RLine",
+          "from": "Item3",
+          "to": "Item6",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item4_Item5",
+          "type": "XLine",
+          "from": "Item4",
+          "to": "Item5",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item5_Item6",
+          "type": "XLine",
+          "from": "Item5",
+          "to": "Item6",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item6_OPP4",
+          "type": "RLine",
+          "from": "Item6",
+          "to": "OPP4",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP4_Item7",
+          "type": "RLine",
+          "from": "OPP4",
+          "to": "Item7",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item7_BFP2",
+          "type": "RLine",
+          "from": "Item7",
+          "to": "BFP2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP2_Item8",
+          "type": "RLine",
+          "from": "BFP2",
+          "to": "Item8",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP2_Item10",
+          "type": "XLine",
+          "from": "BFP2",
+          "to": "Item10",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item8_Item9",
+          "type": "RLine",
+          "from": "Item8",
+          "to": "Item9",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item9_Item15",
+          "type": "RLine",
+          "from": "Item9",
+          "to": "Item15",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item10_Item11",
+          "type": "XLine",
+          "from": "Item10",
+          "to": "Item11",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item10_Item12",
+          "type": "XLine",
+          "from": "Item10",
+          "to": "Item12",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item11_Item13",
+          "type": "XLine",
+          "from": "Item11",
+          "to": "Item13",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item13_Item14",
+          "type": "XLine",
+          "from": "Item13",
+          "to": "Item14",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item15_Item17",
+          "type": "RLine",
+          "from": "Item15",
+          "to": "Item17",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item16_Item18",
+          "type": "RLine",
+          "from": "Item16",
+          "to": "Item18",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item17_Item15",
+          "type": "RLine",
+          "from": "Item17",
+          "to": "Item15",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item18_Item19",
+          "type": "RLine",
+          "from": "Item18",
+          "to": "Item19",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item19_Item20",
+          "type": "RLine",
+          "from": "Item19",
+          "to": "Item20",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item20_Item22",
+          "type": "RLine",
+          "from": "Item20",
+          "to": "Item22",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item21_Item20",
+          "type": "RLine",
+          "from": "Item21",
+          "to": "Item20",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item22_BFP3",
+          "type": "RLine",
+          "from": "Item22",
+          "to": "BFP3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP3_OPP5",
+          "type": "RLine",
+          "from": "BFP3",
+          "to": "OPP5",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_BFP3_Item23",
+          "type": "XLine",
+          "from": "BFP3",
+          "to": "Item23",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_OPP5_Item24",
+          "type": "RLine",
+          "from": "OPP5",
+          "to": "Item24",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item23_Item25",
+          "type": "XLine",
+          "from": "Item23",
+          "to": "Item25",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item23_Item26",
+          "type": "XLine",
+          "from": "Item23",
+          "to": "Item26",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item24_EFP1",
+          "type": "RLine",
+          "from": "Item24",
+          "to": "EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item25_P_EFP1",
+          "type": "XLine",
+          "from": "Item25",
+          "to": "P_EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_Item26_P_EFP1",
+          "type": "XLine",
+          "from": "Item26",
+          "to": "P_EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        }
+      ],
+      "sdsg": [
+        {
+          "id": "SD1",
+          "type": "SD",
+          "label": "自分に対する自信の欠如",
+          "attachedTo": "OPP3",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "SD2",
+          "type": "SD",
+          "label": "名前が覚えにくい",
+          "attachedTo": "OPP3",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "SD3",
+          "type": "SD",
+          "label": "英語に対する自信の欠如",
+          "attachedTo": "BFP2",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "SD4",
+          "type": "SD",
+          "label": "自分と英語力に対する自信の欠如",
+          "attachedTo": "Item15",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "SD5",
+          "type": "SD",
+          "label": "経済的に親に頼りたくない",
+          "attachedTo": "Item15",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "SG1",
+          "type": "SG",
+          "label": "英会話教室に通っていた",
+          "attachedTo": "OPP1",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG2",
+          "type": "SG",
+          "label": "名前が誰にとっても発音しにくい",
+          "attachedTo": "OPP4",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG3",
+          "type": "SG",
+          "label": "互いに心地よくストレスフリー",
+          "attachedTo": "BFP2",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG4",
+          "type": "SG",
+          "label": "英語名で呼ばれて嬉しい",
+          "attachedTo": "BFP2",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG5",
+          "type": "SG",
+          "label": "子供の頃からの海外生活への夢",
+          "attachedTo": "Item18",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG6",
+          "type": "SG",
+          "label": "自分のお金がある",
+          "attachedTo": "Item20",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG7",
+          "type": "SG",
+          "label": "日本でかなり仕事をした",
+          "attachedTo": "Item20",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG8",
+          "type": "SG",
+          "label": "そこに行く強い意志",
+          "attachedTo": "Item22",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG9",
+          "type": "SG",
+          "label": "スムーズにコミュニケーションできる",
+          "attachedTo": "BFP3",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG10",
+          "type": "SG",
+          "label": "英語名で互いに心地よくストレスフリー",
+          "attachedTo": "OPP5",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "SG11",
+          "type": "SG",
+          "label": "英語名を使う時に本来の自分を感じる",
+          "attachedTo": "EFP1",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 100,
+          "height": 50,
+          "spaceMode": "band-bottom"
+        }
+      ],
+      "annotations": [],
+      "comments": [],
+      "periodLabels": [
+        {
+          "id": "P_181372_4104",
+          "position": 1,
+          "label": "第1期: 紛争前段階"
+        },
+        {
+          "id": "P_181372_6308",
+          "position": 4.5,
+          "label": "第2期: 紛争初期段階"
+        },
+        {
+          "id": "P_181372_4502",
+          "position": 10,
+          "label": "第3期: 紛争中期段階"
+        },
+        {
+          "id": "P_181372_7938",
+          "position": 15,
+          "label": "第4期: 紛争後段階"
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "Sheet_181372_4970",
+  "participants": [
+    {
+      "id": "Part_181372_4325",
+      "pseudonym": "Bowwow"
+    }
+  ],
+  "settings": {
+    "layout": "horizontal",
+    "locale": "ja",
+    "gridSize": 10,
+    "snap": {
+      "alignGuides": true,
+      "distanceSnap": true,
+      "distancePx": 20,
+      "gridSnap": false,
+      "gridPx": 10
+    },
+    "showLegend": true,
+    "legendPosition": "right",
+    "timelineLabel": {
+      "ja": "非可逆的時間",
+      "en": "Irreversible time"
+    },
+    "timelineAutoInsert": true,
+    "defaultFont": "system-ui",
+    "defaultFontSize": 11,
+    "defaultBoxSize": {
+      "width": 60,
+      "height": 100
+    },
+    "defaultAutoFitText": false,
+    "defaultAutoFitBox": false,
+    "defaultAutoFitBoxMode": "none",
+    "paperGuides": [
+      {
+        "enabled": false,
+        "size": "A4-landscape",
+        "baseSize": "A4",
+        "color": "#000000",
+        "pageCount": 2,
+        "maskOutside": true
+      }
+    ],
+    "uiFontSize": 13,
+    "ribbonFontSize": 12,
+    "levelStep": 0.5,
+    "timeArrow": {
+      "autoInsert": true,
+      "alwaysVisible": true,
+      "timeStartExtension": -0.5,
+      "timeEndExtension": 0.5,
+      "itemReference": "min",
+      "itemOffset": -1,
+      "label": "非可逆的時間",
+      "strokeWidth": 2.5,
+      "fontSize": 14,
+      "labelSideHorizontal": "bottom",
+      "labelSideVertical": "left",
+      "labelBold": false,
+      "labelItalic": false,
+      "labelUnderline": false,
+      "labelOffset": 4,
+      "labelAlignHorizontal": "center",
+      "labelAlignVertical": "center"
+    },
+    "legend": {
+      "autoGenerate": true,
+      "alwaysVisible": true,
+      "includeInExport": true,
+      "position": {
+        "x": 2100,
+        "y": -450
+      },
+      "includeBoxes": true,
+      "includeLines": true,
+      "includeSDSG": true,
+      "includeTimeArrow": true,
+      "title": "凡例",
+      "fontSize": 11,
+      "minWidth": 200,
+      "showDescriptions": false,
+      "columns": 1,
+      "columnsHorizontal": 1,
+      "columnsVertical": 1,
+      "showTitle": true,
+      "titleBold": true,
+      "titleItalic": false,
+      "titleUnderline": false,
+      "titleAlign": "left",
+      "titlePosition": "top",
+      "titleWritingMode": "horizontal",
+      "titleVerticalAlign": "top",
+      "backgroundStyle": "white",
+      "borderWidth": 1,
+      "borderColor": "#999",
+      "sampleWidth": 32,
+      "sampleHeight": 18,
+      "titleSeparatorVisible": true,
+      "titleSeparatorColor": "#dddddd",
+      "itemOverrides": {}
+    },
+    "periodLabels": {
+      "alwaysVisible": true,
+      "includeInExport": true,
+      "itemReference": "max",
+      "itemOffset": 1.5,
+      "fontSize": 13,
+      "showDividers": true,
+      "dividerStrokeWidth": 1,
+      "bandStyle": "band",
+      "labelSideHorizontal": "top",
+      "labelSideVertical": "right"
+    },
+    "typeLabelVisibility": {
+      "BFP": true,
+      "EFP": true,
+      "P-EFP": true,
+      "OPP": true,
+      "2nd-EFP": true,
+      "P-2nd-EFP": true,
+      "SD": true,
+      "SG": true
+    },
+    "sdsgSpace": {
+      "enabled": true,
+      "bands": {
+        "top": {
+          "enabled": true,
+          "heightLevel": 1.5,
+          "reference": "period",
+          "offsetLevel": 0.2,
+          "showBorder": true,
+          "borderColor": "#9b59b6",
+          "fillStyle": "tinted",
+          "labelPosition": "top-left",
+          "shrinkToFitRow": true,
+          "autoExpandHeight": true
+        },
+        "bottom": {
+          "enabled": true,
+          "heightLevel": 1.5,
+          "reference": "timearrow",
+          "offsetLevel": 0.2,
+          "showBorder": true,
+          "borderColor": "#27ae60",
+          "fillStyle": "tinted",
+          "labelPosition": "top-left",
+          "shrinkToFitRow": true,
+          "autoExpandHeight": true
+        }
+      },
+      "autoPlaceSD": "top",
+      "autoPlaceSG": "bottom",
+      "allowMismatchedPlacement": false,
+      "autoArrange": true,
+      "autoFlipDirectionInBand": false
+    }
+  },
+  "metadata": {
+    "title": "Bowwow Demo (JA, Band)",
+    "author": "Yuki Inoue Nakata",
+    "createdAt": "2026-04-20T00:00:00.000Z",
+    "modifiedAt": "2026-04-20T00:00:00.000Z"
+  },
+  "history": []
+}

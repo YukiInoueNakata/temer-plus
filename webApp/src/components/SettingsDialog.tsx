@@ -626,6 +626,37 @@ function SDSGSpaceSection() {
           onChange={(e) => updateBand('top', { showBorder: e.target.checked })}
         />
       </div>
+      <div className="setting-row">
+        <label>枠の色</label>
+        <input
+          type="color"
+          value={space.bands.top.borderColor ?? '#9b59b6'}
+          onChange={(e) => updateBand('top', { borderColor: e.target.value })}
+        />
+      </div>
+      <div className="setting-row">
+        <label>背景塗りつぶし</label>
+        <select
+          value={space.bands.top.fillStyle ?? 'tinted'}
+          onChange={(e) => updateBand('top', { fillStyle: e.target.value as 'tinted' | 'none' })}
+        >
+          <option value="tinted">薄く塗る</option>
+          <option value="none">塗らない（枠線のみ）</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>ラベル位置</label>
+        <select
+          value={space.bands.top.labelPosition ?? 'top-left'}
+          onChange={(e) => updateBand('top', { labelPosition: e.target.value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'none' })}
+        >
+          <option value="top-left">左上</option>
+          <option value="top-right">右上</option>
+          <option value="bottom-left">左下</option>
+          <option value="bottom-right">右下</option>
+          <option value="none">非表示</option>
+        </select>
+      </div>
 
       <h4 style={{ marginTop: 14 }}>{bottomLabel}</h4>
       <div className="setting-row">
@@ -676,6 +707,37 @@ function SDSGSpaceSection() {
           checked={space.bands.bottom.showBorder}
           onChange={(e) => updateBand('bottom', { showBorder: e.target.checked })}
         />
+      </div>
+      <div className="setting-row">
+        <label>枠の色</label>
+        <input
+          type="color"
+          value={space.bands.bottom.borderColor ?? '#27ae60'}
+          onChange={(e) => updateBand('bottom', { borderColor: e.target.value })}
+        />
+      </div>
+      <div className="setting-row">
+        <label>背景塗りつぶし</label>
+        <select
+          value={space.bands.bottom.fillStyle ?? 'tinted'}
+          onChange={(e) => updateBand('bottom', { fillStyle: e.target.value as 'tinted' | 'none' })}
+        >
+          <option value="tinted">薄く塗る</option>
+          <option value="none">塗らない（枠線のみ）</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>ラベル位置</label>
+        <select
+          value={space.bands.bottom.labelPosition ?? 'top-left'}
+          onChange={(e) => updateBand('bottom', { labelPosition: e.target.value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'none' })}
+        >
+          <option value="top-left">左上</option>
+          <option value="top-right">右上</option>
+          <option value="bottom-left">左下</option>
+          <option value="bottom-right">右下</option>
+          <option value="none">非表示</option>
+        </select>
       </div>
 
       <h4 style={{ marginTop: 14 }}>配置の挙動</h4>

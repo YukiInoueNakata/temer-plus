@@ -1387,13 +1387,35 @@ function SDSGBandOverlay() {
   const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
   const isH = layout === 'horizontal';
 
+  // ラベル位置の style を返す
+  const labelStyleFor = (pos: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'none', color: string, scale: number): React.CSSProperties | null => {
+    if (pos === 'none') return null;
+    const base: React.CSSProperties = {
+      position: 'absolute',
+      fontSize: 10 * scale, color,
+      background: '#fff', padding: '0 4px', borderRadius: 2,
+    };
+    if (pos === 'top-left') return { ...base, left: 6, top: 4 };
+    if (pos === 'top-right') return { ...base, right: 6, top: 4 };
+    if (pos === 'bottom-left') return { ...base, left: 6, bottom: 4 };
+    if (pos === 'bottom-right') return { ...base, right: 6, bottom: 4 };
+    return null;
+  };
+
   const renderBand = (
     band: NonNullable<ReturnType<typeof computeSDSGBandLayout>['topBand']>,
     label: string,
-    showBorder: boolean,
-    color: string,
+    bandCfg: NonNullable<typeof settings.sdsgSpace>['bands']['top'] | NonNullable<typeof settings.sdsgSpace>['bands']['bottom'],
+    defaultColor: string,
   ) => {
-    if (!showBorder) return null;
+    if (!bandCfg.showBorder) return null;
+    const color = bandCfg.borderColor ?? defaultColor;
+    const fillStyle = bandCfg.fillStyle ?? 'tinted';
+    const background = fillStyle === 'tinted' ? `${color}18` : 'transparent';
+    const labelPos = bandCfg.labelPosition ?? 'top-left';
+    const scale = Math.max(0.8, zoom);
+    const ls = labelStyleFor(labelPos, color, scale);
+    const labelEl = ls ? <span style={ls}>{label}</span> : null;
     // 帯を全画面横断の薄い矩形として表示
     if (isH) {
       const yMin = Math.min(band.start, band.end) * zoom + panY;
@@ -1404,16 +1426,12 @@ function SDSGBandOverlay() {
             position: 'absolute', left: 0, right: 0,
             top: yMin, height: yMax - yMin,
             border: `1.5px dashed ${color}`,
-            background: `${color}18`,
+            background,
             pointerEvents: 'none',
             zIndex: 0,
           }}
         >
-          <span style={{
-            position: 'absolute', left: 6, top: 4,
-            fontSize: 10 * Math.max(0.8, zoom), color,
-            background: '#fff', padding: '0 4px', borderRadius: 2,
-          }}>{label}</span>
+          {labelEl}
         </div>
       );
     }
@@ -1425,16 +1443,12 @@ function SDSGBandOverlay() {
           position: 'absolute', top: 0, bottom: 0,
           left: xMin, width: xMax - xMin,
           border: `1.5px dashed ${color}`,
-          background: `${color}18`,
+          background,
           pointerEvents: 'none',
           zIndex: 0,
         }}
       >
-        <span style={{
-          position: 'absolute', left: 4, top: 6,
-          fontSize: 10 * Math.max(0.8, zoom), color,
-          background: '#fff', padding: '0 4px', borderRadius: 2,
-        }}>{label}</span>
+        {labelEl}
       </div>
     );
   };
@@ -1442,9 +1456,9 @@ function SDSGBandOverlay() {
   return (
     <>
       {bandLayout.topBand && settings.sdsgSpace?.bands.top.showBorder &&
-        renderBand(bandLayout.topBand, isH ? '上部帯 (SD)' : '左側帯 (SD)', true, '#9b59b6')}
+        renderBand(bandLayout.topBand, isH ? '上部帯 (SD)' : '左側帯 (SD)', settings.sdsgSpace.bands.top, '#9b59b6')}
       {bandLayout.bottomBand && settings.sdsgSpace?.bands.bottom.showBorder &&
-        renderBand(bandLayout.bottomBand, isH ? '下部帯 (SG)' : '右側帯 (SG)', true, '#27ae60')}
+        renderBand(bandLayout.bottomBand, isH ? '下部帯 (SG)' : '右側帯 (SG)', settings.sdsgSpace.bands.bottom, '#27ae60')}
     </>
   );
 }

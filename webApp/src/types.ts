@@ -467,6 +467,12 @@ export interface SDSGSpaceBandSettings {
   reference: 'period' | 'timearrow' | 'boxes';  // 何の内側か
   offsetLevel: number;                    // 基準からの距離（Level、既定 0.2）
   showBorder: boolean;                    // 編集時に帯範囲を点線表示
+  // 帯枠の色（編集時表示、既定: 上部=紫 / 下部=緑）
+  borderColor?: string;
+  // 帯背景の色（薄く）。`none` で塗りつぶしなし。既定: borderColor の 18% 不透明度
+  fillStyle?: 'tinted' | 'none';
+  // 編集時の帯ラベル位置（帯範囲の左上にラベル表示する場合）
+  labelPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'none';
   // SDSG row が帯に収まらない時、自動的に SDSG 高さを圧縮するか
   //   true: row span 以内に SDSG を縮める（既定）
   //   false: そのまま描画（はみ出し発生、outOfRange 警告）
