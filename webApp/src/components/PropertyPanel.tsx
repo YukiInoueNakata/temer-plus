@@ -663,6 +663,8 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
 // ============================================================================
 // SDSG Properties
 // ============================================================================
+type SDSGTab = 'basic' | 'placement' | 'decoration';
+
 function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const updateSDSG = useTEMStore((s) => s.updateSDSG);
   const removeSDSG = useTEMStore((s) => s.removeSDSG);
@@ -671,6 +673,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const sheet = useActiveSheet();
   const isMulti = sdsgs.length > 1;
   const first = sdsgs[0];
+  const [tab, setTab] = useState<SDSGTab>('basic');
 
   const changeSpaceMode = (newMode: 'attached' | 'band-top' | 'band-bottom') => {
     const ids = sdsgs.map((s) => s.id);
@@ -696,8 +699,25 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   return (
     <div className="prop-section">
       <h4>SD/SG {isMulti && <span className="multi-badge">{sdsgs.length}個</span>}</h4>
+
+      <div className="settings-tabs" style={{ marginBottom: 8, padding: 0 }}>
+        <button
+          className={tab === 'basic' ? 'settings-tab active' : 'settings-tab'}
+          onClick={() => setTab('basic')}
+        >基本</button>
+        <button
+          className={tab === 'placement' ? 'settings-tab active' : 'settings-tab'}
+          onClick={() => setTab('placement')}
+        >配置</button>
+        <button
+          className={tab === 'decoration' ? 'settings-tab active' : 'settings-tab'}
+          onClick={() => setTab('decoration')}
+        >装飾・ラベル</button>
+      </div>
+
       {!isMulti && (
         <>
+          {tab === 'basic' && <>
           <div className="prop-row">
             <label>ID</label>
             <input value={first.id} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
@@ -720,6 +740,9 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             <label>紐付け対象ID</label>
             <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
           </div>
+          </>}
+
+          {tab === 'placement' && <>
           {sdsgSpace?.enabled ? (
             <>
               <div className="prop-row">
@@ -929,6 +952,9 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               />
             </div>
           </div>
+          </>}
+
+          {tab === 'decoration' && <>
           <div className="prop-row">
             <label>フォントサイズ</label>
             <input
@@ -1115,6 +1141,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               onChange={(e) => updateSDSG(first.id, { subLabelAsciiUpright: e.target.checked })}
             />
           </div>
+          </>}
         </>
       )}
       <div className="prop-row">

@@ -553,11 +553,13 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
         <RibbonButton label="順次接続(実線)" icon="→→" onClick={() => handleSequentialArrow('RLine')} />
         <RibbonButton label="順次接続(点線)" icon="⇢⇢" onClick={() => handleSequentialArrow('XLine')} />
       </RibbonGroup>
-      <RibbonGroup title="SD/SG">
+      <RibbonGroup title="SD/SG 作成">
         <RibbonButton label="SD追加" icon="▽" onClick={() => handleAddSDSG('SD')} title="選択中の Box / Line に紐づく SD を追加" />
         <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} title="選択中の Box / Line に紐づく SG を追加" />
         <RibbonButton label="SD (2 アイテム間)" icon="⊳⊲" onClick={() => handleAddSDSGBetween('SD')} title="選択した 2 Box の間に配置する SD を追加" />
         <RibbonButton label="SG (2 アイテム間)" icon="⊲⊳" onClick={() => handleAddSDSGBetween('SG')} title="選択した 2 Box の間に配置する SG を追加" />
+      </RibbonGroup>
+      <RibbonGroup title="SD/SG 配置">
         <RibbonButton
           label="選択を帯上へ"
           icon="↥"
@@ -581,7 +583,7 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
           title="選択中の SD/SG を下部帯に配置"
         />
         <RibbonButton
-          label="選択を attached に"
+          label="attached に"
           icon="⇄"
           onClick={() => {
             const ids = useTEMStore.getState().selection.sdsgIds;

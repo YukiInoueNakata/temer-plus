@@ -576,7 +576,9 @@ function SDSGSpaceSection() {
       </div>
       <p className="hint">OFF: 従来通り attachedTo Box に追従 / ON: band-top / band-bottom を選べる</p>
 
-      <h4 style={{ marginTop: 14 }}>{topLabel}</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 14 }}>
+      <div>
+      <h4 style={{ marginTop: 0 }}>{topLabel}</h4>
       <div className="setting-row">
         <label>この帯を使う</label>
         <input
@@ -658,7 +660,9 @@ function SDSGSpaceSection() {
         </select>
       </div>
 
-      <h4 style={{ marginTop: 14 }}>{bottomLabel}</h4>
+      </div>
+      <div>
+      <h4 style={{ marginTop: 0 }}>{bottomLabel}</h4>
       <div className="setting-row">
         <label>この帯を使う</label>
         <input
@@ -738,6 +742,9 @@ function SDSGSpaceSection() {
           <option value="bottom-right">右下</option>
           <option value="none">非表示</option>
         </select>
+      </div>
+
+      </div>
       </div>
 
       <h4 style={{ marginTop: 14 }}>配置の挙動</h4>
