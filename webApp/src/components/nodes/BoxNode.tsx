@@ -17,6 +17,7 @@ import { renderVerticalAwareText } from '../../utils/verticalText';
 import { renderRichText } from '../../utils/richText';
 import { computeAutoFitSize, computeFitFontSize } from '../../utils/boxFit';
 import { useTEMView } from '../../context/TEMViewContext';
+import { useTEMStore } from '../../store/store';
 
 export interface BoxNodeData extends Pick<
   Box,
@@ -360,7 +361,14 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   const targetPosition = isVerticalLayout ? Position.Top : Position.Left;
   const sourcePosition = isVerticalLayout ? Position.Bottom : Position.Right;
 
-  // NodeResizer onResize でストア更新
+  // NodeResizer onResize でストア更新。temporal を pause/resume し、リサイズ 1 回分を
+  // まとめて Undo できるようにする（連続的な中間状態が履歴を汚染しないよう抑制）。
+  const resizing = useRef(false);
+  const onResizeStart = () => {
+    if (resizing.current) return;
+    resizing.current = true;
+    useTEMStore.temporal.getState().pause();
+  };
   const onResize = (
     _e: unknown,
     params: { width: number; height: number },
@@ -369,6 +377,11 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
       width: Math.max(20, Math.round(params.width)),
       height: Math.max(20, Math.round(params.height)),
     });
+  };
+  const onResizeEnd = () => {
+    if (!resizing.current) return;
+    resizing.current = false;
+    useTEMStore.temporal.getState().resume();
   };
 
   return (
@@ -379,7 +392,9 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
         minHeight={20}
         handleStyle={{ width: 8, height: 8, borderRadius: 2, background: '#2684ff', border: '1px solid #fff' }}
         lineStyle={{ borderColor: '#2684ff' }}
+        onResizeStart={onResizeStart}
         onResize={onResize}
+        onResizeEnd={onResizeEnd}
       />
       <div
         style={{ ...baseStyle, ...borderStyle }}
