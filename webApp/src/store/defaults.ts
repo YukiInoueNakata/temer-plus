@@ -124,6 +124,8 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
         reference: 'period',      // 時期区分の内側（時期区分が上部配置時）
         offsetLevel: 0.2,
         showBorder: true,
+        shrinkToFitRow: true,
+        autoExpandHeight: false,
       },
       bottom: {
         enabled: true,
@@ -131,6 +133,8 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
         reference: 'timearrow',   // 時間矢印の内側（時間矢印が下部配置時）
         offsetLevel: 0.2,
         showBorder: true,
+        shrinkToFitRow: true,
+        autoExpandHeight: false,
       },
     },
     autoPlaceSD: 'top',

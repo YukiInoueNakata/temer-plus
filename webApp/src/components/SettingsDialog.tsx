@@ -689,6 +689,30 @@ function SDSGSpaceSection() {
       </div>
       <p className="hint">ON: 同じ時間位置で重なる SDSG を帯内で自動的に縦積み / OFF: 重なっても整列しない</p>
       <div className="setting-row">
+        <label>row が多い時、SDSG を帯内に圧縮</label>
+        <input
+          type="checkbox"
+          checked={space.bands.top.shrinkToFitRow !== false || space.bands.bottom.shrinkToFitRow !== false}
+          onChange={(e) => {
+            updateBand('top', { shrinkToFitRow: e.target.checked });
+            updateBand('bottom', { shrinkToFitRow: e.target.checked });
+          }}
+        />
+      </div>
+      <p className="hint">ON: SDSG の高さを row span に合わせて自動圧縮 / OFF: はみ出しを許容（赤枠で警告）</p>
+      <div className="setting-row">
+        <label>row が多い時、帯を自動拡張</label>
+        <input
+          type="checkbox"
+          checked={!!(space.bands.top.autoExpandHeight || space.bands.bottom.autoExpandHeight)}
+          onChange={(e) => {
+            updateBand('top', { autoExpandHeight: e.target.checked });
+            updateBand('bottom', { autoExpandHeight: e.target.checked });
+          }}
+        />
+      </div>
+      <p className="hint">ON: heightLevel を超える row 数が必要な時、帯を一時的に拡張（描画時のみ、設定値は保持）</p>
+      <div className="setting-row">
         <label>組合せ制限を解除</label>
         <input
           type="checkbox"

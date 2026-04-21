@@ -133,8 +133,7 @@ function Inner({
     }));
 
     // band / between モードも考慮した SDSG レンダリング（Canvas.tsx と同じ計算を使用）
-    const bandLayout = computeSDSGBandLayout(sheet, doc.settings.layout, doc.settings);
-    const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number }>> = { top: [], bottom: [] };
+    const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
     sheet.sdsg.forEach((sg) => {
       const bk = sdsgBandKey(sg);
       if (!bk) return;
@@ -160,7 +159,7 @@ function Inner({
         timeStart = centerT - w0 / 2;
         timeEnd = centerT + w0 / 2;
       }
-      bandEntries[bk].push({ id: sg.id, timeStart, timeEnd });
+      bandEntries[bk].push({ id: sg.id, timeStart, timeEnd, rowOverride: sg.spaceRowOverride });
     });
     const topRows = doc.settings.sdsgSpace?.autoArrange
       ? computeBandRowAssignments(bandEntries.top)
@@ -170,6 +169,9 @@ function Inner({
       : new Map<string, number>();
     const topTotal = Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1));
     const bottomTotal = Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1));
+    const bandLayout = computeSDSGBandLayout(sheet, doc.settings.layout, doc.settings, {
+      top: topTotal, bottom: bottomTotal,
+    });
 
     const sdsgNodes: Node<SDSGNodeData>[] = sheet.sdsg.map((sg) => {
       let x: number, y: number, w: number, h: number;
@@ -187,7 +189,9 @@ function Inner({
           const rowIdx = rowMap.get(sg.id) ?? 0;
           const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
           const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
-          const pos = computeSDSGBandPosition(band, doc.settings.layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk);
+          const bandSettings = bk === 'top' ? doc.settings.sdsgSpace?.bands.top : doc.settings.sdsgSpace?.bands.bottom;
+          const pos = computeSDSGBandPosition(band, doc.settings.layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk,
+            { shrinkToFitRow: bandSettings?.shrinkToFitRow !== false });
           x = pos.x; y = pos.y; w = pos.width; h = pos.height;
           const autoFlip = doc.settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
           flipDirection = autoFlip && (

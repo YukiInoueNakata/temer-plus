@@ -53,11 +53,13 @@ function itemBoundsOfBoxes(sheet: Sheet, layout: LayoutDirection) {
 
 /**
  * 時期区分 / 時間矢印 / Box 群を基準に、上部・下部帯の配置を算出
+ * @param requiredRows 自動拡張用: 各帯で必要な row 数（事前計算済み）
  */
 export function computeSDSGBandLayout(
   sheet: Sheet,
   layout: LayoutDirection,
   settings: ProjectSettings,
+  requiredRows?: { top?: number; bottom?: number },
 ): SDSGBandLayout {
   if (!settings.sdsgSpace?.enabled) return {};
   const isH = layout === 'horizontal';
@@ -101,6 +103,18 @@ export function computeSDSGBandLayout(
     const offsetPx = band.offsetLevel * LEVEL_PX;
     let heightPx = band.heightLevel * LEVEL_PX;
     let heightClamped = false;
+
+    // autoExpandHeight=true の場合、必要な row 数に応じて heightPx を拡大
+    // （SDSG の通常高さを保てる最小 heightPx を推定）
+    const rowsNeeded = side === 'top' ? requiredRows?.top ?? 0 : requiredRows?.bottom ?? 0;
+    if (band.autoExpandHeight && rowsNeeded > 1) {
+      // 1 row あたり少なくとも 50px 確保（SDSG 既定高さ 40 + マージン）
+      const minPerRow = 50;
+      const required = rowsNeeded * minPerRow;
+      if (required > heightPx) {
+        heightPx = required;
+      }
+    }
 
     // reference が 'period' / 'timearrow' の場合は heightLevel が offsetLevel を超えると
     // band が reference を越えてしまう。クランプして reference に接するまでに制限。
@@ -151,27 +165,56 @@ export function sdsgBandKey(sg: SDSG): 'top' | 'bottom' | null {
 
 /**
  * 帯内での自動整列: 同じ Time 位置で重なる SDSG を Item 方向に縦積み
+ * spaceRowOverride が指定されている SDSG はそれを優先、残りのみ自動割当
  * 返り値: SDSG ID → 帯内での row index（0 から）
  */
 export function computeBandRowAssignments(
-  bandSdsgs: Array<{ id: string; timeStart: number; timeEnd: number }>,
+  bandSdsgs: Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>,
 ): Map<string, number> {
-  // timeStart で昇順、同時なら id
-  const sorted = [...bandSdsgs].sort((a, b) => a.timeStart - b.timeStart || a.id.localeCompare(b.id));
-  const rowEnds: number[] = []; // 各 row で現在最大の timeEnd
   const assignment = new Map<string, number>();
+  // 手動 override を先に反映
+  const autoCandidates: Array<{ id: string; timeStart: number; timeEnd: number }> = [];
+  // row ごとの占有済み区間（手動指定分）
+  const rowOccupied: Map<number, Array<[number, number]>> = new Map();
+  for (const sg of bandSdsgs) {
+    if (sg.rowOverride != null && sg.rowOverride >= 0 && Number.isFinite(sg.rowOverride)) {
+      const r = Math.floor(sg.rowOverride);
+      assignment.set(sg.id, r);
+      const arr = rowOccupied.get(r) ?? [];
+      arr.push([sg.timeStart, sg.timeEnd]);
+      rowOccupied.set(r, arr);
+    } else {
+      autoCandidates.push(sg);
+    }
+  }
+  // 自動割当: timeStart 順、override と衝突しない最小 row
+  const sorted = [...autoCandidates].sort((a, b) => a.timeStart - b.timeStart || a.id.localeCompare(b.id));
+  const rowEnds: Map<number, number> = new Map();
+  // override で既に使われた row の timeEnd を初期化（override は timeEnd 順 sort ではないので保守的に max）
+  for (const [r, intervals] of rowOccupied) {
+    let maxEnd = -Infinity;
+    for (const [s, e] of intervals) { void s; if (e > maxEnd) maxEnd = e; }
+    rowEnds.set(r, maxEnd);
+  }
   for (const sg of sorted) {
     let placed = -1;
-    for (let r = 0; r < rowEnds.length; r++) {
-      if (rowEnds[r] <= sg.timeStart) {
-        rowEnds[r] = sg.timeEnd;
+    // 既存 row（override 含む）で空きを探す（番号小さい順）
+    const rowNums = Array.from(rowEnds.keys()).sort((a, b) => a - b);
+    for (const r of rowNums) {
+      // override 占有区間との重複チェック
+      const intervals = rowOccupied.get(r) ?? [];
+      const overlapsOverride = intervals.some(([s, e]) => !(sg.timeEnd <= s || sg.timeStart >= e));
+      if (!overlapsOverride && (rowEnds.get(r) ?? -Infinity) <= sg.timeStart) {
+        rowEnds.set(r, Math.max(rowEnds.get(r) ?? -Infinity, sg.timeEnd));
         placed = r;
         break;
       }
     }
     if (placed === -1) {
-      rowEnds.push(sg.timeEnd);
-      placed = rowEnds.length - 1;
+      // 新規 row を既存最大+1 に作る
+      const maxRow = rowNums.length > 0 ? rowNums[rowNums.length - 1] : -1;
+      placed = maxRow + 1;
+      rowEnds.set(placed, sg.timeEnd);
     }
     assignment.set(sg.id, placed);
   }
@@ -204,12 +247,23 @@ export function computeSDSGBandPosition(
   totalRows: number,
   sg: SDSG,
   side: 'top' | 'bottom',
+  opts?: { shrinkToFitRow?: boolean },
 ): SDSGBandPosition {
   const isH = layout === 'horizontal';
   const w = sg.spaceWidth ?? sg.width ?? 70;
   // between モードの場合 timeWidth は 2 Box 間の距離、single は sg.width
-  const effectiveWidth = isH ? timeWidth : w;
-  const effectiveHeight = isH ? (sg.spaceHeight ?? sg.height ?? 40) : timeWidth;
+  let effectiveWidth = isH ? timeWidth : w;
+  let effectiveHeight = isH ? (sg.spaceHeight ?? sg.height ?? 40) : timeWidth;
+
+  // shrinkToFitRow: row span より大きい SDSG は row span 以内に圧縮
+  const shrink = opts?.shrinkToFitRow !== false;  // 既定 true
+  if (shrink && totalRows > 0) {
+    const rowSpanPx = band.axisSpan / totalRows;
+    // マージン 20% 確保
+    const maxItemSize = Math.max(10, rowSpanPx * 0.8);
+    if (isH && effectiveHeight > maxItemSize) effectiveHeight = maxItemSize;
+    if (!isH && effectiveWidth > maxItemSize) effectiveWidth = maxItemSize;
+  }
 
   // row 配置の Item 軸座標
   const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;

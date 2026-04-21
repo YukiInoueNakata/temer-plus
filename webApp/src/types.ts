@@ -155,6 +155,9 @@ export interface SDSG {
   // 帯内で使う個別 width/height（未指定なら width/height を使用）
   spaceWidth?: number;
   spaceHeight?: number;
+  // 帯内で割り当てる row の手動上書き（0=最内側=Box 群寄り、大きいほど外側）
+  // undefined = 自動整列に任せる
+  spaceRowOverride?: number;
   itemOffset: number;
   timeOffset: number;
   width?: number;
@@ -464,6 +467,14 @@ export interface SDSGSpaceBandSettings {
   reference: 'period' | 'timearrow' | 'boxes';  // 何の内側か
   offsetLevel: number;                    // 基準からの距離（Level、既定 0.2）
   showBorder: boolean;                    // 編集時に帯範囲を点線表示
+  // SDSG row が帯に収まらない時、自動的に SDSG 高さを圧縮するか
+  //   true: row span 以内に SDSG を縮める（既定）
+  //   false: そのまま描画（はみ出し発生、outOfRange 警告）
+  shrinkToFitRow?: boolean;
+  // row 数が多くて圧縮しきれない時、帯自体を自動拡張するか
+  //   true: heightLevel を必要分だけ拡大（描画時のみ、設定値は保存されない）
+  //   false: shrinkToFitRow で圧縮
+  autoExpandHeight?: boolean;
 }
 
 export interface SDSGSpaceSettings {

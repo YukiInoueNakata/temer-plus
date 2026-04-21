@@ -486,8 +486,7 @@ function drawSDSGs(
   const isH = layout === 'horizontal';
 
   // --- band モードの事前計算 ---
-  const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
-  const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number }>> = { top: [], bottom: [] };
+  const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
   sheet.sdsg.forEach((sg) => {
     const bk = sdsgBandKey(sg);
     if (!bk) return;
@@ -510,12 +509,13 @@ function drawSDSGs(
       const w0 = sg.spaceWidth ?? sg.width ?? 70;
       tS = centerT - w0 / 2; tE = centerT + w0 / 2;
     }
-    bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE });
+    bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE, rowOverride: sg.spaceRowOverride });
   });
   const topRows = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(bandEntries.top) : new Map<string, number>();
   const bottomRows = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(bandEntries.bottom) : new Map<string, number>();
   const topTotal = Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1));
   const bottomTotal = Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1));
+  const bandLayout = computeSDSGBandLayout(sheet, layout, settings, { top: topTotal, bottom: bottomTotal });
 
   for (const sg of sheet.sdsg) {
     let wx: number, wy: number, w: number, h: number;
@@ -533,7 +533,9 @@ function drawSDSGs(
       const rowIdx = rowMap.get(sg.id) ?? 0;
       const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
       const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
-      const pos = computeSDSGBandPosition(band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk);
+      const bandSettings = bk === 'top' ? settings.sdsgSpace?.bands.top : settings.sdsgSpace?.bands.bottom;
+      const pos = computeSDSGBandPosition(band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk,
+        { shrinkToFitRow: bandSettings?.shrinkToFitRow !== false });
       wx = pos.x; wy = pos.y; w = pos.width; h = pos.height;
       const autoFlip = settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
       flipDirection = autoFlip && (

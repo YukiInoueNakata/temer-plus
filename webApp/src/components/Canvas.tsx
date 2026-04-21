@@ -209,8 +209,8 @@ function CanvasInner({
     const isH = layout === 'horizontal';
 
     // --- band モードの事前計算: 帯の位置 + row 割り当て ---
-    const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
-    const bandSdsgsByBand: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; ref: typeof sheet.sdsg[number] }>> = {
+    // 1st pass: row 割り当てだけ先に行うため、仮の band layout を計算
+    const bandSdsgsByBand: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number; ref: typeof sheet.sdsg[number] }>> = {
       top: [], bottom: [],
     };
     sheet.sdsg.forEach((sg) => {
@@ -245,7 +245,7 @@ function CanvasInner({
         timeStart = centerT - w / 2;
         timeEnd = centerT + w / 2;
       }
-      bandSdsgsByBand[bk].push({ id: sg.id, timeStart, timeEnd, ref: sg });
+      bandSdsgsByBand[bk].push({ id: sg.id, timeStart, timeEnd, rowOverride: sg.spaceRowOverride, ref: sg });
     });
     const topRowAssignments = settings.sdsgSpace?.autoArrange
       ? computeBandRowAssignments(bandSdsgsByBand.top)
@@ -255,6 +255,10 @@ function CanvasInner({
       : new Map<string, number>();
     const topTotalRows = Math.max(1, ...Array.from(topRowAssignments.values()).map((v) => v + 1));
     const bottomTotalRows = Math.max(1, ...Array.from(bottomRowAssignments.values()).map((v) => v + 1));
+    // 2nd pass: row 数を渡して band layout 確定（autoExpandHeight 反映）
+    const bandLayout = computeSDSGBandLayout(sheet, layout, settings, {
+      top: topTotalRows, bottom: bottomTotalRows,
+    });
 
     return sheet.sdsg.map((sg) => {
       const timeOff = sg.timeOffset ?? 0;
@@ -273,8 +277,10 @@ function CanvasInner({
           const rowIdx = rowMap.get(sg.id) ?? 0;
           const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
           const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
+          const bandSettings = bk === 'top' ? settings.sdsgSpace?.bands.top : settings.sdsgSpace?.bands.bottom;
           const pos = computeSDSGBandPosition(
             band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk!,
+            { shrinkToFitRow: bandSettings?.shrinkToFitRow !== false },
           );
           // 方向点自動反転: band 位置と種別のミスマッチ時に反転
           const autoFlip = settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
@@ -569,7 +575,12 @@ function CanvasInner({
                     const a = sheet.boxes.find((b) => b.id === s.attachedTo);
                     const centerT = a ? (isH ? a.x + a.width / 2 : a.y + a.height / 2) : 0;
                     const w0 = s.spaceWidth ?? s.width ?? 70;
-                    return { id: s.id, timeStart: centerT - w0 / 2, timeEnd: centerT + w0 / 2 };
+                    return {
+                      id: s.id,
+                      timeStart: centerT - w0 / 2,
+                      timeEnd: centerT + w0 / 2,
+                      rowOverride: s.spaceRowOverride,
+                    };
                   });
                 const rowMap = settings.sdsgSpace?.autoArrange
                   ? computeBandRowAssignments(bandEntries) : new Map<string, number>();

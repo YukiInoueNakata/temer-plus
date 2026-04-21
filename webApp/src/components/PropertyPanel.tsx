@@ -736,6 +736,45 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               {(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && !isMulti && (
                 <>
                   <div className="prop-row">
+                    <label>帯内 Row 指定</label>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={first.spaceRowOverride ?? ''}
+                        placeholder="自動"
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          updateSDSG(first.id, { spaceRowOverride: v === '' ? undefined : Math.max(0, Number(v)) });
+                        }}
+                        style={{ width: 60 }}
+                        title="帯内で割り当てる row を手動指定（0=最内側 Box 群寄り、大きいほど外側）。空欄で自動整列"
+                      />
+                      <button
+                        className="ribbon-btn-small"
+                        onClick={() => {
+                          const cur = first.spaceRowOverride ?? 0;
+                          updateSDSG(first.id, { spaceRowOverride: Math.max(0, cur - 1) });
+                        }}
+                        title="row を 1 つ内側（Box 群寄り）へ"
+                      >↑</button>
+                      <button
+                        className="ribbon-btn-small"
+                        onClick={() => {
+                          const cur = first.spaceRowOverride ?? 0;
+                          updateSDSG(first.id, { spaceRowOverride: cur + 1 });
+                        }}
+                        title="row を 1 つ外側へ"
+                      >↓</button>
+                      <button
+                        className="ribbon-btn-small"
+                        onClick={() => updateSDSG(first.id, { spaceRowOverride: undefined })}
+                        title="自動整列に戻す"
+                      >自動</button>
+                    </div>
+                  </div>
+                  <div className="prop-row">
                     <label>帯内 Time オフセット (px)</label>
                     <input
                       type="number"

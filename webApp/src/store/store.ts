@@ -31,6 +31,7 @@ import {
   genSheetId,
 } from './defaults';
 import { computeFitToLabelSize, computeFitFontSize } from '../utils/boxFit';
+import { hydrateDocument } from '../utils/hydrate';
 
 interface DocumentState {
   doc: TEMDocument;
@@ -263,7 +264,15 @@ export const useTEMStore = create<Store>()(
       fitMode: null,
 
       // --- Document-level ---
-      loadDocument: (doc) => set({ doc, dirty: false, selection: { sheetId: doc.activeSheetId, boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] } }),
+      loadDocument: (doc) => {
+        // 旧フォーマットの .tem ファイルで不足している settings 項目を defaults で補完
+        const hydrated = hydrateDocument(doc);
+        set({
+          doc: hydrated,
+          dirty: false,
+          selection: { sheetId: hydrated.activeSheetId, boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] },
+        });
+      },
       importSheetsFromDocument: (src) => {
         set((state) => {
           // 既存 ID と衝突しないよう、新ドキュメントのシート ID にサフィックス付与

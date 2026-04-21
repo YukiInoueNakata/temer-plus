@@ -629,6 +629,20 @@ function ViewTab({ onOpenPeriodSettings, onOpenPeriodLabels: _onOpenPeriodLabels
   const periodLabelsVisible = useTEMStore((s) => s.doc.settings.periodLabels.alwaysVisible);
   const timeArrowVisible = useTEMStore((s) => s.doc.settings.timeArrow.alwaysVisible);
   const typeLabelVisibility = useTEMStore((s) => s.doc.settings.typeLabelVisibility);
+  const sdsgSpaceEnabled = useTEMStore((s) => s.doc.settings.sdsgSpace?.enabled ?? false);
+  const toggleSDSGSpace = () => {
+    useTEMStore.setState((state) => ({
+      doc: {
+        ...state.doc,
+        settings: {
+          ...state.doc.settings,
+          sdsgSpace: state.doc.settings.sdsgSpace
+            ? { ...state.doc.settings.sdsgSpace, enabled: !state.doc.settings.sdsgSpace.enabled }
+            : state.doc.settings.sdsgSpace,
+        },
+      },
+    }));
+  };
   const toggleTimeArrow = () => {
     useTEMStore.setState((state) => ({
       doc: {
@@ -687,6 +701,13 @@ function ViewTab({ onOpenPeriodSettings, onOpenPeriodLabels: _onOpenPeriodLabels
           onClick={toggleAllTypeLabels}
           title="Box / SDSG のタイプラベル（種別バッジ）を一括で表示・非表示"
           active={!!allTypeLabelsOn}
+        />
+        <RibbonButton
+          label={sdsgSpaceEnabled ? 'SDSG 帯 ✓' : 'SDSG 帯'}
+          icon="▤"
+          onClick={toggleSDSGSpace}
+          title="SD/SG を上部帯・下部帯に配置するモードの ON/OFF（詳細は設定 > SD/SG 配置）"
+          active={sdsgSpaceEnabled}
         />
       </RibbonGroup>
       <RibbonGroup title="図要素">
