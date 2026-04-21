@@ -115,6 +115,29 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     SD: true,
     SG: true,
   },
+  sdsgSpace: {
+    enabled: false,
+    bands: {
+      top: {
+        enabled: true,
+        heightLevel: 1.5,
+        reference: 'period',      // 時期区分の内側（時期区分が上部配置時）
+        offsetLevel: 0.2,
+        showBorder: true,
+      },
+      bottom: {
+        enabled: true,
+        heightLevel: 1.5,
+        reference: 'timearrow',   // 時間矢印の内側（時間矢印が下部配置時）
+        offsetLevel: 0.2,
+        showBorder: true,
+      },
+    },
+    autoPlaceSD: 'top',
+    autoPlaceSG: 'bottom',
+    allowMismatchedPlacement: false,
+    autoArrange: true,
+  },
 };
 
 export const DEFAULT_VIEW_STATE: ViewState = {

@@ -27,7 +27,7 @@ import { FONT_OPTIONS } from '../store/defaults';
 import { computeLegendItems } from '../utils/legend';
 import type { PaperBaseKey } from '../types';
 
-type Tab = 'general' | 'snap' | 'typelabel' | 'timearrow' | 'legend' | 'period' | 'project';
+type Tab = 'general' | 'snap' | 'typelabel' | 'timearrow' | 'legend' | 'period' | 'sdsgspace' | 'project';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'general', label: '全体' },
@@ -36,6 +36,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'timearrow', label: '非可逆的時間' },
   { key: 'legend', label: '凡例' },
   { key: 'period', label: '時期区分' },
+  { key: 'sdsgspace', label: 'SD/SG 配置' },
   { key: 'project', label: 'プロジェクト' },
 ];
 
@@ -147,6 +148,7 @@ export function SettingsDialog({
           {tab === 'timearrow' && <TimeArrowSettingsSection />}
           {tab === 'legend' && <LegendSettingsSection />}
           {tab === 'period' && <PeriodLabelSettingsSection />}
+          {tab === 'sdsgspace' && <SDSGSpaceSection />}
           {tab === 'project' && <ProjectSection />}
         </div>
         <div className="modal-footer">
@@ -518,6 +520,220 @@ function TypeLabelSection() {
           />
         </div>
       ))}
+    </section>
+  );
+}
+
+// ============================================================================
+// SD/SG 配置（専用スペース／帯）
+// ============================================================================
+function SDSGSpaceSection() {
+  const doc = useTEMStore((s) => s.doc);
+  const placeAllSDSGToBands = useTEMStore((s) => s.placeAllSDSGToBands);
+  const layout = doc.settings.layout;
+  const space = doc.settings.sdsgSpace;
+
+  const updateSpace = (patch: Partial<NonNullable<typeof doc.settings.sdsgSpace>>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        if (!d.settings.sdsgSpace) return;
+        d.settings.sdsgSpace = { ...d.settings.sdsgSpace, ...patch };
+      }),
+    }));
+  };
+
+  const updateBand = (which: 'top' | 'bottom', patch: Partial<NonNullable<typeof doc.settings.sdsgSpace>['bands']['top']>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        if (!d.settings.sdsgSpace) return;
+        d.settings.sdsgSpace.bands[which] = { ...d.settings.sdsgSpace.bands[which], ...patch };
+      }),
+    }));
+  };
+
+  if (!space) {
+    return <p className="hint">SD/SG 配置の設定データがありません。</p>;
+  }
+
+  const isH = layout === 'horizontal';
+  const topLabel = isH ? '上部帯（Item 軸の上側）' : '左側帯（Item 軸の小さい側）';
+  const bottomLabel = isH ? '下部帯（Item 軸の下側）' : '右側帯（Item 軸の大きい側）';
+
+  return (
+    <section className="settings-section">
+      <h4>SD/SG 配置モード</h4>
+      <p className="hint" style={{ marginTop: 0 }}>
+        SD/SG を Box 群の外側に用意した「帯」に配置するモードです。
+        時期区分や非可逆的時間の内側に帯を設け、SD/SG を一列に並べます。
+      </p>
+      <div className="setting-row">
+        <label>機能を有効化</label>
+        <input
+          type="checkbox"
+          checked={space.enabled}
+          onChange={(e) => updateSpace({ enabled: e.target.checked })}
+        />
+      </div>
+      <p className="hint">OFF: 従来通り attachedTo Box に追従 / ON: band-top / band-bottom を選べる</p>
+
+      <h4 style={{ marginTop: 14 }}>{topLabel}</h4>
+      <div className="setting-row">
+        <label>この帯を使う</label>
+        <input
+          type="checkbox"
+          checked={space.bands.top.enabled}
+          onChange={(e) => updateBand('top', { enabled: e.target.checked })}
+        />
+      </div>
+      <div className="setting-row">
+        <label>帯の高さ (Level)</label>
+        <input
+          type="number"
+          min={0.1}
+          max={10}
+          step={0.1}
+          value={space.bands.top.heightLevel}
+          onChange={(e) => updateBand('top', { heightLevel: Math.max(0.1, Number(e.target.value)) })}
+          style={{ width: 80 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>配置基準</label>
+        <select
+          value={space.bands.top.reference}
+          onChange={(e) => updateBand('top', { reference: e.target.value as 'period' | 'timearrow' | 'boxes' })}
+        >
+          <option value="period">時期区分の内側</option>
+          <option value="timearrow">非可逆的時間の内側</option>
+          <option value="boxes">Box 群の外側（直接）</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>基準からの距離 (Level)</label>
+        <input
+          type="number"
+          step={0.1}
+          value={space.bands.top.offsetLevel}
+          onChange={(e) => updateBand('top', { offsetLevel: Number(e.target.value) })}
+          style={{ width: 80 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>編集時に帯範囲を表示</label>
+        <input
+          type="checkbox"
+          checked={space.bands.top.showBorder}
+          onChange={(e) => updateBand('top', { showBorder: e.target.checked })}
+        />
+      </div>
+
+      <h4 style={{ marginTop: 14 }}>{bottomLabel}</h4>
+      <div className="setting-row">
+        <label>この帯を使う</label>
+        <input
+          type="checkbox"
+          checked={space.bands.bottom.enabled}
+          onChange={(e) => updateBand('bottom', { enabled: e.target.checked })}
+        />
+      </div>
+      <div className="setting-row">
+        <label>帯の高さ (Level)</label>
+        <input
+          type="number"
+          min={0.1}
+          max={10}
+          step={0.1}
+          value={space.bands.bottom.heightLevel}
+          onChange={(e) => updateBand('bottom', { heightLevel: Math.max(0.1, Number(e.target.value)) })}
+          style={{ width: 80 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>配置基準</label>
+        <select
+          value={space.bands.bottom.reference}
+          onChange={(e) => updateBand('bottom', { reference: e.target.value as 'period' | 'timearrow' | 'boxes' })}
+        >
+          <option value="period">時期区分の内側</option>
+          <option value="timearrow">非可逆的時間の内側</option>
+          <option value="boxes">Box 群の外側（直接）</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>基準からの距離 (Level)</label>
+        <input
+          type="number"
+          step={0.1}
+          value={space.bands.bottom.offsetLevel}
+          onChange={(e) => updateBand('bottom', { offsetLevel: Number(e.target.value) })}
+          style={{ width: 80 }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>編集時に帯範囲を表示</label>
+        <input
+          type="checkbox"
+          checked={space.bands.bottom.showBorder}
+          onChange={(e) => updateBand('bottom', { showBorder: e.target.checked })}
+        />
+      </div>
+
+      <h4 style={{ marginTop: 14 }}>配置の挙動</h4>
+      <div className="setting-row">
+        <label>重なり時に自動整列</label>
+        <input
+          type="checkbox"
+          checked={space.autoArrange}
+          onChange={(e) => updateSpace({ autoArrange: e.target.checked })}
+        />
+      </div>
+      <p className="hint">ON: 同じ時間位置で重なる SDSG を帯内で自動的に縦積み / OFF: 重なっても整列しない</p>
+      <div className="setting-row">
+        <label>組合せ制限を解除</label>
+        <input
+          type="checkbox"
+          checked={space.allowMismatchedPlacement}
+          onChange={(e) => updateSpace({ allowMismatchedPlacement: e.target.checked })}
+        />
+      </div>
+      <p className="hint">
+        既定では SD は上部帯のみ、SG は下部帯のみに配置可能。ON にすると逆向き（SD を下部帯、SG を上部帯）も許可されます
+      </p>
+
+      <h4 style={{ marginTop: 14 }}>一括配置</h4>
+      <div className="setting-row">
+        <label>SD の既定配置</label>
+        <select
+          value={space.autoPlaceSD}
+          onChange={(e) => updateSpace({ autoPlaceSD: e.target.value as 'none' | 'top' | 'bottom' })}
+        >
+          <option value="none">配置しない（attached）</option>
+          <option value="top">上部帯</option>
+          <option value="bottom">下部帯（要組合せ解除）</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>SG の既定配置</label>
+        <select
+          value={space.autoPlaceSG}
+          onChange={(e) => updateSpace({ autoPlaceSG: e.target.value as 'none' | 'top' | 'bottom' })}
+        >
+          <option value="none">配置しない（attached）</option>
+          <option value="top">上部帯（要組合せ解除）</option>
+          <option value="bottom">下部帯</option>
+        </select>
+      </div>
+      <div className="setting-row" style={{ justifyContent: 'flex-start', gap: 6, flexWrap: 'wrap' }}>
+        <button
+          className="ribbon-btn-small"
+          onClick={() => {
+            if (!confirm('全 SD/SG の配置を既定設定で一括変更します。個別の offset はリセットされます。よろしいですか?')) return;
+            placeAllSDSGToBands(space.autoPlaceSD, space.autoPlaceSG);
+          }}
+        >
+          既定配置を全 SD/SG に適用
+        </button>
+      </div>
     </section>
   );
 }

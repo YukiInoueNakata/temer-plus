@@ -109,6 +109,13 @@ interface Actions {
   // SDSG operations
   addSDSG: (partial: Partial<SDSG> & { type: 'SD' | 'SG'; attachedTo: string }) => string;
   updateSDSG: (id: string, patch: Partial<SDSG>) => void;
+  // SDSG の配置モード切替（band-top/band-bottom/attached）+ offset リセット
+  setSDSGSpaceMode: (ids: string[], mode: 'attached' | 'band-top' | 'band-bottom') => void;
+  // 全 SD/SG を種別別に帯配置へ一括適用
+  placeAllSDSGToBands: (
+    sdTarget: 'none' | 'top' | 'bottom',
+    sgTarget: 'none' | 'top' | 'bottom',
+  ) => void;
   removeSDSG: (id: string) => void;
 
   // Comment
@@ -879,6 +886,49 @@ export const useTEMStore = create<Store>()(
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
             sheet.sdsg = sheet.sdsg.filter((s) => s.id !== id);
+          }),
+          dirty: true,
+        }));
+      },
+      setSDSGSpaceMode: (ids, mode) => {
+        const set_ = new Set(ids);
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const allowMismatched = state.doc.settings.sdsgSpace?.allowMismatchedPlacement ?? false;
+            sheet.sdsg.forEach((s) => {
+              if (!set_.has(s.id)) return;
+              // 種別と帯の組合せチェック
+              if (!allowMismatched) {
+                if (mode === 'band-top' && s.type === 'SG') return;   // skip
+                if (mode === 'band-bottom' && s.type === 'SD') return;
+              }
+              s.spaceMode = mode;
+              // モード切替時は offset をリセット
+              s.timeOffset = 0;
+              s.itemOffset = 0;
+              s.spaceInsetItem = 0;
+            });
+          }),
+          dirty: true,
+        }));
+      },
+      placeAllSDSGToBands: (sdTarget, sgTarget) => {
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const allowMismatched = state.doc.settings.sdsgSpace?.allowMismatchedPlacement ?? false;
+            sheet.sdsg.forEach((s) => {
+              const target = s.type === 'SD' ? sdTarget : sgTarget;
+              if (target === 'none') return;
+              const newMode = target === 'top' ? 'band-top' : 'band-bottom';
+              if (!allowMismatched) {
+                if (newMode === 'band-top' && s.type === 'SG') return;
+                if (newMode === 'band-bottom' && s.type === 'SD') return;
+              }
+              s.spaceMode = newMode;
+              s.timeOffset = 0;
+              s.itemOffset = 0;
+              s.spaceInsetItem = 0;
+            });
           }),
           dirty: true,
         }));

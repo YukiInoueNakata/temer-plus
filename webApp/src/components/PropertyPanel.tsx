@@ -666,9 +666,32 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
 function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const updateSDSG = useTEMStore((s) => s.updateSDSG);
   const removeSDSG = useTEMStore((s) => s.removeSDSG);
+  const setSDSGSpaceMode = useTEMStore((s) => s.setSDSGSpaceMode);
+  const sdsgSpace = useTEMStore((s) => s.doc.settings.sdsgSpace);
   const sheet = useActiveSheet();
   const isMulti = sdsgs.length > 1;
   const first = sdsgs[0];
+
+  const changeSpaceMode = (newMode: 'attached' | 'band-top' | 'band-bottom') => {
+    const ids = sdsgs.map((s) => s.id);
+    // 種別と帯の組合せチェック
+    const allowMismatched = sdsgSpace?.allowMismatchedPlacement ?? false;
+    if (!allowMismatched) {
+      const blocked = sdsgs.find(
+        (s) =>
+          (newMode === 'band-top' && s.type === 'SG') ||
+          (newMode === 'band-bottom' && s.type === 'SD'),
+      );
+      if (blocked) {
+        alert(
+          `既定では SD は上部帯のみ、SG は下部帯のみ配置可能です。\n逆向きに配置するには設定 > SD/SG 配置 で「組合せ制限を解除」を ON にしてください。`,
+        );
+        return;
+      }
+    }
+    if (!confirm('配置モードを変更すると、時間/項目オフセットと帯内 Inset がリセットされます。よろしいですか?')) return;
+    setSDSGSpaceMode(ids, newMode);
+  };
 
   return (
     <div className="prop-section">
@@ -697,6 +720,50 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             <label>紐付け対象ID</label>
             <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
           </div>
+          {sdsgSpace?.enabled && (
+            <>
+              <div className="prop-row">
+                <label>配置モード</label>
+                <select
+                  value={first.spaceMode ?? 'attached'}
+                  onChange={(e) => changeSpaceMode(e.target.value as 'attached' | 'band-top' | 'band-bottom')}
+                >
+                  <option value="attached">attached（Box に追従）</option>
+                  <option value="band-top">上部帯に配置</option>
+                  <option value="band-bottom">下部帯に配置</option>
+                </select>
+              </div>
+              {(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && !isMulti && (
+                <>
+                  <div className="prop-row">
+                    <label>帯内 Item オフセット</label>
+                    <input
+                      type="number"
+                      value={first.spaceInsetItem ?? 0}
+                      onChange={(e) => updateSDSG(first.id, { spaceInsetItem: Number(e.target.value) })}
+                      title="帯内での Item 軸方向の微調整（px）。範囲外はクランプされます"
+                    />
+                  </div>
+                  <div className="prop-row">
+                    <label>帯内 幅 (px)</label>
+                    <input
+                      type="number"
+                      value={first.spaceWidth ?? first.width ?? 70}
+                      onChange={(e) => updateSDSG(first.id, { spaceWidth: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="prop-row">
+                    <label>帯内 高さ (px)</label>
+                    <input
+                      type="number"
+                      value={first.spaceHeight ?? first.height ?? 40}
+                      onChange={(e) => updateSDSG(first.id, { spaceHeight: Number(e.target.value) })}
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
           <div className="prop-row">
             <label>アンカー方式</label>
             <select

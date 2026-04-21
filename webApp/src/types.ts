@@ -146,6 +146,13 @@ export interface SDSG {
   anchorMode?: 'single' | 'between';
   // between モード時の横幅定義方式: 'edge-to-edge'（既定）= 隣接する Box 端どうし / 'center-to-center' = Box 中心どうし
   betweenMode?: 'edge-to-edge' | 'center-to-center';
+  // 配置モード: 'attached' = attachedTo に追従（既定） / 'band-top' = 上部帯 / 'band-bottom' = 下部帯
+  spaceMode?: 'attached' | 'band-top' | 'band-bottom';
+  // 帯内での Item 軸方向の微調整（px、0=自動配置）
+  spaceInsetItem?: number;
+  // 帯内で使う個別 width/height（未指定なら width/height を使用）
+  spaceWidth?: number;
+  spaceHeight?: number;
   itemOffset: number;
   timeOffset: number;
   width?: number;
@@ -444,6 +451,32 @@ export interface ProjectSettings {
   periodLabels: PeriodLabelSettings;
   // タイプラベル（種別バッジ）の表示有無を種別ごとに
   typeLabelVisibility: TypeLabelVisibilityMap;
+  // SD/SG 配置: 上部・下部帯の設定
+  sdsgSpace?: SDSGSpaceSettings;
+}
+
+// SD/SG 専用スペース（帯）の設定
+export interface SDSGSpaceBandSettings {
+  enabled: boolean;
+  heightLevel: number;                    // 帯の高さ（Level 単位、既定 1.5）
+  reference: 'period' | 'timearrow' | 'boxes';  // 何の内側か
+  offsetLevel: number;                    // 基準からの距離（Level、既定 0.2）
+  showBorder: boolean;                    // 編集時に帯範囲を点線表示
+}
+
+export interface SDSGSpaceSettings {
+  enabled: boolean;
+  bands: {
+    top: SDSGSpaceBandSettings;
+    bottom: SDSGSpaceBandSettings;
+  };
+  // 一括自動配置の既定
+  autoPlaceSD: 'none' | 'top' | 'bottom';
+  autoPlaceSG: 'none' | 'top' | 'bottom';
+  // 種別と帯の組合せ制限（false = SD は上部のみ/SG は下部のみ、true = 全組合せ許可＋警告）
+  allowMismatchedPlacement: boolean;
+  // 重なり回避の自動整列 ON/OFF
+  autoArrange: boolean;
 }
 
 // ----------------------------------------------------------------------------

@@ -29,6 +29,12 @@ import { LegendOverlay } from './LegendOverlay';
 import { PeriodLabelsOverlay } from './PeriodLabelsOverlay';
 import { renderVerticalAwareText } from '../utils/verticalText';
 import { computeContentBounds } from '../utils/fitBounds';
+import {
+  computeSDSGBandLayout,
+  sdsgBandKey,
+  computeBandRowAssignments,
+  computeSDSGBandPosition,
+} from '../utils/sdsgSpaceLayout';
 import { useTEMView } from '../context/TEMViewContext';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
@@ -201,9 +207,95 @@ function CanvasInner({
     if (!sheet) return [];
     const selSdsgIds = new Set(storeSdsgIds);
     const isH = layout === 'horizontal';
+
+    // --- band モードの事前計算: 帯の位置 + row 割り当て ---
+    const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
+    const bandSdsgsByBand: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; ref: typeof sheet.sdsg[number] }>> = {
+      top: [], bottom: [],
+    };
+    sheet.sdsg.forEach((sg) => {
+      const bk = sdsgBandKey(sg);
+      if (!bk) return;
+      // Time 軸方向の占有範囲を計算（between 時は 2 Box、single 時は Box 1 つの中心 ± w/2）
+      let timeStart: number;
+      let timeEnd: number;
+      if (sg.anchorMode === 'between' && sg.attachedTo2) {
+        const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+        if (!a || !b) return;
+        const mode = sg.betweenMode ?? 'edge-to-edge';
+        const aT = isH ? a.x : a.y;
+        const bT = isH ? b.x : b.y;
+        const aSize = isH ? a.width : a.height;
+        const bSize = isH ? b.width : b.height;
+        const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
+        const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
+        if (mode === 'edge-to-edge') {
+          timeStart = left.t + left.sz;
+          timeEnd = right.t;
+        } else {
+          timeStart = left.t + left.sz / 2;
+          timeEnd = right.t + right.sz / 2;
+        }
+      } else {
+        const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        if (!attached) return;
+        const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
+        const w = sg.spaceWidth ?? sg.width ?? 70;
+        timeStart = centerT - w / 2;
+        timeEnd = centerT + w / 2;
+      }
+      bandSdsgsByBand[bk].push({ id: sg.id, timeStart, timeEnd, ref: sg });
+    });
+    const topRowAssignments = settings.sdsgSpace?.autoArrange
+      ? computeBandRowAssignments(bandSdsgsByBand.top)
+      : new Map<string, number>();
+    const bottomRowAssignments = settings.sdsgSpace?.autoArrange
+      ? computeBandRowAssignments(bandSdsgsByBand.bottom)
+      : new Map<string, number>();
+    const topTotalRows = Math.max(1, ...Array.from(topRowAssignments.values()).map((v) => v + 1));
+    const bottomTotalRows = Math.max(1, ...Array.from(bottomRowAssignments.values()).map((v) => v + 1));
+
     return sheet.sdsg.map((sg) => {
       const timeOff = sg.timeOffset ?? 0;
       const itemOff = sg.itemOffset ?? 0;
+
+      // --- band モード: 帯内に配置 ---
+      const bk = sdsgBandKey(sg);
+      if (bk && (bk === 'top' ? bandLayout.topBand : bandLayout.bottomBand)) {
+        const band = bk === 'top' ? bandLayout.topBand! : bandLayout.bottomBand!;
+        const entry = bandSdsgsByBand[bk].find((e) => e.id === sg.id);
+        if (entry) {
+          const rowMap = bk === 'top' ? topRowAssignments : bottomRowAssignments;
+          const totalRows = bk === 'top' ? topTotalRows : bottomTotalRows;
+          const rowIdx = rowMap.get(sg.id) ?? 0;
+          const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
+          const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
+          const pos = computeSDSGBandPosition(
+            band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk,
+          );
+          return {
+            id: sg.id,
+            type: 'sdsg' as const,
+            position: { x: pos.x, y: pos.y },
+            selected: selSdsgIds.has(sg.id),
+            data: {
+              id: sg.id, type: sg.type, label: sg.label,
+              width: pos.width, height: pos.height,
+              style: sg.style, rectRatio: sg.rectRatio,
+              subLabel: sg.subLabel, subLabelOffsetX: sg.subLabelOffsetX,
+              subLabelOffsetY: sg.subLabelOffsetY, subLabelFontSize: sg.subLabelFontSize,
+              subLabelAsciiUpright: sg.subLabelAsciiUpright,
+              typeLabelFontSize: sg.typeLabelFontSize, typeLabelBold: sg.typeLabelBold,
+              typeLabelItalic: sg.typeLabelItalic, typeLabelFontFamily: sg.typeLabelFontFamily,
+              typeLabelAsciiUpright: sg.typeLabelAsciiUpright,
+              asciiUpright: sg.asciiUpright,
+            } as SDSGNodeData,
+            style: { width: pos.width, height: pos.height, zIndex: sg.zIndex ?? 0 },
+            draggable: true,
+          };
+        }
+      }
 
       // between モード: 2 つの Box の間に配置
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
@@ -325,7 +417,7 @@ function CanvasInner({
         draggable: true,
       };
     }).filter((n): n is NonNullable<typeof n> => n !== null);
-  }, [sheet, storeSdsgIds, layout]);
+  }, [sheet, storeSdsgIds, layout, settings]);
 
   const nodes = useMemo(() => [...boxNodes, ...sdsgNodes], [boxNodes, sdsgNodes]);
 
@@ -594,6 +686,7 @@ function CanvasInner({
             <TimeArrowOverlay onOpenSettings={onOpenTimeArrowSettings} />
             <PeriodLabelsOverlay onOpenSettings={onOpenPeriodSettings} />
             <LegendOverlay onOpenSettings={onOpenLegendSettings} />
+            <SDSGBandOverlay />
             <SmartGuidesOverlay guides={guides} />
             <CustomControls />
           </ReactFlow>
@@ -1206,5 +1299,83 @@ function LeftRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ============================================================================
+// SDSGBandOverlay - SD/SG 帯の範囲を点線で可視化（編集時のみ、出力には含めない）
+// ============================================================================
+function SDSGBandOverlay() {
+  const view = useTEMView();
+  const sheet = view.sheet;
+  const settings = view.settings;
+  const layout = settings.layout;
+  const isPreview = view.isPreview;
+  const transform = useReactFlowStore((s) => s.transform);
+  const [panX, panY, zoom] = transform;
+
+  if (isPreview || !sheet || !settings.sdsgSpace?.enabled) return null;
+  const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
+  const isH = layout === 'horizontal';
+
+  const renderBand = (
+    band: NonNullable<ReturnType<typeof computeSDSGBandLayout>['topBand']>,
+    label: string,
+    showBorder: boolean,
+    color: string,
+  ) => {
+    if (!showBorder) return null;
+    // 帯を全画面横断の薄い矩形として表示
+    if (isH) {
+      const yMin = Math.min(band.start, band.end) * zoom + panY;
+      const yMax = Math.max(band.start, band.end) * zoom + panY;
+      return (
+        <div
+          style={{
+            position: 'absolute', left: 0, right: 0,
+            top: yMin, height: yMax - yMin,
+            border: `1.5px dashed ${color}`,
+            background: `${color}18`,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        >
+          <span style={{
+            position: 'absolute', left: 6, top: 4,
+            fontSize: 10 * Math.max(0.8, zoom), color,
+            background: '#fff', padding: '0 4px', borderRadius: 2,
+          }}>{label}</span>
+        </div>
+      );
+    }
+    const xMin = Math.min(band.start, band.end) * zoom + panX;
+    const xMax = Math.max(band.start, band.end) * zoom + panX;
+    return (
+      <div
+        style={{
+          position: 'absolute', top: 0, bottom: 0,
+          left: xMin, width: xMax - xMin,
+          border: `1.5px dashed ${color}`,
+          background: `${color}18`,
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      >
+        <span style={{
+          position: 'absolute', left: 4, top: 6,
+          fontSize: 10 * Math.max(0.8, zoom), color,
+          background: '#fff', padding: '0 4px', borderRadius: 2,
+        }}>{label}</span>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {bandLayout.topBand && settings.sdsgSpace?.bands.top.showBorder &&
+        renderBand(bandLayout.topBand, isH ? '上部帯 (SD)' : '左側帯 (SD)', true, '#9b59b6')}
+      {bandLayout.bottomBand && settings.sdsgSpace?.bands.bottom.showBorder &&
+        renderBand(bandLayout.bottomBand, isH ? '下部帯 (SG)' : '右側帯 (SG)', true, '#27ae60')}
+    </>
   );
 }

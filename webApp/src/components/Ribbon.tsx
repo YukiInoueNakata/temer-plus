@@ -558,6 +558,39 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
         <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} title="選択中の Box / Line に紐づく SG を追加" />
         <RibbonButton label="SD (2 アイテム間)" icon="⊳⊲" onClick={() => handleAddSDSGBetween('SD')} title="選択した 2 Box の間に配置する SD を追加" />
         <RibbonButton label="SG (2 アイテム間)" icon="⊲⊳" onClick={() => handleAddSDSGBetween('SG')} title="選択した 2 Box の間に配置する SG を追加" />
+        <RibbonButton
+          label="選択を帯上へ"
+          icon="↥"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.sdsgIds;
+            if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
+            if (!confirm('選択した SD/SG を上部帯に配置します（オフセットはリセット）')) return;
+            useTEMStore.getState().setSDSGSpaceMode(ids, 'band-top');
+          }}
+          title="選択中の SD/SG を上部帯に配置"
+        />
+        <RibbonButton
+          label="選択を帯下へ"
+          icon="↧"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.sdsgIds;
+            if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
+            if (!confirm('選択した SD/SG を下部帯に配置します（オフセットはリセット）')) return;
+            useTEMStore.getState().setSDSGSpaceMode(ids, 'band-bottom');
+          }}
+          title="選択中の SD/SG を下部帯に配置"
+        />
+        <RibbonButton
+          label="選択を attached に"
+          icon="⇄"
+          onClick={() => {
+            const ids = useTEMStore.getState().selection.sdsgIds;
+            if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
+            if (!confirm('選択した SD/SG を attached モード（Box 追従）に戻します')) return;
+            useTEMStore.getState().setSDSGSpaceMode(ids, 'attached');
+          }}
+          title="選択中の SD/SG を attached モードに戻す"
+        />
       </RibbonGroup>
       <RibbonGroup title="その他">
         <RibbonButton label="時期ラベル..." icon="🏷" onClick={onOpenPeriodLabels} />
