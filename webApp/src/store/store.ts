@@ -76,10 +76,13 @@ interface Actions {
   matchBoxesFontSize: (ids: string[], basis?: 'first' | 'max' | 'min') => void;
   // シート全体のリサイズ（実データを変更）
   // scale は単一倍率 or { xScale, yScale } の独立倍率
-  // preserveBoxSize=true 時: Box / SDSG の width/height は維持し、中心間距離のみスケール
+  // mode:
+  //   'full'           = Box 座標・サイズ・フォント全てスケール（既定）
+  //   'preserve-size'  = Box サイズ・フォント維持、位置のみスケール（preserveBoxSize 相当）
+  //   'size-only'      = 位置は維持、Box サイズ・フォントのみスケール（NEW）
   resizeActiveSheet: (
     scale: number | { xScale: number; yScale: number },
-    opts?: { includeFontSize?: boolean; preserveBoxSize?: boolean }
+    opts?: { includeFontSize?: boolean; mode?: 'full' | 'preserve-size' | 'size-only' }
   ) => void;
   // Box / Line の始終点オフセット / SDSG を一括で timeLevel/itemLevel 方向に平行移動
   // （時期区分・時間矢印・凡例は不変）
@@ -630,20 +633,33 @@ export const useTEMStore = create<Store>()(
         if (!isFinite(xScale) || !isFinite(yScale) || xScale <= 0 || yScale <= 0) return;
         if (xScale === 1 && yScale === 1) return;
         const includeFontSize = opts?.includeFontSize ?? true;
-        const preserveBoxSize = opts?.preserveBoxSize ?? false;
-        // preserveBoxSize 時は Box / SDSG のサイズとフォントは不変
-        const sizeXS = preserveBoxSize ? 1 : xScale;
-        const sizeYS = preserveBoxSize ? 1 : yScale;
-        // フォントは xScale と yScale が異なるときは min（縮小寄り）を採用
-        const fontScale = includeFontSize && !preserveBoxSize ? Math.min(xScale, yScale) : 1;
+        const mode = opts?.mode ?? 'full';
+        const scalePositions = mode !== 'size-only';
+        const scaleSize = mode !== 'preserve-size';
+        const scaleFont = scaleSize && includeFontSize;
+        // 実際の倍率
+        const posXS = scalePositions ? xScale : 1;
+        const posYS = scalePositions ? yScale : 1;
+        const sizeXS = scaleSize ? xScale : 1;
+        const sizeYS = scaleSize ? yScale : 1;
+        // フォント: x/y 異なる場合は min（縮小寄り）
+        const fontScale = scaleFont ? Math.min(xScale, yScale) : 1;
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
             const isH = state.doc.settings.layout === 'horizontal';
             sheet.boxes.forEach((b) => {
-              b.x *= xScale;
-              b.y *= yScale;
+              // サイズ変化時は中心固定で w/h 更新（位置維持モードで期待通り）
+              const cx = b.x + b.width / 2;
+              const cy = b.y + b.height / 2;
+              b.x *= posXS;
+              b.y *= posYS;
               b.width *= sizeXS;
               b.height *= sizeYS;
+              if (mode === 'size-only') {
+                // 位置維持: 中心を元の中心に合わせ直す
+                b.x = cx - b.width / 2;
+                b.y = cy - b.height / 2;
+              }
               if (fontScale !== 1) {
                 const curFS = b.style?.fontSize ?? state.doc.settings.defaultFontSize;
                 b.style = { ...(b.style ?? {}), fontSize: Math.max(6, curFS * fontScale) };
@@ -656,18 +672,14 @@ export const useTEMStore = create<Store>()(
               }
             });
             sheet.sdsg.forEach((sg) => {
-              if (!preserveBoxSize) {
+              if (scaleSize) {
                 if (sg.width != null) sg.width *= sizeXS;
                 if (sg.height != null) sg.height *= sizeYS;
               }
-              // SDSG オフセット: preserveBoxSize でも、Box 中心からの距離は
-              // Box サイズと独立なので常に layout に応じて axis 相当の倍率を適用する
-              // timeOffset は Time 軸方向、itemOffset は Item 軸方向
-              const timeScale = isH ? xScale : yScale;
-              const itemScale = isH ? yScale : xScale;
-              // ただし preserveBoxSize=true の時は「Box は動かさず offset も不変＝Box に追従」が自然
-              // そこで preserveBoxSize 時はオフセット不変にする
-              if (!preserveBoxSize) {
+              // SDSG オフセット: 位置スケール時のみ乗算
+              if (scalePositions) {
+                const timeScale = isH ? xScale : yScale;
+                const itemScale = isH ? yScale : xScale;
                 sg.timeOffset = (sg.timeOffset ?? 0) * timeScale;
                 sg.itemOffset = (sg.itemOffset ?? 0) * itemScale;
               }
@@ -683,12 +695,11 @@ export const useTEMStore = create<Store>()(
                 }
               }
             });
-            // 時期ラベル: position は Time_Level 値（= px / 100）
-            // Time 軸は layout により x または y → 対応する倍率を適用
-            const periodScale = isH ? xScale : yScale;
-            sheet.periodLabels.forEach((p) => {
-              p.position = p.position * periodScale;
-            });
+            // 時期ラベル: position は Time_Level。位置スケール時のみ倍率適用
+            if (scalePositions) {
+              const periodScale = isH ? xScale : yScale;
+              sheet.periodLabels.forEach((p) => { p.position = p.position * periodScale; });
+            }
           }),
           dirty: true,
         }));

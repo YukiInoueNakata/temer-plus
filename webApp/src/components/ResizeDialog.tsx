@@ -33,7 +33,8 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [fitMode, setFitMode] = useState<FitMode>('both');
   const [margin, setMargin] = useState(0.05);
   const [includeFontSize, setIncludeFontSize] = useState(true);
-  const [preserveBoxSize, setPreserveBoxSize] = useState(false);
+  type ScaleMode = 'full' | 'preserve-size' | 'size-only';
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('full');
 
   // ダイアログ位置
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -79,11 +80,11 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
     const sy = innerH / Math.max(1, bbox.height);
     if (fitMode === 'width') return { xScale: sx, yScale: sx };
     if (fitMode === 'height') return { xScale: sy, yScale: sy };
-    // both: preserveBoxSize なら x/y 独立（用紙にぴったりフィット）、そうでなければ均等
-    if (preserveBoxSize) return { xScale: sx, yScale: sy };
+    // both: preserve-size なら x/y 独立（用紙にぴったりフィット）、そうでなければ均等
+    if (scaleMode === 'preserve-size') return { xScale: sx, yScale: sy };
     const s = Math.min(sx, sy);
     return { xScale: s, yScale: s };
-  }, [mode, percent, independentAxes, xPercent, yPercent, bbox, paperSize, fitMode, margin, preserveBoxSize]);
+  }, [mode, percent, independentAxes, xPercent, yPercent, bbox, paperSize, fitMode, margin, scaleMode]);
 
   if (!open) return null;
 
@@ -113,9 +114,13 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
     const msg = xScale === yScale
       ? `現在のシートを ${xp}% にリサイズします。`
       : `現在のシートを 横 ${xp}% / 縦 ${yp}% にリサイズします。`;
-    const extra = preserveBoxSize ? '\n（Box サイズは維持、位置間隔のみ調整）' : '';
-    if (!confirm(`${msg}${extra}\n（Ctrl+Z で取り消し可能）`)) return;
-    resize({ xScale, yScale }, { includeFontSize, preserveBoxSize });
+    const modeLabel = scaleMode === 'preserve-size'
+      ? '\n（Box サイズは維持、位置間隔のみ調整）'
+      : scaleMode === 'size-only'
+        ? '\n（位置は維持、Box サイズと文字のみ調整）'
+        : '';
+    if (!confirm(`${msg}${modeLabel}\n（Ctrl+Z で取り消し可能）`)) return;
+    resize({ xScale, yScale }, { includeFontSize, mode: scaleMode });
     onClose();
   };
 
@@ -238,33 +243,54 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
           </section>
 
           <section className="settings-section">
+            <h4 style={{ margin: '0 0 4px' }}>スケールモード</h4>
             <div className="setting-row">
-              <label>Box サイズを維持</label>
-              <input
-                type="checkbox"
-                checked={preserveBoxSize}
-                onChange={(e) => setPreserveBoxSize(e.target.checked)}
-              />
+              <label>
+                <input
+                  type="radio"
+                  name="scaleMode"
+                  checked={scaleMode === 'full'}
+                  onChange={() => setScaleMode('full')}
+                /> 全体（位置・Box サイズ両方）
+              </label>
             </div>
-            <p className="hint">
-              ON: Box / SDSG のサイズは不変、中心間距離（矢印の長さ）のみスケール。
-              「Box はそのままで用紙に収めたい」時に使用。文字サイズも維持されます<br />
-              OFF: Box サイズも倍率に従って拡縮
-            </p>
             <div className="setting-row">
-              <label>文字サイズも連動</label>
-              <input
-                type="checkbox"
-                checked={includeFontSize && !preserveBoxSize}
-                disabled={preserveBoxSize}
-                onChange={(e) => setIncludeFontSize(e.target.checked)}
-              />
+              <label>
+                <input
+                  type="radio"
+                  name="scaleMode"
+                  checked={scaleMode === 'preserve-size'}
+                  onChange={() => setScaleMode('preserve-size')}
+                /> 位置のみ（Box サイズ・文字は維持）
+              </label>
             </div>
-            <p className="hint">
-              {preserveBoxSize
-                ? '（Box サイズ維持モードでは文字サイズも維持されます）'
-                : 'ON: Box / SDSG の fontSize、タイプラベル・サブラベルも同じ倍率でリサイズ / OFF: 座標・寸法のみ'}
+            <div className="setting-row">
+              <label>
+                <input
+                  type="radio"
+                  name="scaleMode"
+                  checked={scaleMode === 'size-only'}
+                  onChange={() => setScaleMode('size-only')}
+                /> Box と文字のみ（位置は維持）
+              </label>
+            </div>
+            <p className="hint" style={{ marginTop: 4 }}>
+              {scaleMode === 'full'
+                ? '座標・サイズ・文字すべて倍率でスケール'
+                : scaleMode === 'preserve-size'
+                  ? 'Box / SDSG のサイズ・フォントは不変、位置（矢印の長さ）のみスケール'
+                  : '位置と時期区分は不変、Box / SDSG のサイズ・フォントのみスケール。Box 同士が重なる場合があります'}
             </p>
+            {scaleMode === 'full' && (
+              <div className="setting-row">
+                <label>文字サイズも連動</label>
+                <input
+                  type="checkbox"
+                  checked={includeFontSize}
+                  onChange={(e) => setIncludeFontSize(e.target.checked)}
+                />
+              </div>
+            )}
           </section>
 
           <section className="settings-section" style={{ background: '#f6f9fc', padding: 8, borderRadius: 4, border: '1px solid #e0e8f0' }}>
@@ -291,9 +317,14 @@ export function ResizeDialog({ open, onClose }: { open: boolean; onClose: () => 
                       : `横 ${(computed.xScale * 100).toFixed(1)} % / 縦 ${(computed.yScale * 100).toFixed(1)} %`}
                   </span>
                 </div>
-                {preserveBoxSize && (
+                {scaleMode === 'preserve-size' && (
                   <p className="hint" style={{ margin: '4px 0 0', color: '#059' }}>
                     ※ Box サイズは変わらず、Box 間隔（矢印の長さ）のみ調整されます
+                  </p>
+                )}
+                {scaleMode === 'size-only' && (
+                  <p className="hint" style={{ margin: '4px 0 0', color: '#059' }}>
+                    ※ 位置は変わらず、Box と文字のサイズのみ調整されます
                   </p>
                 )}
               </>
