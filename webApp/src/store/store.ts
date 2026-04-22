@@ -88,6 +88,7 @@ interface Actions {
   // Box / Line の始終点オフセット / SDSG を一括で timeLevel/itemLevel 方向に平行移動
   // （時期区分・時間矢印・凡例は不変）
   shiftActiveSheetContent: (deltaTimeLevel: number, deltaItemLevel: number) => void;
+  shiftSelectedBoxes: (ids: string[], deltaTimeLevel: number, deltaItemLevel: number) => void;
   // CSV インポート: Box/Line を一括追加（シフト挿入対応）
   importBoxes: (
     newBoxes: Box[],
@@ -389,10 +390,12 @@ export const useTEMStore = create<Store>()(
         }
         set((s) => {
           const layout = s.doc.settings.layout;
-          // textOrientation のみ layout 依存、サイズは settings.defaultBoxSize を参照
           const defaultTextOrientation = layout === 'horizontal' ? 'vertical' : 'horizontal';
-          const defaultWidth = s.doc.settings.defaultBoxSize.width;
-          const defaultHeight = s.doc.settings.defaultBoxSize.height;
+          // defaultBoxSize は横型想定。縦型では -90° 回転に合わせて W/H を swap
+          const baseW = s.doc.settings.defaultBoxSize.width;
+          const baseH = s.doc.settings.defaultBoxSize.height;
+          const defaultWidth = layout === 'horizontal' ? baseW : baseH;
+          const defaultHeight = layout === 'horizontal' ? baseH : baseW;
           return {
             doc: mutateSheet(s.doc, targetSheetId, (sh) => {
               const defaults: Box = {
@@ -407,6 +410,8 @@ export const useTEMStore = create<Store>()(
               };
               sh.boxes.push({ ...defaults, ...partial, id });
             }),
+            // 挿入した Box を選択状態にする（キャンバスでも反映）
+            selection: { ...s.selection, boxIds: [id], lineIds: [], sdsgIds: [], annotationIds: [] },
             dirty: true,
           };
         });
@@ -639,6 +644,26 @@ export const useTEMStore = create<Store>()(
             });
             // SDSG は attachedTo に追従するので不要（offset は相対値）
             // 時期区分・時間矢印・凡例は変更しない（要望通り）
+          }),
+          dirty: true,
+        }));
+      },
+      shiftSelectedBoxes: (ids, deltaTimeLevel, deltaItemLevel) => {
+        if (deltaTimeLevel === 0 && deltaItemLevel === 0) return;
+        if (ids.length === 0) return;
+        const idSet = new Set(ids);
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const isH = state.doc.settings.layout === 'horizontal';
+            const dxPx = deltaTimeLevel * LEVEL_PX;
+            const dyPx = -deltaItemLevel * LEVEL_PX;
+            const boxDx = isH ? dxPx : -dyPx;
+            const boxDy = isH ? dyPx : dxPx;
+            sheet.boxes.forEach((b) => {
+              if (!idSet.has(b.id)) return;
+              b.x += boxDx;
+              b.y += boxDy;
+            });
           }),
           dirty: true,
         }));
@@ -1303,6 +1328,7 @@ export const useTEMStore = create<Store>()(
       // --- Box挿入: 2選択間に ---
       insertBoxesBetween: (startId, endId, count, mode, options) => {
         if (count < 1) return;
+        const insertedRef: { ids: string[] } = { ids: [] };
         set((state) => {
           return {
             doc: mutateActiveSheet(state.doc, (sheet) => {
@@ -1410,10 +1436,17 @@ export const useTEMStore = create<Store>()(
                   });
                 }
               });
+              insertedRef.ids = newBoxIds;
             }),
             dirty: true,
           };
         });
+        // 挿入された Box 群を選択状態にする
+        if (insertedRef.ids.length > 0) {
+          set((s) => ({
+            selection: { ...s.selection, boxIds: insertedRef.ids, lineIds: [], sdsgIds: [], annotationIds: [] },
+          }));
+        }
       },
 
       // --- 指定Box以降のBoxをシフト ---
@@ -1585,6 +1618,18 @@ export const useTEMStore = create<Store>()(
                   if (sg.spaceInsetItem != null) sg.spaceInsetItem = -sg.spaceInsetItem;
                 });
               });
+              // 凡例位置も同じ -90° rotation を適用（IL/TL 位置を保存）
+              //   h→v: new_x = -old_y, new_y = old_x
+              //   v→h: new_x = old_y, new_y = -old_x
+              const legend = d.settings.legend;
+              if (legend) {
+                const ox = legend.position.x, oy = legend.position.y;
+                if (toVertical) {
+                  legend.position = { x: -oy, y: ox };
+                } else {
+                  legend.position = { x: oy, y: -ox };
+                }
+              }
             }),
             dirty: true,
           };

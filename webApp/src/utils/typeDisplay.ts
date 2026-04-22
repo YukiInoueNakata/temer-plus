@@ -2,7 +2,7 @@
 // Box種別の表示計算（自動連番・オーディナル）
 // ============================================================================
 
-import type { Box, BoxType, LayoutDirection } from '../types';
+import type { Box, BoxType, SDSG, LayoutDirection } from '../types';
 import { BOX_TYPE_LABELS } from '../store/defaults';
 
 function toOrdinalEn(n: number): string {
@@ -35,6 +35,9 @@ export function computeBoxDisplay(
   // normal は表示なし
   if (type === 'normal') return '';
 
+  // typeLabelNumbered=false の場合は連番を付けず種別名のみ
+  if (currentBox.typeLabelNumbered === false) return shortName;
+
   // 同種別の Box を時間軸順でソート
   const sameType = allBoxes
     .filter((b) => b.type === type)
@@ -57,6 +60,41 @@ export function computeBoxDisplay(
 
   // その他: ハイフン番号
   return `${shortName}-${index}`;
+}
+
+/**
+ * SDSG（SD/SG）の表示用タグ文字列を計算する
+ *  - 単一: "SD" / "SG"
+ *  - 複数: "SD1", "SD2"... / "SG1", "SG2"... (時間軸順)
+ *  - typeLabelNumbered=false: 連番を付けず "SD" / "SG"
+ */
+export function computeSDSGDisplay(
+  allSDSGs: SDSG[],
+  currentSDSG: SDSG,
+  allBoxes: Box[],
+  layout: LayoutDirection,
+): string {
+  const type = currentSDSG.type; // 'SD' | 'SG'
+
+  if (currentSDSG.typeLabelNumbered === false) return type;
+
+  // 同種別の SDSG を attached Box の時間軸位置で並べる
+  const sameType = allSDSGs
+    .filter((sg) => sg.type === type)
+    .sort((a, b) => {
+      const aBox = allBoxes.find((bx) => bx.id === a.attachedTo);
+      const bBox = allBoxes.find((bx) => bx.id === b.attachedTo);
+      const aT = aBox ? (layout === 'horizontal' ? aBox.x : aBox.y) : 0;
+      const bT = bBox ? (layout === 'horizontal' ? bBox.x : bBox.y) : 0;
+      if (aT !== bT) return aT - bT;
+      return a.id.localeCompare(b.id);
+    });
+
+  if (sameType.length <= 1) return type;
+
+  const index = sameType.findIndex((sg) => sg.id === currentSDSG.id) + 1;
+  if (index <= 0) return type;
+  return `${type}${index}`;
 }
 
 /**

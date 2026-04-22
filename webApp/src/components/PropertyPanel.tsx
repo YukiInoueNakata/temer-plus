@@ -156,7 +156,7 @@ function LabelWithToolbar({ box, updateBox }: {
   );
 }
 
-type BoxTab = 'basic' | 'decoration' | 'paper';
+type PropTab = 'basic' | 'label' | 'idLabel' | 'subLabel' | 'autoFit';
 
 function BoxProperties({ boxes }: { boxes: Box[] }) {
   const updateBox = useTEMStore((s) => s.updateBox);
@@ -166,7 +166,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
   const changeBoxType = useTEMStore((s) => s.changeBoxType);
   const levelStep = useTEMStore((s) => s.doc.settings.levelStep);
   const layout = useTEMStore((s) => s.doc.settings.layout);
-  const [tab, setTab] = useState<BoxTab>('basic');
+  const [tab, setTab] = useState<PropTab>('basic');
 
   const isMulti = boxes.length > 1;
   const first = boxes[0];
@@ -224,433 +224,376 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
       <h4>Box {isMulti && <span className="multi-badge">{boxes.length}個</span>}</h4>
 
       <div className="settings-tabs" style={{ marginBottom: 8, padding: 0 }}>
-        <button
-          className={tab === 'basic' ? 'settings-tab active' : 'settings-tab'}
-          onClick={() => setTab('basic')}
-        >
-          基本
-        </button>
-        <button
-          className={tab === 'decoration' ? 'settings-tab active' : 'settings-tab'}
-          onClick={() => setTab('decoration')}
-        >
-          装飾・調整
-        </button>
-        <button
-          className={tab === 'paper' ? 'settings-tab active' : 'settings-tab'}
-          onClick={() => setTab('paper')}
-        >
-          論文
-        </button>
+        <button className={tab === 'basic' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('basic')}>基本</button>
+        <button className={tab === 'label' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('label')}>ラベル</button>
+        <button className={tab === 'idLabel' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('idLabel')}>タイプラベル</button>
+        <button className={tab === 'subLabel' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('subLabel')}>サブラベル</button>
+        <button className={tab === 'autoFit' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('autoFit')}>自動調整</button>
       </div>
 
+      {/* ========== 基本 ========== */}
       {tab === 'basic' && <>
-
-      {!isMulti && (
-        <div className="prop-row">
-          <label>ID</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <input value={first.id} readOnly style={{ flex: 1, fontFamily: 'monospace' }} />
-            <button className="style-btn" onClick={handleRenameId} title="ID変更">✎</button>
+        {!isMulti && (
+          <div className="prop-row">
+            <label>ID</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input value={first.id} readOnly style={{ flex: 1, fontFamily: 'monospace' }} />
+              <button className="style-btn" onClick={handleRenameId} title="ID変更">✎</button>
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="prop-row">
-        <label>種別{!isMulti && <span style={{ fontSize: '0.85em', color: '#888', marginLeft: 6 }}>（変更時にID自動更新）</span>}</label>
-        <select
-          value={commonType ?? ''}
-          onChange={(e) => {
-            const newType = e.target.value as BoxType;
-            if (!isMulti) {
-              // 単一選択: ID も自動更新
-              changeBoxType(first.id, newType);
-            } else {
-              // 複数選択: 型のみ一括変更（IDは各自の接頭辞ルールに違反する可能性あり、警告省略）
-              ids.forEach((id) => changeBoxType(id, newType));
-            }
-          }}
-        >
-          {commonType === undefined && <option value="">（混在）</option>}
-          {SELECTABLE_BOX_TYPES.map((t) => (
-            <option key={t} value={t}>{BOX_TYPE_LABELS[t].ja}</option>
-          ))}
-        </select>
-      </div>
-
-      {!isMulti && <LabelWithToolbar box={first} updateBox={updateBox} />}
-
-      {!isMulti && (
+        )}
         <div className="prop-row">
-          <label>位置（Time_Level / Item_Level）</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <input
-              type="number"
-              step={levelStep}
-              value={xyToTimeLevel(first.x, first.y, layout).toFixed(1)}
-              onChange={(e) => {
-                const newPos = setTimeLevelOnly(first.x, first.y, Number(e.target.value), layout);
-                updateBox(first.id, newPos);
-              }}
-              title={layout === 'horizontal' ? 'Time_Level (→+)' : 'Time_Level (↓+)'}
-            />
-            <input
-              type="number"
-              step={levelStep}
-              value={xyToItemLevel(first.x, first.y, layout).toFixed(1)}
-              onChange={(e) => {
-                const newPos = setItemLevelOnly(first.x, first.y, Number(e.target.value), layout);
-                updateBox(first.id, newPos);
-              }}
-              title={layout === 'horizontal' ? 'Item_Level (↑+)' : 'Item_Level (→+)'}
-            />
-          </div>
-        </div>
-      )}
-
-      {renderNumInput('幅 (px)', commonWidth, (v) => updateBoxes(ids, { width: v }), 20, 1000)}
-      {renderNumInput('高さ (px)', commonHeight, (v) => updateBoxes(ids, { height: v }), 20, 1000)}
-
-      <div className="prop-row">
-        <label>テキスト方向</label>
-        <select
-          value={commonOrientation}
-          onChange={(e) => updateBoxes(ids, { textOrientation: e.target.value as 'horizontal' | 'vertical' })}
-        >
-          <option value="horizontal">横書き</option>
-          <option value="vertical">縦書き</option>
-        </select>
-      </div>
-
-      {commonOrientation === 'vertical' && (
-        <div className="prop-row">
-          <label>半角英数の向き（縦書き時）</label>
+          <label>種別{!isMulti && <span style={{ fontSize: '0.85em', color: '#888', marginLeft: 6 }}>（変更時にID自動更新）</span>}</label>
           <select
-            value={getCommon(boxes, 'asciiUpright') === undefined ? '' : (getCommon(boxes, 'asciiUpright') ? 'upright' : 'mixed')}
-            onChange={(e) => updateBoxes(ids, { asciiUpright: e.target.value === 'upright' })}
+            value={commonType ?? ''}
+            onChange={(e) => {
+              const newType = e.target.value as BoxType;
+              if (!isMulti) changeBoxType(first.id, newType);
+              else ids.forEach((id) => changeBoxType(id, newType));
+            }}
           >
-            {getCommon(boxes, 'asciiUpright') === undefined && <option value="">（混在）</option>}
-            <option value="upright">縦向き（上下に積む）</option>
+            {commonType === undefined && <option value="">（混在）</option>}
+            {SELECTABLE_BOX_TYPES.map((t) => (
+              <option key={t} value={t}>{BOX_TYPE_LABELS[t].ja}</option>
+            ))}
+          </select>
+        </div>
+        {!isMulti && (
+          <div className="prop-row">
+            <label>位置（Time / Item Level）</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                type="number"
+                step={levelStep}
+                value={xyToTimeLevel(first.x, first.y, layout).toFixed(1)}
+                onChange={(e) => {
+                  const newPos = setTimeLevelOnly(first.x, first.y, Number(e.target.value), layout);
+                  updateBox(first.id, newPos);
+                }}
+                title={layout === 'horizontal' ? 'Time_Level (→+)' : 'Time_Level (↓+)'}
+              />
+              <input
+                type="number"
+                step={levelStep}
+                value={xyToItemLevel(first.x, first.y, layout).toFixed(1)}
+                onChange={(e) => {
+                  const newPos = setItemLevelOnly(first.x, first.y, Number(e.target.value), layout);
+                  updateBox(first.id, newPos);
+                }}
+                title={layout === 'horizontal' ? 'Item_Level (↑+)' : 'Item_Level (→+)'}
+              />
+            </div>
+          </div>
+        )}
+        {renderNumInput('幅 (px)', commonWidth, (v) => updateBoxes(ids, { width: v }), 20, 1000)}
+        {renderNumInput('高さ (px)', commonHeight, (v) => updateBoxes(ids, { height: v }), 20, 1000)}
+        <div className="prop-row">
+          <label>IDバッジ フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={40}
+            value={getCommon(boxes, 'idFontSize') ?? 10}
+            placeholder={getCommon(boxes, 'idFontSize') === undefined ? '（混在）' : ''}
+            onChange={(e) => updateBoxes(ids, { idFontSize: Number(e.target.value) })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>IDバッジ位置調整 X / Y</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="number"
+              value={getCommon(boxes, 'idOffsetX') ?? 0}
+              placeholder={getCommon(boxes, 'idOffsetX') === undefined ? '混在' : ''}
+              onChange={(e) => updateBoxes(ids, { idOffsetX: Number(e.target.value) })}
+            />
+            <input
+              type="number"
+              value={getCommon(boxes, 'idOffsetY') ?? 0}
+              placeholder={getCommon(boxes, 'idOffsetY') === undefined ? '混在' : ''}
+              onChange={(e) => updateBoxes(ids, { idOffsetY: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+      </>}
+
+      {/* ========== ラベル ========== */}
+      {tab === 'label' && <>
+        {!isMulti && <LabelWithToolbar box={first} updateBox={updateBox} />}
+        <div className="prop-row">
+          <label>フォント</label>
+          <select
+            value={commonFontFamily ?? ''}
+            onChange={(e) => updateBoxes(ids, { style: { ...first.style, fontFamily: e.target.value } })}
+          >
+            {commonFontFamily === undefined && <option value="">（混在）</option>}
+            {FONT_OPTIONS.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={60}
+            value={commonFontSize ?? 13}
+            placeholder={commonFontSize === undefined ? '（混在）' : ''}
+            onChange={(e) => updateBoxes(ids, { style: { ...first.style, fontSize: Number(e.target.value) } })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>装飾</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className={commonBold ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateBoxes(ids, { style: { ...first.style, bold: !commonBold } })}><b>B</b></button>
+            <button className={commonItalic ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateBoxes(ids, { style: { ...first.style, italic: !commonItalic } })}><i>I</i></button>
+            <button className={commonUnderline ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateBoxes(ids, { style: { ...first.style, underline: !commonUnderline } })}><u>U</u></button>
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>テキスト方向</label>
+          <select
+            value={commonOrientation}
+            onChange={(e) => updateBoxes(ids, { textOrientation: e.target.value as 'horizontal' | 'vertical' })}
+          >
+            <option value="horizontal">横書き</option>
+            <option value="vertical">縦書き</option>
+          </select>
+        </div>
+        {commonOrientation === 'vertical' && (
+          <div className="prop-row">
+            <label>半角英数の向き（縦書き時）</label>
+            <select
+              value={getCommon(boxes, 'asciiUpright') === undefined ? '' : (getCommon(boxes, 'asciiUpright') ? 'upright' : 'mixed')}
+              onChange={(e) => updateBoxes(ids, { asciiUpright: e.target.value === 'upright' })}
+            >
+              {getCommon(boxes, 'asciiUpright') === undefined && <option value="">（混在）</option>}
+              <option value="upright">縦向き（上下に積む）</option>
+              <option value="mixed">横倒し（伝統的）</option>
+            </select>
+          </div>
+        )}
+        <div className="prop-row">
+          <label>左右方向の揃え</label>
+          <select
+            value={commonTextAlign ?? ''}
+            onChange={(e) => updateBoxes(ids, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
+          >
+            {commonTextAlign === undefined && <option value="">（混在）</option>}
+            <option value="left">左揃え</option>
+            <option value="center">中央</option>
+            <option value="right">右揃え</option>
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>上下方向の揃え</label>
+          <select
+            value={commonVAlign ?? ''}
+            onChange={(e) => updateBoxes(ids, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
+          >
+            {commonVAlign === undefined && <option value="">（混在）</option>}
+            <option value="top">上揃え</option>
+            <option value="middle">中央</option>
+            <option value="bottom">下揃え</option>
+          </select>
+        </div>
+      </>}
+
+      {/* ========== タイプラベル（種別バッジ） ========== */}
+      {tab === 'idLabel' && <>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Box 種別を表すバッジの装飾です。連番表記を ON にすると同種別 Box が複数のとき自動連番:<br />
+          EFP / P-EFP: "EFP" → "2nd EFP" → "3rd EFP" … / その他: "OPP-1" / "BFP-2" …
+        </p>
+        <div className="prop-row">
+          <label>連番表記</label>
+          <input
+            type="checkbox"
+            checked={getCommon(boxes, 'typeLabelNumbered') !== false}
+            onChange={(e) => updateBoxes(ids, { typeLabelNumbered: e.target.checked ? undefined : false })}
+            title="OFF にすると種別名のみ表示（例: OPP-1 → OPP）"
+          />
+        </div>
+        <div className="prop-row">
+          <label>フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={40}
+            value={getCommon(boxes, 'typeLabelFontSize') ?? 11}
+            placeholder={getCommon(boxes, 'typeLabelFontSize') === undefined ? '（混在）' : ''}
+            onChange={(e) => updateBoxes(ids, { typeLabelFontSize: Number(e.target.value) })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>フォント</label>
+          <select
+            value={getCommon(boxes, 'typeLabelFontFamily') ?? ''}
+            onChange={(e) => updateBoxes(ids, { typeLabelFontFamily: e.target.value || undefined })}
+          >
+            <option value="">（Box本体と同じ）</option>
+            {FONT_OPTIONS.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>装飾</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              className={getCommon(boxes, 'typeLabelBold') !== false ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateBoxes(ids, { typeLabelBold: getCommon(boxes, 'typeLabelBold') === false })}
+              title="太字"
+            ><b>B</b></button>
+            <button
+              className={getCommon(boxes, 'typeLabelItalic') ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateBoxes(ids, { typeLabelItalic: !getCommon(boxes, 'typeLabelItalic') })}
+              title="斜体"
+            ><i>I</i></button>
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>半角英数向き（縦型）</label>
+          <select
+            value={getCommon(boxes, 'typeLabelAsciiUpright') === undefined
+              ? ''
+              : (getCommon(boxes, 'typeLabelAsciiUpright') ? 'upright' : 'mixed')}
+            onChange={(e) => updateBoxes(ids, { typeLabelAsciiUpright: e.target.value === 'upright' })}
+          >
+            {getCommon(boxes, 'typeLabelAsciiUpright') === undefined && <option value="">（Box本体と同じ）</option>}
+            <option value="upright">縦向き</option>
+            <option value="mixed">横倒し</option>
+          </select>
+        </div>
+      </>}
+
+      {/* ========== サブラベル ========== */}
+      {tab === 'subLabel' && <>
+        <div className="prop-row">
+          <label>サブラベル（協力者ID等）</label>
+          <input
+            type="text"
+            value={!isMulti ? (first.subLabel ?? '') : (commonSubLabel ?? '')}
+            placeholder={isMulti && commonSubLabel === undefined ? '（混在）' : '例: Aさん'}
+            onChange={(e) => updateBoxes(ids, { subLabel: e.target.value })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={40}
+            value={commonSubLabelFS ?? 10}
+            placeholder={commonSubLabelFS === undefined ? '（混在）' : ''}
+            onChange={(e) => updateBoxes(ids, { subLabelFontSize: Number(e.target.value) })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>位置調整 X / Y</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="number"
+              value={commonSubOffX ?? 0}
+              placeholder={commonSubOffX === undefined ? '混在' : ''}
+              onChange={(e) => updateBoxes(ids, { subLabelOffsetX: Number(e.target.value) })}
+            />
+            <input
+              type="number"
+              value={commonSubOffY ?? 0}
+              placeholder={commonSubOffY === undefined ? '混在' : ''}
+              onChange={(e) => updateBoxes(ids, { subLabelOffsetY: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>半角英数の向き（縦型）</label>
+          <select
+            value={getCommon(boxes, 'subLabelAsciiUpright') === undefined
+              ? ''
+              : (getCommon(boxes, 'subLabelAsciiUpright') ? 'upright' : 'mixed')}
+            onChange={(e) => updateBoxes(ids, { subLabelAsciiUpright: e.target.value === 'upright' })}
+          >
+            {getCommon(boxes, 'subLabelAsciiUpright') === undefined && <option value="">（Box本体と同じ）</option>}
+            <option value="upright">縦向き（上下積み）</option>
             <option value="mixed">横倒し（伝統的）</option>
           </select>
         </div>
-      )}
-
-      <div className="prop-row">
-        <label>左右方向の揃え（Box 幅に対して）</label>
-        <select
-          value={commonTextAlign ?? ''}
-          onChange={(e) => updateBoxes(ids, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
-        >
-          {commonTextAlign === undefined && <option value="">（混在）</option>}
-          <option value="left">左揃え</option>
-          <option value="center">中央</option>
-          <option value="right">右揃え</option>
-        </select>
-      </div>
-
-      <div className="prop-row">
-        <label>上下方向の揃え（Box 高さに対して）</label>
-        <select
-          value={commonVAlign ?? ''}
-          onChange={(e) => updateBoxes(ids, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
-        >
-          {commonVAlign === undefined && <option value="">（混在）</option>}
-          <option value="top">上揃え</option>
-          <option value="middle">中央</option>
-          <option value="bottom">下揃え</option>
-        </select>
-      </div>
-
-      <div className="prop-row">
-        <label>装飾</label>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button
-            className={commonBold ? 'style-btn active' : 'style-btn'}
-            onClick={() => updateBoxes(ids, { style: { ...first.style, bold: !commonBold } })}
-          ><b>B</b></button>
-          <button
-            className={commonItalic ? 'style-btn active' : 'style-btn'}
-            onClick={() => updateBoxes(ids, { style: { ...first.style, italic: !commonItalic } })}
-          ><i>I</i></button>
-          <button
-            className={commonUnderline ? 'style-btn active' : 'style-btn'}
-            onClick={() => updateBoxes(ids, { style: { ...first.style, underline: !commonUnderline } })}
-          ><u>U</u></button>
-        </div>
-      </div>
-
-      <div className="prop-row">
-        <label>フォント</label>
-        <select
-          value={commonFontFamily ?? ''}
-          onChange={(e) => updateBoxes(ids, { style: { ...first.style, fontFamily: e.target.value } })}
-        >
-          {commonFontFamily === undefined && <option value="">（混在）</option>}
-          {FONT_OPTIONS.map((f) => (
-            <option key={f.value} value={f.value}>{f.label}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="prop-row">
-        <label>フォントサイズ</label>
-        <input
-          type="number"
-          min={6}
-          max={60}
-          value={commonFontSize ?? 13}
-          placeholder={commonFontSize === undefined ? '（混在）' : ''}
-          onChange={(e) => updateBoxes(ids, { style: { ...first.style, fontSize: Number(e.target.value) } })}
-        />
-      </div>
-
       </>}
-      {tab === 'decoration' && <>
 
-      {/* Box 自動拡張 */}
-      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>Box 自動調整</h5>
-      <div className="prop-row">
-        <label>文字サイズを自動調整</label>
-        <input
-          type="checkbox"
-          checked={getCommon(boxes, 'autoFitText') === true}
-          onChange={(e) => updateBoxes(ids, { autoFitText: e.target.checked })}
-          title="Box に収まる最大サイズへ文字を縮小・拡大"
-        />
-      </div>
-      <div className="prop-row">
-        <label>自動拡張モード（Box サイズ変更）</label>
-        <select
-          value={getCommon(boxes, 'autoFitBoxMode') ?? ''}
-          onChange={(e) => {
-            const v = e.target.value;
-            updateBoxes(ids, { autoFitBoxMode: v === '' ? undefined : (v as AutoFitBoxMode) });
-          }}
-        >
-          <option value="">（全体既定に従う）</option>
-          <option value="none">自動拡張なし</option>
-          <option value="width-fixed">横幅固定で高さ自動</option>
-          <option value="height-fixed">高さ固定で横幅自動</option>
-        </select>
-      </div>
-      <p className="hint" style={{ margin: 0 }}>
-        文字サイズ自動調整が ON のとき自動拡張モードは停止します（同時有効不可）
-      </p>
-      <div className="prop-row" style={{ flexWrap: 'wrap', gap: 4, justifyContent: 'flex-start' }}>
-        <button
-          className="ribbon-btn-small"
-          onClick={() => useTEMStore.getState().fitBoxesToLabel(ids)}
-          title="現在のラベル文字数に合わせて Box サイズを最小化"
-        >
-          Box を文字に合わせる
-        </button>
-        <button
-          className="ribbon-btn-small"
-          onClick={() => useTEMStore.getState().fitBoxesTextToBox(ids)}
-          title="Box のサイズに合わせて文字サイズを自動調整（1 回適用）"
-        >
-          文字を Box に合わせる
-        </button>
-        {isMulti && (
-          <>
-            <button
-              className="ribbon-btn-small"
-              onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'width')}
-              title="先頭の Box の幅に揃える"
-            >
-              幅揃え
-            </button>
-            <button
-              className="ribbon-btn-small"
-              onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'height')}
-              title="先頭の Box の高さに揃える"
-            >
-              高さ揃え
-            </button>
-            <button
-              className="ribbon-btn-small"
-              onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'both')}
-              title="先頭の Box の幅と高さに揃える"
-            >
-              サイズ揃え
-            </button>
-            <button
-              className="ribbon-btn-small"
-              onClick={() => useTEMStore.getState().matchBoxesFontSize(ids)}
-              title="先頭の Box の文字サイズに揃える"
-            >
-              文字サイズ揃え
-            </button>
-          </>
+      {/* ========== 自動調整 ========== */}
+      {tab === 'autoFit' && <>
+        <div className="prop-row">
+          <label>文字サイズを自動調整</label>
+          <input
+            type="checkbox"
+            checked={getCommon(boxes, 'autoFitText') === true}
+            onChange={(e) => updateBoxes(ids, { autoFitText: e.target.checked })}
+            title="Box に収まる最大サイズへ文字を縮小・拡大"
+          />
+        </div>
+        <div className="prop-row">
+          <label>Box 自動拡張モード</label>
+          <select
+            value={getCommon(boxes, 'autoFitBoxMode') ?? ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              updateBoxes(ids, { autoFitBoxMode: v === '' ? undefined : (v as AutoFitBoxMode) });
+            }}
+          >
+            <option value="">（全体既定に従う）</option>
+            <option value="none">自動拡張なし</option>
+            <option value="width-fixed">横幅固定で高さ自動</option>
+            <option value="height-fixed">高さ固定で横幅自動</option>
+          </select>
+        </div>
+        <p className="hint" style={{ margin: 0 }}>
+          文字サイズ自動調整が ON のとき自動拡張モードは停止します（同時有効不可）
+        </p>
+        <div className="prop-row" style={{ flexWrap: 'wrap', gap: 4, justifyContent: 'flex-start' }}>
+          <button className="ribbon-btn-small"
+            onClick={() => useTEMStore.getState().fitBoxesToLabel(ids)}
+            title="現在のラベル文字数に合わせて Box サイズを最小化">Box を文字に合わせる</button>
+          <button className="ribbon-btn-small"
+            onClick={() => useTEMStore.getState().fitBoxesTextToBox(ids)}
+            title="Box のサイズに合わせて文字サイズを自動調整（1 回適用）">文字を Box に合わせる</button>
+          {isMulti && (
+            <>
+              <button className="ribbon-btn-small"
+                onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'width')}>幅揃え</button>
+              <button className="ribbon-btn-small"
+                onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'height')}>高さ揃え</button>
+              <button className="ribbon-btn-small"
+                onClick={() => useTEMStore.getState().matchBoxesSize(ids, 'both')}>サイズ揃え</button>
+              <button className="ribbon-btn-small"
+                onClick={() => useTEMStore.getState().matchBoxesFontSize(ids)}>文字サイズ揃え</button>
+            </>
+          )}
+        </div>
+        <h5 style={{ margin: '14px 0 4px', fontSize: '0.92em', color: '#555' }}>論文レポート用</h5>
+        {!isMulti && (
+          <div className="prop-row" style={{ alignItems: 'flex-start' }}>
+            <label>説明文</label>
+            <textarea
+              value={first.description ?? ''}
+              onChange={(e) => updateBoxes([first.id], { description: e.target.value })}
+              style={{ width: '100%', minHeight: 60, resize: 'vertical' }}
+              placeholder="この Box の意味・解釈（論文レポートに出力）"
+            />
+          </div>
         )}
-      </div>
-
-      {/* IDバッジ位置調整 */}
-      <div className="prop-row">
-        <label>IDバッジ フォントサイズ</label>
-        <input
-          type="number"
-          min={6}
-          max={40}
-          value={getCommon(boxes, 'idFontSize') ?? 10}
-          placeholder={getCommon(boxes, 'idFontSize') === undefined ? '（混在）' : ''}
-          onChange={(e) => updateBoxes(ids, { idFontSize: Number(e.target.value) })}
-        />
-      </div>
-      <div className="prop-row">
-        <label>IDバッジ位置調整 X / Y</label>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="prop-row">
+          <label>説明不要（自明）</label>
           <input
-            type="number"
-            value={getCommon(boxes, 'idOffsetX') ?? 0}
-            placeholder={getCommon(boxes, 'idOffsetX') === undefined ? '混在' : ''}
-            onChange={(e) => updateBoxes(ids, { idOffsetX: Number(e.target.value) })}
-          />
-          <input
-            type="number"
-            value={getCommon(boxes, 'idOffsetY') ?? 0}
-            placeholder={getCommon(boxes, 'idOffsetY') === undefined ? '混在' : ''}
-            onChange={(e) => updateBoxes(ids, { idOffsetY: Number(e.target.value) })}
+            type="checkbox"
+            checked={getCommon(boxes, 'noDescriptionNeeded') === true}
+            onChange={(e) => updateBoxes(ids, { noDescriptionNeeded: e.target.checked })}
           />
         </div>
-      </div>
-
-      {/* サブラベル */}
-      <div className="prop-row">
-        <label>サブラベル（協力者ID等）</label>
-        <input
-          type="text"
-          value={!isMulti ? (first.subLabel ?? '') : (commonSubLabel ?? '')}
-          placeholder={isMulti && commonSubLabel === undefined ? '（混在）' : '例: Aさん'}
-          onChange={(e) => updateBoxes(ids, { subLabel: e.target.value })}
-        />
-      </div>
-
-      <div className="prop-row">
-        <label>サブラベル フォントサイズ</label>
-        <input
-          type="number"
-          min={6}
-          max={40}
-          value={commonSubLabelFS ?? 10}
-          placeholder={commonSubLabelFS === undefined ? '（混在）' : ''}
-          onChange={(e) => updateBoxes(ids, { subLabelFontSize: Number(e.target.value) })}
-        />
-      </div>
-
-      <div className="prop-row">
-        <label>サブラベル位置調整 X / Y</label>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <input
-            type="number"
-            value={commonSubOffX ?? 0}
-            placeholder={commonSubOffX === undefined ? '混在' : ''}
-            onChange={(e) => updateBoxes(ids, { subLabelOffsetX: Number(e.target.value) })}
-          />
-          <input
-            type="number"
-            value={commonSubOffY ?? 0}
-            placeholder={commonSubOffY === undefined ? '混在' : ''}
-            onChange={(e) => updateBoxes(ids, { subLabelOffsetY: Number(e.target.value) })}
-          />
-        </div>
-      </div>
-
-      {/* サブラベル 縦書きASCII */}
-      <div className="prop-row">
-        <label>サブラベルの半角英数向き（縦型）</label>
-        <select
-          value={getCommon(boxes, 'subLabelAsciiUpright') === undefined
-            ? ''
-            : (getCommon(boxes, 'subLabelAsciiUpright') ? 'upright' : 'mixed')}
-          onChange={(e) => updateBoxes(ids, { subLabelAsciiUpright: e.target.value === 'upright' })}
-        >
-          {getCommon(boxes, 'subLabelAsciiUpright') === undefined && <option value="">（Box本体と同じ）</option>}
-          <option value="upright">縦向き（上下積み）</option>
-          <option value="mixed">横倒し（伝統的）</option>
-        </select>
-      </div>
-
-      {/* タイプラベル 個別設定 */}
-      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>タイプラベル（種別バッジ）</h5>
-      <div className="prop-row">
-        <label>フォントサイズ</label>
-        <input
-          type="number"
-          min={6}
-          max={40}
-          value={getCommon(boxes, 'typeLabelFontSize') ?? 11}
-          placeholder={getCommon(boxes, 'typeLabelFontSize') === undefined ? '（混在）' : ''}
-          onChange={(e) => updateBoxes(ids, { typeLabelFontSize: Number(e.target.value) })}
-        />
-      </div>
-      <div className="prop-row">
-        <label>装飾</label>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button
-            className={getCommon(boxes, 'typeLabelBold') !== false ? 'style-btn active' : 'style-btn'}
-            onClick={() => updateBoxes(ids, { typeLabelBold: getCommon(boxes, 'typeLabelBold') === false })}
-            title="太字"
-          ><b>B</b></button>
-          <button
-            className={getCommon(boxes, 'typeLabelItalic') ? 'style-btn active' : 'style-btn'}
-            onClick={() => updateBoxes(ids, { typeLabelItalic: !getCommon(boxes, 'typeLabelItalic') })}
-            title="斜体"
-          ><i>I</i></button>
-        </div>
-      </div>
-      <div className="prop-row">
-        <label>フォント</label>
-        <select
-          value={getCommon(boxes, 'typeLabelFontFamily') ?? ''}
-          onChange={(e) => updateBoxes(ids, { typeLabelFontFamily: e.target.value || undefined })}
-        >
-          <option value="">（Box本体と同じ）</option>
-          {FONT_OPTIONS.map((f) => (
-            <option key={f.value} value={f.value}>{f.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="prop-row">
-        <label>半角英数向き（縦型）</label>
-        <select
-          value={getCommon(boxes, 'typeLabelAsciiUpright') === undefined
-            ? ''
-            : (getCommon(boxes, 'typeLabelAsciiUpright') ? 'upright' : 'mixed')}
-          onChange={(e) => updateBoxes(ids, { typeLabelAsciiUpright: e.target.value === 'upright' })}
-        >
-          {getCommon(boxes, 'typeLabelAsciiUpright') === undefined && <option value="">（Box本体と同じ）</option>}
-          <option value="upright">縦向き</option>
-          <option value="mixed">横倒し</option>
-        </select>
-      </div>
-
-      </>}
-      {tab === 'paper' && <>
-
-      {/* 論文用 description */}
-      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>論文レポート用</h5>
-      {!isMulti && (
-        <div className="prop-row" style={{ alignItems: 'flex-start' }}>
-          <label>説明文</label>
-          <textarea
-            value={first.description ?? ''}
-            onChange={(e) => updateBoxes([first.id], { description: e.target.value })}
-            style={{ width: '100%', minHeight: 60, resize: 'vertical' }}
-            placeholder="この Box の意味・解釈（論文レポートに出力）"
-          />
-        </div>
-      )}
-      <div className="prop-row">
-        <label>説明不要（自明）</label>
-        <input
-          type="checkbox"
-          checked={getCommon(boxes, 'noDescriptionNeeded') === true}
-          onChange={(e) => updateBoxes(ids, { noDescriptionNeeded: e.target.checked })}
-        />
-      </div>
-
       </>}
 
       <div className="prop-row">
@@ -663,8 +606,6 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
 // ============================================================================
 // SDSG Properties
 // ============================================================================
-type SDSGTab = 'basic' | 'placement' | 'decoration';
-
 function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const updateSDSG = useTEMStore((s) => s.updateSDSG);
   const removeSDSG = useTEMStore((s) => s.removeSDSG);
@@ -674,10 +615,10 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const sheet = useActiveSheet();
   const isMulti = sdsgs.length > 1;
   const first = sdsgs[0];
-  const [tab, setTab] = useState<SDSGTab>('basic');
+  const [tab, setTab] = useState<PropTab>('basic');
   const isH = sdsgLayout === 'horizontal';
-  const topBandLabel = isH ? '上部 (SD) に配置' : '左側 (SD) に配置';
-  const bottomBandLabel = isH ? '下部 (SG) に配置' : '右側 (SG) に配置';
+  const topBandLabel = isH ? '上部 (SD) に配置' : '右側 (SD) に配置';
+  const bottomBandLabel = isH ? '下部 (SG) に配置' : '左側 (SG) に配置';
 
   const changeSpaceMode = (newMode: 'attached' | 'band-top' | 'band-bottom') => {
     const ids = sdsgs.map((s) => s.id);
@@ -705,464 +646,463 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
       <h4>SD/SG {isMulti && <span className="multi-badge">{sdsgs.length}個</span>}</h4>
 
       <div className="settings-tabs" style={{ marginBottom: 8, padding: 0 }}>
-        <button
-          className={tab === 'basic' ? 'settings-tab active' : 'settings-tab'}
-          onClick={() => setTab('basic')}
-        >基本</button>
-        <button
-          className={tab === 'placement' ? 'settings-tab active' : 'settings-tab'}
-          onClick={() => setTab('placement')}
-        >配置</button>
-        <button
-          className={tab === 'decoration' ? 'settings-tab active' : 'settings-tab'}
-          onClick={() => setTab('decoration')}
-        >装飾・ラベル</button>
+        <button className={tab === 'basic' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('basic')}>基本</button>
+        <button className={tab === 'label' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('label')}>ラベル</button>
+        <button className={tab === 'idLabel' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('idLabel')}>タイプラベル</button>
+        <button className={tab === 'subLabel' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('subLabel')}>サブラベル</button>
+        <button className={tab === 'autoFit' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('autoFit')}>自動調整</button>
       </div>
 
       {!isMulti && (
         <>
+          {/* ========== 基本 ========== */}
           {tab === 'basic' && <>
-          <div className="prop-row">
-            <label>ID</label>
-            <input value={first.id} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
-          </div>
-          <div className="prop-row">
-            <label>種別</label>
-            <select
-              value={first.type}
-              onChange={(e) => updateSDSG(first.id, { type: e.target.value as 'SD' | 'SG' })}
-            >
-              <option value="SD">SD (社会的方向づけ)</option>
-              <option value="SG">SG (社会的ガイド)</option>
-            </select>
-          </div>
-          <div className="prop-row">
-            <label>ラベル</label>
-            <input value={first.label} onChange={(e) => updateSDSG(first.id, { label: e.target.value })} />
-          </div>
-          <div className="prop-row">
-            <label>紐付け対象ID</label>
-            <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
-          </div>
-          </>}
+            <div className="prop-row">
+              <label>ID</label>
+              <input value={first.id} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
+            </div>
+            <div className="prop-row">
+              <label>種別</label>
+              <select
+                value={first.type}
+                onChange={(e) => updateSDSG(first.id, { type: e.target.value as 'SD' | 'SG' })}
+              >
+                <option value="SD">SD (社会的方向づけ)</option>
+                <option value="SG">SG (社会的ガイド)</option>
+              </select>
+            </div>
+            <div className="prop-row">
+              <label>紐付け対象ID</label>
+              <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
+            </div>
 
-          {tab === 'placement' && <>
-          {/* 配置方式: attached / band の 2 択 */}
-          <div className="prop-row">
-            <label>配置方式</label>
-            <select
-              value={(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') ? 'band' : 'attached'}
-              onChange={(e) => {
-                const val = e.target.value as 'attached' | 'band';
-                if (val === 'attached') {
-                  changeSpaceMode('attached');
-                } else {
-                  // band 選択時: 種別既定 (SD→top, SG→bottom)。allowMismatched なしでも安全側。
-                  const target = first.type === 'SD' ? 'band-top' : 'band-bottom';
-                  changeSpaceMode(target);
-                }
-              }}
-            >
-              <option value="attached">attached（Box に追従）</option>
-              <option value="band">band（専用帯に配置）</option>
-            </select>
-          </div>
+            {/* 配置方式 */}
+            <div className="prop-row">
+              <label>配置方式</label>
+              <select
+                value={(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') ? 'band' : 'attached'}
+                onChange={(e) => {
+                  const val = e.target.value as 'attached' | 'band';
+                  if (val === 'attached') {
+                    changeSpaceMode('attached');
+                  } else {
+                    const target = first.type === 'SD' ? 'band-top' : 'band-bottom';
+                    changeSpaceMode(target);
+                  }
+                }}
+              >
+                <option value="attached">attached（Box に追従）</option>
+                <option value="band">band（専用帯に配置）</option>
+              </select>
+            </div>
 
-          {/* band モード: 帯位置 + 帯専用項目のみ */}
-          {(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && (
-            <>
-              <div className="prop-row">
-                <label>帯位置</label>
-                <select
-                  value={first.spaceMode}
-                  onChange={(e) => changeSpaceMode(e.target.value as 'band-top' | 'band-bottom')}
-                >
-                  <option value="band-top">{topBandLabel}</option>
-                  <option value="band-bottom">{bottomBandLabel}</option>
-                </select>
-              </div>
-              {!sdsgSpace?.enabled && (
-                <div className="prop-row" style={{ padding: 6, background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4 }}>
-                  <span style={{ fontSize: '0.85em', color: '#856404' }}>
-                    ⚠ SD/SG 配置機能が OFF です。band モード変更時に自動で ON になります。
-                  </span>
+            {/* band モード固有の設定 */}
+            {(first.spaceMode === 'band-top' || first.spaceMode === 'band-bottom') && (
+              <>
+                <div className="prop-row">
+                  <label>帯位置</label>
+                  <select
+                    value={first.spaceMode}
+                    onChange={(e) => changeSpaceMode(e.target.value as 'band-top' | 'band-bottom')}
+                  >
+                    <option value="band-top">{topBandLabel}</option>
+                    <option value="band-bottom">{bottomBandLabel}</option>
+                  </select>
                 </div>
-              )}
-              {!isMulti && (
-                <>
-                  <div className="prop-row">
-                    <label>帯内 Row 指定</label>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={first.spaceRowOverride ?? ''}
-                        placeholder="自動"
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          updateSDSG(first.id, { spaceRowOverride: v === '' ? undefined : Math.max(0, Number(v)) });
-                        }}
-                        style={{ width: 60 }}
-                        title="帯内で割り当てる row を手動指定（0=最内側 Box 群寄り、大きいほど外側）。空欄で自動整列"
-                      />
-                      <button
-                        className="ribbon-btn-small"
-                        onClick={() => {
-                          const cur = first.spaceRowOverride ?? 0;
-                          updateSDSG(first.id, { spaceRowOverride: Math.max(0, cur - 1) });
-                        }}
-                        title="row を 1 つ内側（Box 群寄り）へ"
-                      >↑</button>
-                      <button
-                        className="ribbon-btn-small"
-                        onClick={() => {
-                          const cur = first.spaceRowOverride ?? 0;
-                          updateSDSG(first.id, { spaceRowOverride: cur + 1 });
-                        }}
-                        title="row を 1 つ外側へ"
-                      >↓</button>
-                      <button
-                        className="ribbon-btn-small"
-                        onClick={() => updateSDSG(first.id, { spaceRowOverride: undefined })}
-                        title="自動整列に戻す"
-                      >自動</button>
-                    </div>
+                {!sdsgSpace?.enabled && (
+                  <div className="prop-row" style={{ padding: 6, background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4 }}>
+                    <span style={{ fontSize: '0.85em', color: '#856404' }}>
+                      ⚠ SD/SG 配置機能が OFF です。band モード変更時に自動で ON になります。
+                    </span>
                   </div>
-                  <div className="prop-row">
-                    <label>帯内 Time オフセット (px)</label>
+                )}
+                <div className="prop-row">
+                  <label>帯内 Row 指定</label>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                     <input
                       type="number"
-                      value={first.spaceInsetTime ?? 0}
-                      onChange={(e) => updateSDSG(first.id, { spaceInsetTime: Number(e.target.value) })}
-                      title="帯内での Time 軸方向の微調整"
+                      min={0}
+                      step={1}
+                      value={first.spaceRowOverride ?? ''}
+                      placeholder="自動"
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        updateSDSG(first.id, { spaceRowOverride: v === '' ? undefined : Math.max(0, Number(v)) });
+                      }}
+                      style={{ width: 60 }}
+                      title="帯内で割り当てる row を手動指定（0=最内側 Box 群寄り、大きいほど外側）。空欄で自動整列"
                     />
+                    <button className="ribbon-btn-small"
+                      onClick={() => {
+                        const cur = first.spaceRowOverride ?? 0;
+                        updateSDSG(first.id, { spaceRowOverride: Math.max(0, cur - 1) });
+                      }}
+                      title="row を 1 つ内側（Box 群寄り）へ">↑</button>
+                    <button className="ribbon-btn-small"
+                      onClick={() => {
+                        const cur = first.spaceRowOverride ?? 0;
+                        updateSDSG(first.id, { spaceRowOverride: cur + 1 });
+                      }}
+                      title="row を 1 つ外側へ">↓</button>
+                    <button className="ribbon-btn-small"
+                      onClick={() => updateSDSG(first.id, { spaceRowOverride: undefined })}
+                      title="自動整列に戻す">自動</button>
                   </div>
-                  <div className="prop-row">
-                    <label>帯内 Item オフセット (px)</label>
-                    <input
-                      type="number"
-                      value={first.spaceInsetItem ?? 0}
-                      onChange={(e) => updateSDSG(first.id, { spaceInsetItem: Number(e.target.value) })}
-                      title="帯内での Item 軸方向の微調整。範囲外はクランプされます"
-                    />
-                  </div>
-                  <div className="prop-row">
-                    <label>帯内 幅 (px)</label>
-                    <input
-                      type="number"
-                      value={first.spaceWidth ?? first.width ?? 70}
-                      onChange={(e) => updateSDSG(first.id, { spaceWidth: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="prop-row">
-                    <label>帯内 高さ (px)</label>
-                    <input
-                      type="number"
-                      value={first.spaceHeight ?? first.height ?? 40}
-                      onChange={(e) => updateSDSG(first.id, { spaceHeight: Number(e.target.value) })}
-                    />
-                  </div>
-                </>
-              )}
-            </>
-          )}
+                </div>
+                <div className="prop-row">
+                  <label>帯内 Time オフセット (px)</label>
+                  <input
+                    type="number"
+                    step={0.5}
+                    value={first.spaceInsetTime ?? 0}
+                    onChange={(e) => updateSDSG(first.id, { spaceInsetTime: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="prop-row">
+                  <label>帯内 Item オフセット (px)</label>
+                  <input
+                    type="number"
+                    step={0.5}
+                    value={first.spaceInsetItem ?? 0}
+                    onChange={(e) => updateSDSG(first.id, { spaceInsetItem: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="prop-row">
+                  <label>幅 (px)</label>
+                  <input
+                    type="number"
+                    value={first.spaceWidth ?? first.width ?? 70}
+                    onChange={(e) => updateSDSG(first.id, { spaceWidth: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="prop-row">
+                  <label>高さ (px)</label>
+                  <input
+                    type="number"
+                    value={first.spaceHeight ?? first.height ?? 40}
+                    onChange={(e) => updateSDSG(first.id, { spaceHeight: Number(e.target.value) })}
+                  />
+                </div>
+              </>
+            )}
 
-          {/* attached モード: attached 専用項目のみ */}
-          {(first.spaceMode == null || first.spaceMode === 'attached') && (
-            <>
-              <div className="prop-row">
-                <label>アンカー方式</label>
-                <select
-                  value={first.anchorMode ?? 'single'}
-                  onChange={(e) => {
-                    const mode = e.target.value as 'single' | 'between';
-                    if (mode === 'between' && !first.attachedTo2) {
-                      alert('between モードには 2 つ目の対象 Box の指定が必要です。下の「2 つ目の対象」で選択してください');
-                    }
-                    updateSDSG(first.id, { anchorMode: mode });
-                  }}
-                >
-                  <option value="single">single（単一 Box / Line に紐付け）</option>
-                  <option value="between">between（2 アイテム間）</option>
-                </select>
-              </div>
-              {first.anchorMode === 'between' && (
-                <>
-                  <div className="prop-row">
-                    <label>2 つ目の対象</label>
-                    {sheet ? (
+            {/* attached モード固有の設定 */}
+            {(first.spaceMode == null || first.spaceMode === 'attached') && (
+              <>
+                <div className="prop-row">
+                  <label>アンカー方式</label>
+                  <select
+                    value={first.anchorMode ?? 'single'}
+                    onChange={(e) => {
+                      const mode = e.target.value as 'single' | 'between';
+                      if (mode === 'between' && !first.attachedTo2) {
+                        alert('between モードには 2 つ目の対象 Box の指定が必要です。下の「2 つ目の対象」で選択してください');
+                      }
+                      updateSDSG(first.id, { anchorMode: mode });
+                    }}
+                  >
+                    <option value="single">single（単一 Box / Line に紐付け）</option>
+                    <option value="between">between（2 アイテム間）</option>
+                  </select>
+                </div>
+                {first.anchorMode === 'between' && (
+                  <>
+                    <div className="prop-row">
+                      <label>2 つ目の対象</label>
+                      {sheet ? (
+                        <select
+                          value={first.attachedTo2 ?? ''}
+                          onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
+                        >
+                          <option value="">（未指定）</option>
+                          {sheet.boxes
+                            .filter((b) => b.id !== first.attachedTo)
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>{b.id}: {b.label}</option>
+                            ))}
+                        </select>
+                      ) : null}
+                    </div>
+                    <div className="prop-row">
+                      <label>幅の定義</label>
                       <select
-                        value={first.attachedTo2 ?? ''}
-                        onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
+                        value={first.betweenMode ?? 'edge-to-edge'}
+                        onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
                       >
-                        <option value="">（未指定）</option>
-                        {sheet.boxes
-                          .filter((b) => b.id !== first.attachedTo)
-                          .map((b) => (
-                            <option key={b.id} value={b.id}>{b.id}: {b.label}</option>
-                          ))}
+                        <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
+                        <option value="center-to-center">Box 中心から Box 中心まで</option>
                       </select>
-                    ) : null}
-                  </div>
-                  <div className="prop-row">
-                    <label>幅の定義</label>
-                    <select
-                      value={first.betweenMode ?? 'edge-to-edge'}
-                      onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
-                    >
-                      <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
-                      <option value="center-to-center">Box 中心から Box 中心まで</option>
-                    </select>
-                  </div>
-                </>
-              )}
-              <div className="prop-row">
-                <label>時間オフセット (px)</label>
-                <input
-                  type="number"
-                  value={first.timeOffset ?? 0}
-                  onChange={(e) => updateSDSG(first.id, { timeOffset: Number(e.target.value) })}
-                />
-              </div>
-              <div className="prop-row">
-                <label>項目オフセット (px)</label>
-                <input
-                  type="number"
-                  value={first.itemOffset ?? 0}
-                  onChange={(e) => updateSDSG(first.id, { itemOffset: Number(e.target.value) })}
-                />
-              </div>
-              <div className="prop-row">
-                <label>サイズ W / H</label>
-                <div style={{ display: 'flex', gap: 4 }}>
+                    </div>
+                  </>
+                )}
+                <div className="prop-row">
+                  <label>時間オフセット (px)</label>
+                  <input
+                    type="number"
+                    step={0.5}
+                    value={first.timeOffset ?? 0}
+                    onChange={(e) => updateSDSG(first.id, { timeOffset: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="prop-row">
+                  <label>項目オフセット (px)</label>
+                  <input
+                    type="number"
+                    step={0.5}
+                    value={first.itemOffset ?? 0}
+                    onChange={(e) => updateSDSG(first.id, { itemOffset: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="prop-row">
+                  <label>幅 (px)</label>
                   <input
                     type="number"
                     value={first.width ?? 70}
                     onChange={(e) => updateSDSG(first.id, { width: Number(e.target.value) })}
                     title={first.anchorMode === 'between' ? '※ between モードでは Time 軸方向は自動計算のためこの値は無視されます' : ''}
                   />
+                </div>
+                <div className="prop-row">
+                  <label>高さ (px)</label>
                   <input
                     type="number"
                     value={first.height ?? 40}
                     onChange={(e) => updateSDSG(first.id, { height: Number(e.target.value) })}
                   />
                 </div>
+              </>
+            )}
+
+            <div className="prop-row">
+              <label>矩形部分の比率</label>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <input
+                  type="range"
+                  min={0.1}
+                  max={0.9}
+                  step={0.05}
+                  value={first.rectRatio ?? 0.55}
+                  onChange={(e) => updateSDSG(first.id, { rectRatio: Number(e.target.value) })}
+                  style={{ width: 90 }}
+                />
+                <input
+                  type="number"
+                  min={0.1}
+                  max={0.9}
+                  step={0.05}
+                  value={first.rectRatio ?? 0.55}
+                  onChange={(e) => updateSDSG(first.id, { rectRatio: Number(e.target.value) })}
+                  style={{ width: 60 }}
+                />
               </div>
-            </>
-          )}
-          <div className="prop-row">
-            <label>矩形部分の比率</label>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <input
-                type="range"
-                min={0.1}
-                max={0.9}
-                step={0.05}
-                value={first.rectRatio ?? 0.55}
-                onChange={(e) => updateSDSG(first.id, { rectRatio: Number(e.target.value) })}
-                style={{ width: 90 }}
-              />
-              <input
-                type="number"
-                min={0.1}
-                max={0.9}
-                step={0.05}
-                value={first.rectRatio ?? 0.55}
-                onChange={(e) => updateSDSG(first.id, { rectRatio: Number(e.target.value) })}
-                style={{ width: 60 }}
-              />
             </div>
-          </div>
           </>}
 
-          {tab === 'decoration' && <>
-          <div className="prop-row">
-            <label>フォントサイズ</label>
-            <input
-              type="number"
-              min={6}
-              max={40}
-              value={first.style?.fontSize ?? 11}
-              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontSize: Number(e.target.value) } })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>フォント</label>
-            <select
-              value={first.style?.fontFamily ?? ''}
-              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontFamily: e.target.value || undefined } })}
-            >
-              <option value="">（UI 既定）</option>
-              {FONT_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="prop-row">
-            <label>装飾</label>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                className={first.style?.bold !== false ? 'style-btn active' : 'style-btn'}
-                onClick={() => updateSDSG(first.id, { style: { ...first.style, bold: !(first.style?.bold !== false) } })}
-                title="太字"
-              ><b>B</b></button>
-              <button
-                className={first.style?.italic ? 'style-btn active' : 'style-btn'}
-                onClick={() => updateSDSG(first.id, { style: { ...first.style, italic: !first.style?.italic } })}
-                title="斜体"
-              ><i>I</i></button>
-              <button
-                className={first.style?.underline ? 'style-btn active' : 'style-btn'}
-                onClick={() => updateSDSG(first.id, { style: { ...first.style, underline: !first.style?.underline } })}
-                title="下線"
-              ><u>U</u></button>
+          {/* ========== ラベル ========== */}
+          {tab === 'label' && <>
+            <div className="prop-row">
+              <label>ラベル</label>
+              <input value={first.label} onChange={(e) => updateSDSG(first.id, { label: e.target.value })} />
             </div>
-          </div>
-          <div className="prop-row">
-            <label>文字色</label>
-            <input
-              type="color"
-              value={first.style?.color ?? '#222222'}
-              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, color: e.target.value } })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>背景色</label>
-            <input
-              type="color"
-              value={first.style?.backgroundColor ?? '#ffffff'}
-              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, backgroundColor: e.target.value } })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>枠線色</label>
-            <input
-              type="color"
-              value={first.style?.borderColor ?? '#333333'}
-              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, borderColor: e.target.value } })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>左右方向の揃え</label>
-            <select
-              value={first.style?.textAlign ?? 'center'}
-              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
-            >
-              <option value="left">左揃え</option>
-              <option value="center">中央</option>
-              <option value="right">右揃え</option>
-            </select>
-          </div>
-          <div className="prop-row">
-            <label>上下方向の揃え</label>
-            <select
-              value={first.style?.verticalAlign ?? 'middle'}
-              onChange={(e) => updateSDSG(first.id, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
-            >
-              <option value="top">上揃え</option>
-              <option value="middle">中央</option>
-              <option value="bottom">下揃え</option>
-            </select>
-          </div>
-          <div className="prop-row">
-            <label>ASCII縦向き（縦書き時）</label>
-            <input
-              type="checkbox"
-              checked={first.asciiUpright ?? true}
-              onChange={(e) => updateSDSG(first.id, { asciiUpright: e.target.checked })}
-            />
-          </div>
-
-          <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>タイプラベル（SD / SG 表記）</h5>
-          <div className="prop-row">
-            <label>フォントサイズ</label>
-            <input
-              type="number"
-              min={6}
-              max={40}
-              value={first.typeLabelFontSize ?? 11}
-              onChange={(e) => updateSDSG(first.id, { typeLabelFontSize: Number(e.target.value) })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>フォント</label>
-            <select
-              value={first.typeLabelFontFamily ?? ''}
-              onChange={(e) => updateSDSG(first.id, { typeLabelFontFamily: e.target.value || undefined })}
-            >
-              <option value="">（本文と同じ）</option>
-              {FONT_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="prop-row">
-            <label>装飾</label>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                className={first.typeLabelBold !== false ? 'style-btn active' : 'style-btn'}
-                onClick={() => updateSDSG(first.id, { typeLabelBold: !(first.typeLabelBold !== false) })}
-                title="太字"
-              ><b>B</b></button>
-              <button
-                className={first.typeLabelItalic ? 'style-btn active' : 'style-btn'}
-                onClick={() => updateSDSG(first.id, { typeLabelItalic: !first.typeLabelItalic })}
-                title="斜体"
-              ><i>I</i></button>
+            <div className="prop-row">
+              <label>フォント</label>
+              <select
+                value={first.style?.fontFamily ?? ''}
+                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontFamily: e.target.value || undefined } })}
+              >
+                <option value="">（UI 既定）</option>
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
             </div>
-          </div>
-          <div className="prop-row">
-            <label>ASCII縦向き（縦型レイアウト）</label>
-            <input
-              type="checkbox"
-              checked={first.typeLabelAsciiUpright ?? (first.asciiUpright ?? true)}
-              onChange={(e) => updateSDSG(first.id, { typeLabelAsciiUpright: e.target.checked })}
-            />
-          </div>
-
-          <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>サブラベル</h5>
-          <div className="prop-row">
-            <label>サブラベル</label>
-            <input
-              type="text"
-              value={first.subLabel ?? ''}
-              onChange={(e) => updateSDSG(first.id, { subLabel: e.target.value })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>サブラベル フォントサイズ</label>
-            <input
-              type="number"
-              min={6}
-              max={40}
-              value={first.subLabelFontSize ?? 10}
-              onChange={(e) => updateSDSG(first.id, { subLabelFontSize: Number(e.target.value) })}
-            />
-          </div>
-          <div className="prop-row">
-            <label>サブラベル位置 X / Y</label>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div className="prop-row">
+              <label>フォントサイズ</label>
               <input
                 type="number"
-                value={first.subLabelOffsetX ?? 0}
-                onChange={(e) => updateSDSG(first.id, { subLabelOffsetX: Number(e.target.value) })}
-              />
-              <input
-                type="number"
-                value={first.subLabelOffsetY ?? 0}
-                onChange={(e) => updateSDSG(first.id, { subLabelOffsetY: Number(e.target.value) })}
+                min={6}
+                max={40}
+                value={first.style?.fontSize ?? 11}
+                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontSize: Number(e.target.value) } })}
               />
             </div>
-          </div>
-          <div className="prop-row">
-            <label>ASCII縦向き（縦書き時）</label>
-            <input
-              type="checkbox"
-              checked={first.subLabelAsciiUpright ?? (first.asciiUpright ?? true)}
-              onChange={(e) => updateSDSG(first.id, { subLabelAsciiUpright: e.target.checked })}
-            />
-          </div>
+            <div className="prop-row">
+              <label>装飾</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className={first.style?.bold !== false ? 'style-btn active' : 'style-btn'}
+                  onClick={() => updateSDSG(first.id, { style: { ...first.style, bold: !(first.style?.bold !== false) } })}
+                  title="太字"><b>B</b></button>
+                <button className={first.style?.italic ? 'style-btn active' : 'style-btn'}
+                  onClick={() => updateSDSG(first.id, { style: { ...first.style, italic: !first.style?.italic } })}
+                  title="斜体"><i>I</i></button>
+                <button className={first.style?.underline ? 'style-btn active' : 'style-btn'}
+                  onClick={() => updateSDSG(first.id, { style: { ...first.style, underline: !first.style?.underline } })}
+                  title="下線"><u>U</u></button>
+              </div>
+            </div>
+            <div className="prop-row">
+              <label>文字色</label>
+              <input
+                type="color"
+                value={first.style?.color ?? '#222222'}
+                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, color: e.target.value } })}
+              />
+            </div>
+            <div className="prop-row">
+              <label>背景色</label>
+              <input
+                type="color"
+                value={first.style?.backgroundColor ?? '#ffffff'}
+                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, backgroundColor: e.target.value } })}
+              />
+            </div>
+            <div className="prop-row">
+              <label>枠線色</label>
+              <input
+                type="color"
+                value={first.style?.borderColor ?? '#333333'}
+                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, borderColor: e.target.value } })}
+              />
+            </div>
+            <div className="prop-row">
+              <label>左右方向の揃え</label>
+              <select
+                value={first.style?.textAlign ?? 'center'}
+                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
+              >
+                <option value="left">左揃え</option>
+                <option value="center">中央</option>
+                <option value="right">右揃え</option>
+              </select>
+            </div>
+            <div className="prop-row">
+              <label>上下方向の揃え</label>
+              <select
+                value={first.style?.verticalAlign ?? 'middle'}
+                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
+              >
+                <option value="top">上揃え</option>
+                <option value="middle">中央</option>
+                <option value="bottom">下揃え</option>
+              </select>
+            </div>
+            <div className="prop-row">
+              <label>ASCII縦向き（縦型レイアウト）</label>
+              <input
+                type="checkbox"
+                checked={first.asciiUpright ?? true}
+                onChange={(e) => updateSDSG(first.id, { asciiUpright: e.target.checked })}
+              />
+            </div>
+          </>}
+
+          {/* ========== タイプラベル（種別バッジ SD/SG） ========== */}
+          {tab === 'idLabel' && <>
+            <p className="hint" style={{ marginTop: 0 }}>
+              SD/SG 種別を表すバッジの装飾です。連番表記を ON にすると複数のとき自動で連番化（SD1, SD2, …）。
+            </p>
+            <div className="prop-row">
+              <label>連番表記</label>
+              <input
+                type="checkbox"
+                checked={first.typeLabelNumbered !== false}
+                onChange={(e) => updateSDSG(first.id, { typeLabelNumbered: e.target.checked ? undefined : false })}
+                title="OFF にすると SD / SG のみ表示（連番を付けない）"
+              />
+            </div>
+            <div className="prop-row">
+              <label>フォントサイズ</label>
+              <input
+                type="number"
+                min={6}
+                max={40}
+                value={first.typeLabelFontSize ?? 11}
+                onChange={(e) => updateSDSG(first.id, { typeLabelFontSize: Number(e.target.value) })}
+              />
+            </div>
+            <div className="prop-row">
+              <label>フォント</label>
+              <select
+                value={first.typeLabelFontFamily ?? ''}
+                onChange={(e) => updateSDSG(first.id, { typeLabelFontFamily: e.target.value || undefined })}
+              >
+                <option value="">（本文と同じ）</option>
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="prop-row">
+              <label>装飾</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className={first.typeLabelBold !== false ? 'style-btn active' : 'style-btn'}
+                  onClick={() => updateSDSG(first.id, { typeLabelBold: !(first.typeLabelBold !== false) })}
+                  title="太字"><b>B</b></button>
+                <button className={first.typeLabelItalic ? 'style-btn active' : 'style-btn'}
+                  onClick={() => updateSDSG(first.id, { typeLabelItalic: !first.typeLabelItalic })}
+                  title="斜体"><i>I</i></button>
+              </div>
+            </div>
+            <div className="prop-row">
+              <label>ASCII縦向き（縦型レイアウト）</label>
+              <input
+                type="checkbox"
+                checked={first.typeLabelAsciiUpright ?? (first.asciiUpright ?? true)}
+                onChange={(e) => updateSDSG(first.id, { typeLabelAsciiUpright: e.target.checked })}
+              />
+            </div>
+          </>}
+
+          {/* ========== サブラベル ========== */}
+          {tab === 'subLabel' && <>
+            <div className="prop-row">
+              <label>サブラベル</label>
+              <input
+                type="text"
+                value={first.subLabel ?? ''}
+                onChange={(e) => updateSDSG(first.id, { subLabel: e.target.value })}
+              />
+            </div>
+            <div className="prop-row">
+              <label>フォントサイズ</label>
+              <input
+                type="number"
+                min={6}
+                max={40}
+                value={first.subLabelFontSize ?? 10}
+                onChange={(e) => updateSDSG(first.id, { subLabelFontSize: Number(e.target.value) })}
+              />
+            </div>
+            <div className="prop-row">
+              <label>位置 X / Y</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <input
+                  type="number"
+                  value={first.subLabelOffsetX ?? 0}
+                  onChange={(e) => updateSDSG(first.id, { subLabelOffsetX: Number(e.target.value) })}
+                />
+                <input
+                  type="number"
+                  value={first.subLabelOffsetY ?? 0}
+                  onChange={(e) => updateSDSG(first.id, { subLabelOffsetY: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="prop-row">
+              <label>ASCII縦向き（縦型レイアウト）</label>
+              <input
+                type="checkbox"
+                checked={first.subLabelAsciiUpright ?? (first.asciiUpright ?? true)}
+                onChange={(e) => updateSDSG(first.id, { subLabelAsciiUpright: e.target.checked })}
+              />
+            </div>
+          </>}
+
+          {/* ========== 自動調整 ========== */}
+          {tab === 'autoFit' && <>
+            <p className="hint" style={{ marginTop: 0, color: '#888' }}>
+              SD/SG の自動調整は今後実装予定です。
+            </p>
           </>}
         </>
       )}
