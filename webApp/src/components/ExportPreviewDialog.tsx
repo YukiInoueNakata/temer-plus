@@ -198,6 +198,7 @@ export function ExportPreviewDialog({
           paperSize: xf.paperSize,
           pages: multi ?? undefined,
           pageSplitMode: xf.pageSplitMode,
+          showContinuationMarkers: xf.showContinuationMarkers,
         });
       }
     } catch (e) {

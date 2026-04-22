@@ -12,6 +12,7 @@
 import PptxGenJS from 'pptxgenjs';
 import type {
   Box,
+  Line,
   Sheet,
   SDSG,
   ProjectSettings,
@@ -51,8 +52,10 @@ export interface PPTXExportOptions {
   paperSize?: PaperSizeKey;     // 既定: レイアウトに応じて 16:9
   /** N ページ分割（未指定または要素 1 個なら単一スライド） */
   pages?: PageBounds[];
-  /** 分割モード。Phase 1 では overlap のみ対応（duplicate は将来拡張） */
+  /** 分割モード: overlap = 単純重複、duplicate = Box複製+線クリップ+続マーカー */
   pageSplitMode?: 'overlap' | 'duplicate';
+  /** duplicate モード時に続マーカーを描画（既定 true） */
+  showContinuationMarkers?: boolean;
 }
 
 const PX_PER_INCH = 96;
@@ -90,6 +93,8 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   pres.layout = 'TEMER';
 
   const pages = opts.pages && opts.pages.length > 1 ? opts.pages : null;
+  const mode: 'overlap' | 'duplicate' = opts.pageSplitMode ?? 'overlap';
+  const showMarkers = opts.showContinuationMarkers !== false;
 
   if (!pages) {
     // 単一スライド（従来動作）
@@ -105,7 +110,7 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
     return;
   }
 
-  // N スライド分割出力（Phase 1: overlap モードのみ対応。duplicate は Phase 2 で）
+  // N スライド分割出力
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
     const slide = pres.addSlide();
@@ -113,13 +118,12 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
       x: page.innerX, y: page.innerY,
       width: page.innerWidth, height: page.innerHeight,
     };
-    // ページ内の部分をスライドにフィットさせる
     const t = buildTransform(pageBbox, slideWpx, slideHpx, false, 0);
-    // ページ範囲に重なる要素だけを抽出したフィルタシート
-    const pageSheet = filterSheetForPage(opts.sheet, page, layout);
-    drawTimeArrow(pres, slide, pageSheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
+    const pageSheet = filterSheetForPage(opts.sheet, page, layout, mode);
+    drawTimeArrow(pres, slide, pageSheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility, page, mode, showMarkers);
     drawPeriodLabels(pres, slide, pageSheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
-    drawLines(pres, slide, pageSheet, layout, t);
+    // duplicate モードでは Line の端点解決に原シートの全 Box が必要なので opts.sheet を渡す
+    drawLines(pres, slide, mode === 'duplicate' ? opts.sheet : pageSheet, layout, t, page, mode, showMarkers);
     drawSDSGs(pres, slide, pageSheet, layout, opts.settings, t);
     drawBoxes(pres, slide, pageSheet, layout, opts.settings, t);
     // 凡例は全スライドに表示（SPEC）
@@ -129,20 +133,26 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
 }
 
 /**
- * シートをページ範囲でフィルタ: ページの描画窓に bbox が重なる Box/SDSG/Line のみ残す。
- * 時期区分ラベルは position (Time_Level) がページの時間範囲内にあるもののみ残す。
- * overlap モードで Box の bbox がページ境界をまたぐとき、両ページに含まれる（= 複製）。
+ * シートをページ範囲でフィルタ。
+ * overlap モード: 両端の Box がともにページ内にある Line のみ残す（従来動作）。
+ * duplicate モード: Line フィルタは drawLines に任せ（ここでは全 Line を残す）、
+ *   drawLines 側で Liang-Barsky クリップと続マーカーで処理する。
+ * Box / SDSG / 時期ラベルの扱いは両モード共通。
  */
-function filterSheetForPage(sheet: Sheet, page: PageBounds, layout: 'horizontal' | 'vertical'): Sheet {
+function filterSheetForPage(
+  sheet: Sheet,
+  page: PageBounds,
+  layout: 'horizontal' | 'vertical',
+  mode: 'overlap' | 'duplicate' = 'overlap',
+): Sheet {
   const visibleBoxes = sheet.boxes.filter((b) =>
     rectIntersectsPage({ x: b.x, y: b.y, width: b.width, height: b.height }, page),
   );
   const visibleBoxIds = new Set(visibleBoxes.map((b) => b.id));
-  // SDSG は attachedTo Box がページ内にあれば残す（簡易ルール）
   const visibleSDSGs = sheet.sdsg.filter((sg) => visibleBoxIds.has(sg.attachedTo));
-  // Line は両端の Box がともにページ内にあれば残す（overlap でも duplicate でも簡易）
-  const visibleLines = sheet.lines.filter((l) => visibleBoxIds.has(l.from) && visibleBoxIds.has(l.to));
-  // 時期区分: position (Time_Level) が ページの時間範囲に入っていれば残す
+  const visibleLines = mode === 'duplicate'
+    ? sheet.lines  // drawLines 側でクリップ
+    : sheet.lines.filter((l) => visibleBoxIds.has(l.from) && visibleBoxIds.has(l.to));
   const LEVEL = 100;
   const tStart = layout === 'horizontal' ? page.innerX / LEVEL : page.innerY / LEVEL;
   const tEnd = layout === 'horizontal'
@@ -155,6 +165,134 @@ function filterSheetForPage(sheet: Sheet, page: PageBounds, layout: 'horizontal'
     sdsg: visibleSDSGs,
     lines: visibleLines,
     periodLabels: visiblePeriodLabels,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// 線分クリップ（Liang-Barsky, page.inner 矩形を窓として使用）
+// ----------------------------------------------------------------------------
+
+interface Pt { x: number; y: number; }
+
+function clipSegmentToPageInner(
+  p0: Pt,
+  p1: Pt,
+  page: PageBounds,
+): { p0: Pt; p1: Pt; clippedStart: boolean; clippedEnd: boolean } | null {
+  const xMin = page.innerX;
+  const xMax = page.innerX + page.innerWidth;
+  const yMin = page.innerY;
+  const yMax = page.innerY + page.innerHeight;
+  const dx = p1.x - p0.x;
+  const dy = p1.y - p0.y;
+  const pArr = [-dx, dx, -dy, dy];
+  const qArr = [p0.x - xMin, xMax - p0.x, p0.y - yMin, yMax - p0.y];
+  let t0 = 0;
+  let t1 = 1;
+  for (let i = 0; i < 4; i++) {
+    if (Math.abs(pArr[i]) < 1e-9) {
+      if (qArr[i] < 0) return null;
+      continue;
+    }
+    const r = qArr[i] / pArr[i];
+    if (pArr[i] < 0) {
+      if (r > t1) return null;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return null;
+      if (r < t1) t1 = r;
+    }
+  }
+  return {
+    p0: { x: p0.x + t0 * dx, y: p0.y + t0 * dy },
+    p1: { x: p0.x + t1 * dx, y: p0.y + t1 * dy },
+    clippedStart: t0 > 1e-6,
+    clippedEnd: t1 < 1 - 1e-6,
+  };
+}
+
+/**
+ * 続マーカー「→続」「続→」を page 境界付近に描画。
+ * direction='forward' = この側でページ外へ続く（右/下方向）→ 「→続」
+ * direction='backward' = 前ページから続いてくる（左/上方向）→ 「続→」
+ */
+function drawContinuationMarker(
+  slide: PptxGenJS.Slide,
+  pt: Pt,
+  direction: 'forward' | 'backward',
+  layout: LayoutDirection,
+  t: Transform,
+) {
+  const fsBase = 9;
+  const label = direction === 'forward' ? '→続' : '続→';
+  const wpx = 42;
+  const hpx = 16;
+  const isH = layout === 'horizontal';
+  let bx: number;
+  let by: number;
+  if (isH) {
+    // 横型: 境界は縦線（x 方向）。ラベルは線の少し上にオフセット
+    bx = direction === 'forward' ? pt.x - wpx : pt.x;
+    by = pt.y - hpx - 2;
+  } else {
+    // 縦型: 境界は横線（y 方向）。ラベルは線の少し右側にオフセット
+    bx = pt.x + 4;
+    by = direction === 'forward' ? pt.y - hpx : pt.y;
+  }
+  slide.addText(label, {
+    x: t.toX(bx),
+    y: t.toY(by),
+    w: t.toLen(wpx),
+    h: t.toLen(hpx),
+    align: 'center',
+    valign: 'middle',
+    fontSize: Math.max(6, fsBase * Math.max(0.4, t.scale)),
+    color: '555555',
+    margin: 1,
+  });
+}
+
+function computeLineSegment(
+  l: Line,
+  byId: Map<string, Box>,
+  layout: LayoutDirection,
+): { sx: number; sy: number; ex: number; ey: number; shouldDash: boolean } | null {
+  const from = byId.get(l.from);
+  const to = byId.get(l.to);
+  if (!from || !to) return null;
+  const isH = layout === 'horizontal';
+  const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
+  const connectsDashed = dashedEndpoints.has(from.type) || dashedEndpoints.has(to.type);
+  const shouldDash = l.type === 'XLine' || connectsDashed;
+  const x1 = isH ? from.x + from.width : from.x + from.width / 2;
+  const y1 = isH ? from.y + from.height / 2 : from.y + from.height;
+  const x2 = isH ? to.x : to.x + to.width / 2;
+  const y2 = isH ? to.y + to.height / 2 : to.y;
+  const sOffT = l.startOffsetTime ?? 0;
+  const eOffT = l.endOffsetTime ?? 0;
+  const sOffI = l.startOffsetItem ?? 0;
+  const eOffI = l.endOffsetItem ?? 0;
+  const sDx = isH ? sOffT : sOffI;
+  const sDy = isH ? -sOffI : sOffT;
+  const eDx = isH ? eOffT : eOffI;
+  const eDy = isH ? -eOffI : eOffT;
+  const sx0 = x1 + sDx;
+  const sy0 = y1 + sDy;
+  const tx0 = x2 + eDx;
+  const ty0 = y2 + eDy;
+  const dxs = tx0 - sx0;
+  const dys = ty0 - sy0;
+  const len = Math.sqrt(dxs * dxs + dys * dys) || 1;
+  const ux = dxs / len;
+  const uy = dys / len;
+  const startMargin = l.startMargin ?? 0;
+  const endMargin = l.endMargin ?? 0;
+  return {
+    sx: sx0 + ux * startMargin,
+    sy: sy0 + uy * startMargin,
+    ex: tx0 - ux * endMargin,
+    ey: ty0 - uy * endMargin,
+    shouldDash,
   };
 }
 
@@ -460,59 +598,38 @@ function drawLines(
   sheet: Sheet,
   layout: LayoutDirection,
   t: Transform,
+  page?: PageBounds,
+  mode?: 'overlap' | 'duplicate',
+  showMarkers?: boolean,
 ) {
   const byId = new Map(sheet.boxes.map((b) => [b.id, b]));
-  const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
-  const isH = layout === 'horizontal';
+  const isDup = !!(page && mode === 'duplicate');
 
   for (const l of sheet.lines) {
-    const from = byId.get(l.from);
-    const to = byId.get(l.to);
-    if (!from || !to) continue;
+    const seg = computeLineSegment(l, byId, layout);
+    if (!seg) continue;
+    const { sx, sy, ex, ey, shouldDash } = seg;
 
-    const connectsDashed = dashedEndpoints.has(from.type) || dashedEndpoints.has(to.type);
-    const shouldDash = l.type === 'XLine' || connectsDashed;
+    let p0: Pt = { x: sx, y: sy };
+    let p1: Pt = { x: ex, y: ey };
+    let hasArrowhead = true;
+    let clippedStart = false;
+    let clippedEnd = false;
 
-    // キャンバスの既定ハンドル: 横型 左→右 / 縦型 上→下
-    const x1 = isH ? from.x + from.width : from.x + from.width / 2;
-    const y1 = isH ? from.y + from.height / 2 : from.y + from.height;
-    const x2 = isH ? to.x : to.x + to.width / 2;
-    const y2 = isH ? to.y + to.height / 2 : to.y;
+    if (isDup && page) {
+      const clip = clipSegmentToPageInner(p0, p1, page);
+      if (!clip) continue;
+      p0 = clip.p0;
+      p1 = clip.p1;
+      clippedStart = clip.clippedStart;
+      clippedEnd = clip.clippedEnd;
+      hasArrowhead = !clippedEnd;  // 真の終点が見えている時だけ矢頭
+    }
 
-    // ユーザ座標のオフセットを world 座標(x,y)へ適用
-    // 横型: Time=+x, Item=-y
-    // 縦型: Time=+y, Item=+x
-    const sOffT = l.startOffsetTime ?? 0;
-    const eOffT = l.endOffsetTime ?? 0;
-    const sOffI = l.startOffsetItem ?? 0;
-    const eOffI = l.endOffsetItem ?? 0;
-    const sDx = isH ? sOffT : sOffI;
-    const sDy = isH ? -sOffI : sOffT;
-    const eDx = isH ? eOffT : eOffI;
-    const eDy = isH ? -eOffI : eOffT;
-
-    const sx0 = x1 + sDx;
-    const sy0 = y1 + sDy;
-    const tx0 = x2 + eDx;
-    const ty0 = y2 + eDy;
-
-    const dx = tx0 - sx0;
-    const dy = ty0 - sy0;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const ux = dx / len;
-    const uy = dy / len;
-    const startMargin = l.startMargin ?? 0;
-    const endMargin = l.endMargin ?? 0;
-
-    const sx = sx0 + ux * startMargin;
-    const sy = sy0 + uy * startMargin;
-    const ex = tx0 - ux * endMargin;
-    const ey = ty0 - uy * endMargin;
-
-    const minX = Math.min(sx, ex);
-    const minY = Math.min(sy, ey);
-    const w = Math.max(1, Math.abs(ex - sx));
-    const h = Math.max(1, Math.abs(ey - sy));
+    const minX = Math.min(p0.x, p1.x);
+    const minY = Math.min(p0.y, p1.y);
+    const w = Math.max(1, Math.abs(p1.x - p0.x));
+    const h = Math.max(1, Math.abs(p1.y - p0.y));
 
     slide.addShape(pres.ShapeType.line, {
       x: t.toX(minX),
@@ -523,11 +640,16 @@ function drawLines(
         color: rgbToHex(l.style?.color ?? '#222'),
         width: l.style?.strokeWidth ?? 1.5,
         dashType: shouldDash ? 'dash' : 'solid',
-        endArrowType: 'triangle',
+        endArrowType: hasArrowhead ? 'triangle' : 'none',
       },
-      flipH: ex < sx,
-      flipV: ey < sy,
+      flipH: p1.x < p0.x,
+      flipV: p1.y < p0.y,
     });
+
+    if (isDup && showMarkers !== false) {
+      if (clippedEnd) drawContinuationMarker(slide, p1, 'forward', layout, t);
+      if (clippedStart) drawContinuationMarker(slide, p0, 'backward', layout, t);
+    }
   }
 }
 
@@ -837,15 +959,35 @@ function drawTimeArrow(
   t: Transform,
   sdsgSpace?: SDSGSpaceSettings,
   typeLabelVisibility?: TypeLabelVisibilityMap,
+  page?: PageBounds,
+  mode?: 'overlap' | 'duplicate',
+  showMarkers?: boolean,
 ) {
   if (!settings || !settings.autoInsert) return;
   const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace, typeLabelVisibility);
   if (!arrow) return;
 
-  const minX = Math.min(arrow.startX, arrow.endX);
-  const minY = Math.min(arrow.startY, arrow.endY);
-  const w = Math.max(1, Math.abs(arrow.endX - arrow.startX));
-  const h = Math.max(1, Math.abs(arrow.endY - arrow.startY));
+  let p0: Pt = { x: arrow.startX, y: arrow.startY };
+  let p1: Pt = { x: arrow.endX, y: arrow.endY };
+  let hasArrowhead = true;
+  let clippedStart = false;
+  let clippedEnd = false;
+  const isDup = !!(page && mode === 'duplicate');
+
+  if (isDup && page) {
+    const clip = clipSegmentToPageInner(p0, p1, page);
+    if (!clip) return;
+    p0 = clip.p0;
+    p1 = clip.p1;
+    clippedStart = clip.clippedStart;
+    clippedEnd = clip.clippedEnd;
+    hasArrowhead = !clippedEnd;
+  }
+
+  const minX = Math.min(p0.x, p1.x);
+  const minY = Math.min(p0.y, p1.y);
+  const w = Math.max(1, Math.abs(p1.x - p0.x));
+  const h = Math.max(1, Math.abs(p1.y - p0.y));
 
   slide.addShape(pres.ShapeType.line, {
     x: t.toX(minX),
@@ -855,11 +997,24 @@ function drawTimeArrow(
     line: {
       color: '222222',
       width: arrow.strokeWidth,
-      endArrowType: 'triangle',
+      endArrowType: hasArrowhead ? 'triangle' : 'none',
     },
-    flipH: arrow.endX < arrow.startX,
-    flipV: arrow.endY < arrow.startY,
+    flipH: p1.x < p0.x,
+    flipV: p1.y < p0.y,
   });
+
+  if (isDup && showMarkers !== false) {
+    if (clippedEnd) drawContinuationMarker(slide, p1, 'forward', layout, t);
+    if (clippedStart) drawContinuationMarker(slide, p0, 'backward', layout, t);
+  }
+
+  // duplicate モード: ラベル位置が page.inner 外なら skip（1 スライドにだけ出す）
+  if (isDup && page) {
+    const inside =
+      arrow.labelX >= page.innerX && arrow.labelX <= page.innerX + page.innerWidth &&
+      arrow.labelY >= page.innerY && arrow.labelY <= page.innerY + page.innerHeight;
+    if (!inside) return;
+  }
 
   // ラベル
   const isVert = layout === 'vertical';
