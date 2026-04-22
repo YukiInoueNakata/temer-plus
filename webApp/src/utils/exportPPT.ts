@@ -20,6 +20,7 @@ import type {
   PeriodLabelSettings,
   TimeArrowSettings,
   SDSGSpaceSettings,
+  TypeLabelVisibilityMap,
 } from '../types';
 import { computeTimeArrow } from './timeArrow';
 import { computePeriodLabels } from './periodLabels';
@@ -87,8 +88,8 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   // 背景は未設定
 
   // 描画（背面 → 前面の順）
-  drawTimeArrow(pres, slide, opts.sheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace);
-  drawPeriodLabels(pres, slide, opts.sheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace);
+  drawTimeArrow(pres, slide, opts.sheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
+  drawPeriodLabels(pres, slide, opts.sheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
   drawLines(pres, slide, opts.sheet, layout, t);
   drawSDSGs(pres, slide, opts.sheet, layout, opts.settings, t);
   drawBoxes(pres, slide, opts.sheet, layout, opts.settings, t);
@@ -777,9 +778,10 @@ function drawTimeArrow(
   settings: TimeArrowSettings,
   t: Transform,
   sdsgSpace?: SDSGSpaceSettings,
+  typeLabelVisibility?: TypeLabelVisibilityMap,
 ) {
   if (!settings || !settings.autoInsert) return;
-  const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace);
+  const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace, typeLabelVisibility);
   if (!arrow) return;
 
   const minX = Math.min(arrow.startX, arrow.endX);
@@ -859,10 +861,11 @@ function drawPeriodLabels(
   timeArrow: TimeArrowSettings,
   t: Transform,
   sdsgSpace?: SDSGSpaceSettings,
+  typeLabelVisibility?: TypeLabelVisibilityMap,
 ) {
   if (!settings || !settings.includeInExport) return;
   if (sheet.periodLabels.length === 0) return;
-  const geom = computePeriodLabels(sheet, layout, settings, timeArrow, sdsgSpace);
+  const geom = computePeriodLabels(sheet, layout, settings, timeArrow, sdsgSpace, typeLabelVisibility);
   if (!geom) return;
 
   const isH = layout === 'horizontal';

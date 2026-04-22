@@ -556,8 +556,8 @@ function SDSGSpaceSection() {
   }
 
   const isH = layout === 'horizontal';
-  const topLabel = isH ? '上部 (SD)' : '左側 (SD)';
-  const bottomLabel = isH ? '下部 (SG)' : '右側 (SG)';
+  const topLabel = isH ? '上部 (SD)' : '右側 (SD)';
+  const bottomLabel = isH ? '下部 (SG)' : '左側 (SG)';
 
   return (
     <section className="settings-section">
@@ -588,26 +588,39 @@ function SDSGSpaceSection() {
         />
       </div>
       <div className="setting-row">
-        <label>帯の高さ (Level)</label>
-        <input
-          type="number"
-          min={0.1}
-          max={10}
-          step={0.1}
-          value={space.bands.top.heightLevel}
-          onChange={(e) => updateBand('top', { heightLevel: Math.max(0.1, Number(e.target.value)) })}
-          style={{ width: 80 }}
-        />
+        <label>帯の高さ</label>
+        <select
+          value={space.bands.top.heightMode ?? 'auto'}
+          onChange={(e) => updateBand('top', { heightMode: e.target.value as 'auto' | 'manual' })}
+          style={{ width: 120 }}
+        >
+          <option value="auto">自動（SDSG/ラベルに合わせる）</option>
+          <option value="manual">手動指定</option>
+        </select>
       </div>
+      {(space.bands.top.heightMode ?? 'auto') === 'manual' && (
+        <div className="setting-row">
+          <label>高さ (Level)</label>
+          <input
+            type="number"
+            min={0.1}
+            max={10}
+            step={0.1}
+            value={space.bands.top.heightLevel}
+            onChange={(e) => updateBand('top', { heightLevel: Math.max(0.1, Number(e.target.value)) })}
+            style={{ width: 80 }}
+          />
+        </div>
+      )}
       <div className="setting-row">
         <label>配置基準</label>
         <select
           value={space.bands.top.reference}
           onChange={(e) => updateBand('top', { reference: e.target.value as 'period' | 'timearrow' | 'boxes' })}
         >
+          <option value="boxes">Box 群の外側（直接）</option>
           <option value="period">時期区分の内側</option>
           <option value="timearrow">非可逆的時間の内側</option>
-          <option value="boxes">Box 群の外側（直接）</option>
         </select>
       </div>
       <div className="setting-row">
@@ -672,26 +685,39 @@ function SDSGSpaceSection() {
         />
       </div>
       <div className="setting-row">
-        <label>帯の高さ (Level)</label>
-        <input
-          type="number"
-          min={0.1}
-          max={10}
-          step={0.1}
-          value={space.bands.bottom.heightLevel}
-          onChange={(e) => updateBand('bottom', { heightLevel: Math.max(0.1, Number(e.target.value)) })}
-          style={{ width: 80 }}
-        />
+        <label>帯の高さ</label>
+        <select
+          value={space.bands.bottom.heightMode ?? 'auto'}
+          onChange={(e) => updateBand('bottom', { heightMode: e.target.value as 'auto' | 'manual' })}
+          style={{ width: 120 }}
+        >
+          <option value="auto">自動（SDSG/ラベルに合わせる）</option>
+          <option value="manual">手動指定</option>
+        </select>
       </div>
+      {(space.bands.bottom.heightMode ?? 'auto') === 'manual' && (
+        <div className="setting-row">
+          <label>高さ (Level)</label>
+          <input
+            type="number"
+            min={0.1}
+            max={10}
+            step={0.1}
+            value={space.bands.bottom.heightLevel}
+            onChange={(e) => updateBand('bottom', { heightLevel: Math.max(0.1, Number(e.target.value)) })}
+            style={{ width: 80 }}
+          />
+        </div>
+      )}
       <div className="setting-row">
         <label>配置基準</label>
         <select
           value={space.bands.bottom.reference}
           onChange={(e) => updateBand('bottom', { reference: e.target.value as 'period' | 'timearrow' | 'boxes' })}
         >
+          <option value="boxes">Box 群の外側（直接）</option>
           <option value="period">時期区分の内側</option>
           <option value="timearrow">非可逆的時間の内側</option>
-          <option value="boxes">Box 群の外側（直接）</option>
         </select>
       </div>
       <div className="setting-row">
@@ -1691,6 +1717,7 @@ function TimeArrowSettingsSection() {
           value={ta.itemOffset}
           onChange={(e) => update({ itemOffset: Number(e.target.value) })}
           style={{ width: 70 }}
+          title="+ で外側（基準位置から Box 群の反対側へ）、- で内側（Box 群寄り）"
         />
       </div>
       <div className="setting-row">

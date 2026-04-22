@@ -27,6 +27,8 @@ export interface SDSGNodeData extends Pick<
   flipDirection?: boolean;
   // 帯範囲クランプされてはみ出した表示用（赤枠）
   outOfRange?: boolean;
+  // タイプバッジ表示テキスト（SD1, SG2 等。未指定なら data.type をそのまま表示）
+  typeLabelText?: string;
 }
 
 export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>) {
@@ -353,7 +355,7 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
       )}
       {showTypeTag && (
         <div style={typeTagStyle}>
-          {renderVerticalAwareText(data.type, isVerticalLayout && typeAsciiUpright)}
+          {renderVerticalAwareText(data.typeLabelText ?? data.type, isVerticalLayout && typeAsciiUpright)}
         </div>
       )}
       {subLabelText && (

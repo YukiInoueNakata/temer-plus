@@ -21,7 +21,7 @@ export function PeriodLabelsOverlay({ onOpenSettings }: { onOpenSettings?: () =>
   if (!sheet || !settings.alwaysVisible) return null;
   if (sheet.periodLabels.length === 0) return null;
 
-  const geom = computePeriodLabels(sheet, layout, settings, timeArrowSettings, sdsgSpace);
+  const geom = computePeriodLabels(sheet, layout, settings, timeArrowSettings, sdsgSpace, view.settings.typeLabelVisibility);
   if (!geom) return null;
 
   const [panX, panY, zoom] = transform;

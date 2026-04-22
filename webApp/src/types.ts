@@ -96,6 +96,10 @@ export interface Box {
   typeLabelItalic?: boolean;
   typeLabelFontFamily?: string;
   typeLabelAsciiUpright?: boolean;    // タイプラベルの縦書き時ASCII向き（未指定なら asciiUpright に従う）
+  // タイプラベルの連番表記 ON/OFF（既定 undefined = ON）
+  //   true/undefined: 同種別複数時に "OPP-1", "2nd EFP" など連番化
+  //   false          : 連番を付けず種別名のみ（例: "OPP", "EFP"）
+  typeLabelNumbered?: boolean;
 
   // サブラベル個別 ASCII
   subLabelAsciiUpright?: boolean;
@@ -181,6 +185,10 @@ export interface SDSG {
   typeLabelItalic?: boolean;
   typeLabelFontFamily?: string;
   typeLabelAsciiUpright?: boolean;
+  // タイプラベルの連番表記 ON/OFF（既定 undefined = ON）
+  //   true/undefined: 同種別複数時に "SD1", "SD2" など連番化
+  //   false          : 連番を付けず "SD" / "SG" のみ
+  typeLabelNumbered?: boolean;
   // 縦書き英数向き（本体テキスト用）
   asciiUpright?: boolean;
 }
@@ -463,8 +471,12 @@ export interface ProjectSettings {
 // SD/SG 専用スペース（帯）の設定
 export interface SDSGSpaceBandSettings {
   enabled: boolean;
-  heightLevel: number;                    // 帯の高さ（Level 単位、既定 1.5）
-  reference: 'period' | 'timearrow' | 'boxes';  // 何の内側か
+  // 帯の高さ決定モード（既定 'auto'）
+  //   'auto'   : 帯内 SDSG の最外辺（タイプラベル含む）から自動算出
+  //   'manual' : heightLevel を使用
+  heightMode?: 'auto' | 'manual';
+  heightLevel: number;                    // 帯の高さ（Level 単位、manual 時使用、既定 1.5）
+  reference: 'period' | 'timearrow' | 'boxes';  // 何の内側か（既定 'boxes'）
   offsetLevel: number;                    // 基準からの距離（Level、既定 0.2）
   showBorder: boolean;                    // 編集時に帯範囲を点線表示
   // 帯枠の色（編集時表示、既定: 上部=紫 / 下部=緑）
@@ -474,8 +486,8 @@ export interface SDSGSpaceBandSettings {
   // 編集時の帯ラベル位置（帯範囲の左上にラベル表示する場合）
   labelPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'none';
   // SDSG row が帯に収まらない時、自動的に SDSG 高さを圧縮するか
-  //   true: row span 以内に SDSG を縮める（既定）
-  //   false: そのまま描画（はみ出し発生、outOfRange 警告）
+  //   true: row span 以内に SDSG を縮める
+  //   false: そのまま描画（はみ出し発生、outOfRange 警告、既定）
   shrinkToFitRow?: boolean;
   // row 数が多くて圧縮しきれない時、帯自体を自動拡張するか
   //   true: heightLevel を必要分だけ拡大（描画時のみ、設定値は保存されない）

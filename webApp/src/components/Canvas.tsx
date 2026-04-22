@@ -29,6 +29,7 @@ import { LegendOverlay } from './LegendOverlay';
 import { PeriodLabelsOverlay } from './PeriodLabelsOverlay';
 import { renderVerticalAwareText } from '../utils/verticalText';
 import { computeContentBounds } from '../utils/fitBounds';
+import { computeSDSGDisplay } from '../utils/typeDisplay';
 import {
   computeSDSGBandLayout,
   sdsgBandKey,
@@ -309,6 +310,7 @@ function CanvasInner({
               typeLabelFontSize: sg.typeLabelFontSize, typeLabelBold: sg.typeLabelBold,
               typeLabelItalic: sg.typeLabelItalic, typeLabelFontFamily: sg.typeLabelFontFamily,
               typeLabelAsciiUpright: sg.typeLabelAsciiUpright,
+              typeLabelText: computeSDSGDisplay(sheet.sdsg, sg, sheet.boxes, layout),
               asciiUpright: sg.asciiUpright,
             } as SDSGNodeData,
             style: { width: pos.width, height: pos.height, zIndex: sg.zIndex ?? 0 },
@@ -385,6 +387,7 @@ function CanvasInner({
             typeLabelFontSize: sg.typeLabelFontSize, typeLabelBold: sg.typeLabelBold,
             typeLabelItalic: sg.typeLabelItalic, typeLabelFontFamily: sg.typeLabelFontFamily,
             typeLabelAsciiUpright: sg.typeLabelAsciiUpright,
+            typeLabelText: computeSDSGDisplay(sheet.sdsg, sg, sheet.boxes, layout),
             asciiUpright: sg.asciiUpright,
           } as SDSGNodeData,
           style: { width: w, height: h, zIndex: sg.zIndex ?? 0 },
@@ -504,23 +507,31 @@ function CanvasInner({
             temporal.resume();
             setGuides({ v: [], h: [] });
           }
-          // スマートガイド: Box ドラッグ中のみ
+          // スマートガイド: Box / SDSG ドラッグ中（現在 SDSG は size を w/h or pos.width/height 経由で取得）
           if (ch.dragging === true) {
             const box = sheet.boxes.find((b) => b.id === ch.id);
-            if (box) {
+            const sdsgDragged = sheet.sdsg.find((s) => s.id === ch.id);
+            if (box || sdsgDragged) {
               const THRESHOLD = 5;
               const nx = ch.position.x;
               const ny = ch.position.y;
+              const w = box ? box.width : (sdsgDragged!.spaceMode && sdsgDragged!.spaceMode !== 'attached'
+                ? (sdsgDragged!.spaceWidth ?? sdsgDragged!.width ?? 70)
+                : (sdsgDragged!.width ?? 70));
+              const h = box ? box.height : (sdsgDragged!.spaceMode && sdsgDragged!.spaceMode !== 'attached'
+                ? (sdsgDragged!.spaceHeight ?? sdsgDragged!.height ?? 40)
+                : (sdsgDragged!.height ?? 40));
               const my = {
                 left: nx,
-                right: nx + box.width,
-                centerX: nx + box.width / 2,
+                right: nx + w,
+                centerX: nx + w / 2,
                 top: ny,
-                bottom: ny + box.height,
-                centerY: ny + box.height / 2,
+                bottom: ny + h,
+                centerY: ny + h / 2,
               };
               const vLines: number[] = [];
               const hLines: number[] = [];
+              // 他の Box / SDSG の辺・中心と揃うかチェック
               sheet.boxes.forEach((o) => {
                 if (o.id === ch.id) return;
                 const oth = {
@@ -531,13 +542,11 @@ function CanvasInner({
                   bottom: o.y + o.height,
                   centerY: o.y + o.height / 2,
                 };
-                // 垂直方向の揃い (x 一致)
                 (['left', 'right', 'centerX'] as const).forEach((k) => {
                   (['left', 'right', 'centerX'] as const).forEach((ok) => {
                     if (Math.abs(my[k] - oth[ok]) < THRESHOLD) vLines.push(oth[ok]);
                   });
                 });
-                // 水平方向の揃い (y 一致)
                 (['top', 'bottom', 'centerY'] as const).forEach((k) => {
                   (['top', 'bottom', 'centerY'] as const).forEach((ok) => {
                     if (Math.abs(my[k] - oth[ok]) < THRESHOLD) hLines.push(oth[ok]);
@@ -556,8 +565,12 @@ function CanvasInner({
             x = Math.round(x / gridPx) * gridPx;
             y = Math.round(y / gridPx) * gridPx;
           }
-          // SDSG node か Box node か判別
+          // SDSG のドラッグは sub-pixel 抑制のため 0.5px 刻みに丸め
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
+          if (sdsgItem) {
+            x = Math.round(x * 2) / 2;
+            y = Math.round(y * 2) / 2;
+          }
           if (sdsgItem) {
             const isH = layout === 'horizontal';
             const bandModeActive = settings.sdsgSpace?.enabled &&
@@ -595,14 +608,12 @@ function CanvasInner({
                 const totalRows = Math.max(1, ...Array.from(rowMap.values()).map((v) => v + 1));
                 const rowIdx = rowMap.get(sdsgItem.id) ?? 0;
                 const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;
-                // rowCenter 計算は computeSDSGBandPosition と同じ layout 依存のアンカー
-                const anchorBandCoord = isH ? band.start : band.end;
-                const otherBandCoord = isH ? band.end : band.start;
-                const dir = Math.sign(otherBandCoord - anchorBandCoord) || (bk === 'top' ? -1 : 1);
+                // computeSDSGBandPosition と同じ: band.start (box-side inner edge) アンカー
+                const dir = Math.sign(band.end - band.start) || (bk === 'top' ? -1 : 1);
                 const itemAxisSize = isH
                   ? (sdsgItem.spaceHeight ?? sdsgItem.height ?? 40)
                   : (sdsgItem.spaceWidth ?? sdsgItem.width ?? 70);
-                const rowCenter = anchorBandCoord + dir * (rowIdx * rowSpan + itemAxisSize / 2);
+                const rowCenter = band.start + dir * (rowIdx * rowSpan + itemAxisSize / 2);
                 // ドラッグ後の中心座標
                 const w = sdsgItem.spaceWidth ?? sdsgItem.width ?? 70;
                 const h = sdsgItem.spaceHeight ?? sdsgItem.height ?? 40;
@@ -1002,7 +1013,7 @@ export function TimeArrowOverlay({ onOpenSettings }: { onOpenSettings?: () => vo
   const transform = useReactFlowStore((s) => s.transform);
 
   if (!sheet || !settings.alwaysVisible) return null;
-  const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace);
+  const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace, view.settings.typeLabelVisibility);
   if (!arrow) return null;
 
   const editable = !!onOpenSettings && !view.isPreview;
@@ -1476,9 +1487,9 @@ function SDSGBandOverlay() {
   return (
     <>
       {topHasSDSG && bandLayout.topBand && settings.sdsgSpace?.bands.top.showBorder &&
-        renderBand(bandLayout.topBand, isH ? '上部 (SD)' : '左側 (SD)', settings.sdsgSpace.bands.top, '#9b59b6')}
+        renderBand(bandLayout.topBand, isH ? '上部 (SD)' : '右側 (SD)', settings.sdsgSpace.bands.top, '#9b59b6')}
       {bottomHasSDSG && bandLayout.bottomBand && settings.sdsgSpace?.bands.bottom.showBorder &&
-        renderBand(bandLayout.bottomBand, isH ? '下部 (SG)' : '右側 (SG)', settings.sdsgSpace.bands.bottom, '#27ae60')}
+        renderBand(bandLayout.bottomBand, isH ? '下部 (SG)' : '左側 (SG)', settings.sdsgSpace.bands.bottom, '#27ae60')}
     </>
   );
 }

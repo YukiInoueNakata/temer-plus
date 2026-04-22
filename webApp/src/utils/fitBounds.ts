@@ -168,7 +168,7 @@ export function computeContentBounds(
 
   // 時間矢印（alwaysVisible 問わず計算可能なら含める）
   if (settings.timeArrow) {
-    const arrow = computeTimeArrow(sheet, layout, settings.timeArrow, settings.sdsgSpace);
+    const arrow = computeTimeArrow(sheet, layout, settings.timeArrow, settings.sdsgSpace, settings.typeLabelVisibility);
     if (arrow) {
       xs.push(arrow.startX, arrow.endX, arrow.labelX);
       ys.push(arrow.startY, arrow.endY, arrow.labelY);
@@ -177,7 +177,7 @@ export function computeContentBounds(
 
   // 時期ラベル
   if (settings.periodLabels && sheet.periodLabels.length > 0) {
-    const geom = computePeriodLabels(sheet, layout, settings.periodLabels, settings.timeArrow, settings.sdsgSpace);
+    const geom = computePeriodLabels(sheet, layout, settings.periodLabels, settings.timeArrow, settings.sdsgSpace, settings.typeLabelVisibility);
     if (geom) {
       xs.push(geom.startX, geom.endX);
       ys.push(geom.startY, geom.endY);

@@ -4,8 +4,9 @@
 // - 高さは最大Item_Level+2 がデフォルト（調整可）
 // ============================================================================
 
-import type { Sheet, PeriodLabelSettings, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings } from '../types';
+import type { Sheet, PeriodLabelSettings, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings, TypeLabelVisibilityMap } from '../types';
 import { LEVEL_PX } from '../store/defaults';
+import { computeBandOuterCoord } from './sdsgSpaceLayout';
 
 export interface PeriodLabelGeometry {
   startX: number;
@@ -29,6 +30,7 @@ export function computePeriodLabels(
   // band 範囲を bbox に含めたいときに sdsgSpace を渡す。
   // sdsgSpaceLayout 自身からの呼び出しでは循環回避のため省略する。
   sdsgSpace?: SDSGSpaceSettings,
+  typeLabelVisibility?: TypeLabelVisibilityMap,
 ): PeriodLabelGeometry | null {
   if (sheet.periodLabels.length === 0 && !settings.alwaysVisible) return null;
 
@@ -53,27 +55,40 @@ export function computePeriodLabels(
     ys.push(sgY, sgY + sgH);
   });
 
-  // band 範囲を bbox に反映（band-mode SDSG が存在するときのみ）。
-  // 循環を避けるため、reference='period' の band はスキップ（自己参照）。
-  if (sdsgSpace?.enabled && sheet.boxes.length > 0) {
-    const isHLocal = layout === 'horizontal';
-    const boxMinX = Math.min(...sheet.boxes.map((b) => b.x));
-    const boxMaxX = Math.max(...sheet.boxes.map((b) => b.x + b.width));
-    const boxMinY = Math.min(...sheet.boxes.map((b) => b.y));
-    const boxMaxY = Math.max(...sheet.boxes.map((b) => b.y + b.height));
-    const topHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-top');
-    const bottomHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-bottom');
-    if (topHasSDSG && sdsgSpace.bands.top.enabled && sdsgSpace.bands.top.reference !== 'period') {
-      const b = sdsgSpace.bands.top;
-      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
-      if (isHLocal) ys.push(boxMinY - ext);
-      else xs.push(boxMinX - ext);
+  // 時期ラベルは最高 IL 側を基準にするため、最高 IL 方向のみ bbox を拡張する。
+  //   横型: 最高 IL = 最小 y 方向（画面上）
+  //   縦型: 最高 IL = 最大 x 方向（画面右）
+  // 拡張内容:
+  //   - 常に LABEL_MARGIN_PX を加算（Box / 付随 SDSG のタイプラベル・サブラベル用）
+  //   - SD 帯（band-top）に SDSG があれば、heightMode に応じた実際の band 外側エッジを使用
+  const LABEL_MARGIN_PX = 30;
+  const isHLocal = layout === 'horizontal';
+  if (sheet.boxes.length > 0 && (xs.length > 0 || ys.length > 0)) {
+    // 既存 bbox の最高 IL 側 + LABEL_MARGIN
+    if (isHLocal) {
+      ys.push(Math.min(...ys) - LABEL_MARGIN_PX);
+    } else {
+      xs.push(Math.max(...xs) + LABEL_MARGIN_PX);
     }
-    if (bottomHasSDSG && sdsgSpace.bands.bottom.enabled && sdsgSpace.bands.bottom.reference !== 'period') {
-      const b = sdsgSpace.bands.bottom;
-      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
-      if (isHLocal) ys.push(boxMaxY + ext);
-      else xs.push(boxMaxX + ext);
+    // SD 帯の実際の外側エッジ
+    if (sdsgSpace?.enabled) {
+      const sdBand = sdsgSpace.bands.top;
+      if (sdBand.reference !== 'period') {
+        const outerCoord = computeBandOuterCoord(sheet, layout, sdBand, 'top', typeLabelVisibility);
+        if (outerCoord != null) {
+          let insetExt = 0;
+          sheet.sdsg.forEach((sg) => {
+            if (sg.spaceMode !== 'band-top') return;
+            const inset = sg.spaceInsetItem ?? 0;
+            if (inset > insetExt) insetExt = inset;
+          });
+          // 高 IL 方向: 横型 ow=-1、縦型 ow=+1
+          const ow = isHLocal ? -1 : 1;
+          const finalOuter = outerCoord + ow * insetExt;
+          if (isHLocal) ys.push(finalOuter - LABEL_MARGIN_PX);
+          else xs.push(finalOuter + LABEL_MARGIN_PX);
+        }
+      }
     }
   }
 

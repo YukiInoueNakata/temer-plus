@@ -69,12 +69,22 @@ export function computeSDSGBandLayout(
   // 「内側」= Box 群に近い側
   const result: SDSGBandLayout = {};
 
+  // 'top' = 最高 Item_Level 側（SD 側）、'bottom' = 最低 Item_Level 側（SG 側）。
+  // outward = 「Box 群から外へ向かう方向」の +1/-1。
+  //   横型: IL+ = -y なので top=-1 / bottom=+1
+  //   縦型: IL+ = +x なので top=+1 / bottom=-1
+  const outwardFor = (side: 'top' | 'bottom'): 1 | -1 => {
+    if (isH) return side === 'top' ? -1 : 1;
+    return side === 'top' ? 1 : -1;
+  };
+
   // reference が無効なとき 'boxes' にフォールバック（フォールバック情報も返す）
   const resolveReference = (
     band: SDSGSpaceBandSettings,
     side: 'top' | 'bottom',
   ): { coord: number; fallback: boolean } | null => {
-    const boxesCoord = () => (side === 'top' ? boxBounds.min : boxBounds.max);
+    const ow = outwardFor(side);
+    const boxesCoord = () => (ow < 0 ? boxBounds.min : boxBounds.max);
     if (band.reference === 'boxes') {
       return { coord: boxesCoord(), fallback: false };
     }
@@ -92,6 +102,34 @@ export function computeSDSGBandLayout(
     return null;
   };
 
+  // heightMode='auto' 時の帯高さ推定: 帯内 SDSG の最大 item 軸サイズ + タイプラベル余裕。
+  // row 数を考慮して row 毎の高さを積み重ねる。typeLabel / subLabel の余裕として 1 SDSG
+  // あたり +20px を加える（概算）。
+  const TYPE_LABEL_MARGIN = 20;
+  const autoHeightPx = (side: 'top' | 'bottom', rowsRequired: number): number => {
+    const bandSdsgs = sheet.sdsg.filter((sg) =>
+      (side === 'top' && sg.spaceMode === 'band-top') ||
+      (side === 'bottom' && sg.spaceMode === 'band-bottom')
+    );
+    if (bandSdsgs.length === 0) {
+      // SDSG が無ければ既定 1 row 分 + 余裕
+      return 60;
+    }
+    let maxItemSize = 0;
+    const typeLabelVis = settings.typeLabelVisibility;
+    bandSdsgs.forEach((sg) => {
+      const itemSize = isH
+        ? (sg.spaceHeight ?? sg.height ?? 40)
+        : (sg.spaceWidth ?? sg.width ?? 70);
+      const labelVisible = typeLabelVis?.[sg.type] !== false;
+      const extra = labelVisible ? TYPE_LABEL_MARGIN : 0;
+      if (itemSize + extra > maxItemSize) maxItemSize = itemSize + extra;
+    });
+    const rows = Math.max(1, rowsRequired);
+    // 各 row に同じ最大サイズを割り当て（保守的な推定）+ 上下に 10px の内部余裕
+    return maxItemSize * rows + 10;
+  };
+
   const buildBand = (
     band: SDSGSpaceBandSettings,
     side: 'top' | 'bottom',
@@ -101,40 +139,37 @@ export function computeSDSGBandLayout(
     if (ref == null) return undefined;
     const { coord: refCoord, fallback: referenceFallback } = ref;
     const offsetPx = band.offsetLevel * LEVEL_PX;
-    let heightPx = band.heightLevel * LEVEL_PX;
-    let heightClamped = false;
-
-    // autoExpandHeight=true の場合、必要な row 数に応じて heightPx を拡大
-    // （SDSG の通常高さを保てる最小 heightPx を推定）
     const rowsNeeded = side === 'top' ? requiredRows?.top ?? 0 : requiredRows?.bottom ?? 0;
-    if (band.autoExpandHeight && rowsNeeded > 1) {
-      // 1 row あたり少なくとも 50px 確保（SDSG 既定高さ 40 + マージン）
+
+    // heightPx 決定:
+    //   heightMode='auto' (既定): 帯内 SDSG + typeLabel から算出
+    //   heightMode='manual'    : heightLevel * LEVEL_PX を使用
+    const mode = band.heightMode ?? 'auto';
+    let heightPx = mode === 'auto'
+      ? autoHeightPx(side, rowsNeeded)
+      : band.heightLevel * LEVEL_PX;
+
+    // autoExpandHeight=true の場合、必要な row 数に応じて heightPx を拡大（manual モード用）
+    if (mode === 'manual' && band.autoExpandHeight && rowsNeeded > 1) {
       const minPerRow = 50;
       const required = rowsNeeded * minPerRow;
-      if (required > heightPx) {
-        heightPx = required;
-      }
+      if (required > heightPx) heightPx = required;
     }
 
-    // reference が 'period' / 'timearrow' の場合は heightLevel が offsetLevel を超えると
-    // band が reference を越えてしまう。クランプして reference に接するまでに制限。
-    // fallback=true（reference 無効で boxes に降格）の場合は制限なし。
+    // reference='period'/'timearrow' の場合の clamp は撤廃（band が reference を越えて
+    // 塗りつぶされるのを許容し、ユーザ設定を尊重）。代わりに outOfRange 警告で対処。
+    const heightClamped = false;
     const referenceIsBoxes = band.reference === 'boxes' || referenceFallback;
-    if (!referenceIsBoxes && heightPx > Math.max(0, offsetPx - 1)) {
-      heightPx = Math.max(1, offsetPx - 1);
-      heightClamped = true;
-    }
+    const ow = outwardFor(side);
 
-    let inner: number, outer: number;
     // 基準: inner (bandTopEndY / bandBotEndY = Box 群寄りの内側エッジ) を offset で固定、
-    //       outer を height で伸ばす
-    if (side === 'top') {
-      inner = referenceIsBoxes ? refCoord - offsetPx : refCoord + offsetPx;
-      outer = inner - heightPx;
-    } else {
-      inner = referenceIsBoxes ? refCoord + offsetPx : refCoord - offsetPx;
-      outer = inner + heightPx;
-    }
+    //       outer を height で outward 方向へ伸ばす
+    //   referenceIsBoxes: refCoord = Box 端, inner は refCoord から outward へ offset 離れ
+    //   reference(period/timearrow): refCoord = 参照線, inner は refCoord から inward へ offset
+    const inner = referenceIsBoxes
+      ? refCoord + ow * offsetPx
+      : refCoord - ow * offsetPx;
+    const outer = inner + ow * heightPx;
     const start = inner;
     const end = outer;
     const center = (start + end) / 2;
@@ -161,6 +196,74 @@ export function sdsgBandKey(sg: SDSG): 'top' | 'bottom' | null {
   if (sg.spaceMode === 'band-top') return 'top';
   if (sg.spaceMode === 'band-bottom') return 'bottom';
   return null;
+}
+
+/**
+ * bbox 拡張用: band の最外エッジ座標を返す（boxes 参照基準で計算）。
+ * timeArrow / periodLabels から呼ばれ、循環参照を避けるため reference は boxes 固定扱い。
+ *
+ * 戻り値:
+ *   - 横型 side='top': band 最外 y 座標（最小 y）
+ *   - 横型 side='bottom': band 最外 y 座標（最大 y）
+ *   - 縦型 side='top'（高 IL = 右）: band 最外 x 座標（最大 x）
+ *   - 縦型 side='bottom'（低 IL = 左）: band 最外 x 座標（最小 x）
+ * 該当 band に SDSG が無ければ null。
+ */
+export function computeBandOuterCoord(
+  sheet: Sheet,
+  layout: LayoutDirection,
+  band: SDSGSpaceBandSettings,
+  side: 'top' | 'bottom',
+  typeLabelVisibility?: Record<string, boolean>,
+): number | null {
+  if (!band.enabled) return null;
+  const bandSdsgs = sheet.sdsg.filter((sg) =>
+    (side === 'top' && sg.spaceMode === 'band-top') ||
+    (side === 'bottom' && sg.spaceMode === 'band-bottom')
+  );
+  if (bandSdsgs.length === 0) return null;
+
+  const isH = layout === 'horizontal';
+  // outward: top=-1(h) +1(v) / bottom=+1(h) -1(v)
+  const ow: 1 | -1 = side === 'top' ? (isH ? -1 : 1) : (isH ? 1 : -1);
+
+  // Box 群の該当 edge（boxes 基準）
+  const boxBounds = (() => {
+    if (sheet.boxes.length === 0) return null;
+    let min = Infinity, max = -Infinity;
+    sheet.boxes.forEach((b) => {
+      const a = isH ? b.y : b.x;
+      const c = isH ? b.y + b.height : b.x + b.width;
+      if (a < min) min = a;
+      if (c > max) max = c;
+    });
+    return { min, max };
+  })();
+  if (!boxBounds) return null;
+  const boxEdge = ow < 0 ? boxBounds.min : boxBounds.max;
+
+  // 高さを auto / manual で決定（computeSDSGBandLayout と揃える）
+  const TYPE_LABEL_MARGIN = 20;
+  const mode = band.heightMode ?? 'auto';
+  let heightPx: number;
+  if (mode === 'auto') {
+    let maxItemSize = 0;
+    bandSdsgs.forEach((sg) => {
+      const itemSize = isH
+        ? (sg.spaceHeight ?? sg.height ?? 40)
+        : (sg.spaceWidth ?? sg.width ?? 70);
+      const labelVis = typeLabelVisibility?.[sg.type] !== false;
+      const extra = labelVis ? TYPE_LABEL_MARGIN : 0;
+      if (itemSize + extra > maxItemSize) maxItemSize = itemSize + extra;
+    });
+    heightPx = Math.max(60, maxItemSize + 10);
+  } else {
+    heightPx = band.heightLevel * LEVEL_PX;
+  }
+
+  const offsetPx = band.offsetLevel * LEVEL_PX;
+  // reference='boxes' 相当: outer = boxEdge + ow * (offset + height)
+  return boxEdge + ow * (offsetPx + heightPx);
 }
 
 /**
@@ -265,18 +368,16 @@ export function computeSDSGBandPosition(
     if (!isH && effectiveWidth > maxItemSize) effectiveWidth = maxItemSize;
   }
 
-  // row 配置: SDSG の apex (先端) が band の apex 側のエッジに揃うよう配置する。
-  //   横型: apex = Box 側（inner）。SG apex = 上（band inner = band.start）、SD apex = 下（band inner = band.start）。
-  //     → アンカー = band.start（Box 側）
-  //   縦型: apex = Box の反対側（outer）。SG apex = 右、SD apex = 左。
-  //     → アンカー = band.end（外側）
-  // row が増えるほど反対側のエッジに向かって積まれる。
+  // row 配置: SDSG の apex (先端) が band.start（Box 側 = inner edge）に揃う。
+  //   横型 SG: 上部（box 側）が band inner に揃う → SG top = band.start
+  //   横型 SD: 下部（box 側 = apex）が band inner に揃う → SD bottom = band.start
+  //   縦型 SG: 右部（box 側 = apex）が band inner に揃う → SG right = band.start
+  //   縦型 SD: 左部（box 側 = apex）が band inner に揃う → SD left = band.start
+  // row が増えるほど outer 方向（band.end 側）へ積まれる。
   const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;
-  const anchorBandCoord = isH ? band.start : band.end;
-  const otherBandCoord = isH ? band.end : band.start;
-  const dir = Math.sign(otherBandCoord - anchorBandCoord) || (side === 'top' ? -1 : 1);
+  const dir = Math.sign(band.end - band.start) || (side === 'top' ? -1 : 1);
   const itemAxisSize = isH ? effectiveHeight : effectiveWidth;
-  const rowCenter = anchorBandCoord + dir * (rowIndex * rowSpan + itemAxisSize / 2);
+  const rowCenter = band.start + dir * (rowIndex * rowSpan + itemAxisSize / 2);
   const insetItem = sg.spaceInsetItem ?? 0;
   const axisCoord = rowCenter + insetItem;
 

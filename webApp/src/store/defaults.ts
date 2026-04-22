@@ -45,9 +45,9 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     alwaysVisible: true,
     timeStartExtension: -0.5,
     timeEndExtension: 0.5,
-    // 既定: 下部（user 座標系で min Item_Level からさらに下）
+    // 既定: 下部（min Item_Level 基準、offset=0 でちょうどその位置）
     itemReference: 'min',
-    itemOffset: -0.5,
+    itemOffset: 0,
     label: '非可逆的時間',
     strokeWidth: 2.5,
     fontSize: 14,
@@ -64,11 +64,12 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     autoGenerate: true,
     alwaysVisible: true,
     includeInExport: true,
-    position: { x: 0, y: 0 },
+    // 横型で IL=-5 / TL=0 が左上端になる位置（storage 座標: x=0, y=500）
+    position: { x: 0, y: 500 },
     includeBoxes: true,
     includeLines: true,
     includeSDSG: true,
-    includeTimeArrow: true,
+    includeTimeArrow: false,
     title: '凡例',
     fontSize: 11,
     minWidth: 200,
@@ -97,7 +98,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     alwaysVisible: true,
     includeInExport: true,
     itemReference: 'max',
-    itemOffset: 0.5,
+    itemOffset: 0,
     fontSize: 13,
     showDividers: true,
     dividerStrokeWidth: 1,
@@ -120,8 +121,9 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
     bands: {
       top: {
         enabled: true,
+        heightMode: 'auto',
         heightLevel: 1.5,
-        reference: 'period',      // 時期区分の内側（時期区分が上部配置時）
+        reference: 'boxes',       // Box 群の外側を既定（時期区分/時間矢印は別途選択可）
         offsetLevel: 0.2,
         showBorder: true,
         borderColor: '#9b59b6',
@@ -132,8 +134,9 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
       },
       bottom: {
         enabled: true,
+        heightMode: 'auto',
         heightLevel: 1.5,
-        reference: 'timearrow',   // 時間矢印の内側（時間矢印が下部配置時）
+        reference: 'boxes',       // Box 群の外側を既定
         offsetLevel: 0.2,
         showBorder: true,
         borderColor: '#27ae60',

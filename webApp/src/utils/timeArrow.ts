@@ -2,8 +2,9 @@
 // 非可逆的時間矢印の計算
 // ============================================================================
 
-import type { Sheet, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings } from '../types';
+import type { Sheet, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings, TypeLabelVisibilityMap } from '../types';
 import { LEVEL_PX } from '../store/defaults';
+import { computeBandOuterCoord } from './sdsgSpaceLayout';
 
 export interface TimeArrowGeometry {
   startX: number;
@@ -31,6 +32,7 @@ export function computeTimeArrow(
   // band 範囲を bbox に含めたいときに sdsgSpace を渡す。
   // sdsgSpaceLayout からの呼び出しでは循環回避のため省略する。
   sdsgSpace?: SDSGSpaceSettings,
+  typeLabelVisibility?: TypeLabelVisibilityMap,
 ): TimeArrowGeometry | null {
   if (sheet.boxes.length === 0) return null;
 
@@ -58,27 +60,44 @@ export function computeTimeArrow(
     ys.push(sgY, sgY + sgH);
   });
 
-  // band 範囲を bbox に反映（band-mode SDSG が存在するときのみ）。
-  // 循環を避けるため、reference='timearrow' の band はスキップ（自己参照）。
-  if (sdsgSpace?.enabled && sheet.boxes.length > 0) {
-    const isHLocal = layout === 'horizontal';
-    const boxMinX = Math.min(...sheet.boxes.map((b) => b.x));
-    const boxMaxX = Math.max(...sheet.boxes.map((b) => b.x + b.width));
-    const boxMinY = Math.min(...sheet.boxes.map((b) => b.y));
-    const boxMaxY = Math.max(...sheet.boxes.map((b) => b.y + b.height));
-    const topHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-top');
-    const bottomHasSDSG = sheet.sdsg.some((sg) => sg.spaceMode === 'band-bottom');
-    if (topHasSDSG && sdsgSpace.bands.top.enabled && sdsgSpace.bands.top.reference !== 'timearrow') {
-      const b = sdsgSpace.bands.top;
-      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
-      if (isHLocal) ys.push(boxMinY - ext);
-      else xs.push(boxMinX - ext);
+  // 非可逆的時間は最低 IL 側を基準にするため、最低 IL 方向のみ bbox を拡張する。
+  //   横型: 最低 IL = 最大 y 方向（画面下）
+  //   縦型: 最低 IL = 最小 x 方向（画面左）
+  // 拡張内容:
+  //   - 常に LABEL_MARGIN_PX を加算（Box / 付随 SDSG のタイプラベル・サブラベル用）
+  //   - SG 帯（band-bottom）に SDSG があれば、heightMode に応じた実際の band 外側エッジを使用
+  const LABEL_MARGIN_PX = 30;
+  const isHLocal = layout === 'horizontal';
+  if (sheet.boxes.length > 0) {
+    // 既存 bbox の最低 IL 側 + LABEL_MARGIN（Box / attached SDSG のラベル用）
+    if (isHLocal) {
+      ys.push(Math.max(...ys) + LABEL_MARGIN_PX);
+    } else {
+      xs.push(Math.min(...xs) - LABEL_MARGIN_PX);
     }
-    if (bottomHasSDSG && sdsgSpace.bands.bottom.enabled && sdsgSpace.bands.bottom.reference !== 'timearrow') {
-      const b = sdsgSpace.bands.bottom;
-      const ext = (b.offsetLevel + b.heightLevel) * LEVEL_PX;
-      if (isHLocal) ys.push(boxMaxY + ext);
-      else xs.push(boxMaxX + ext);
+    // SG 帯の実際の外側エッジ（heightMode / spaceInsetItem を反映）
+    if (sdsgSpace?.enabled) {
+      const sgBand = sdsgSpace.bands.bottom;
+      // reference='timearrow' は自己参照回避のため skip（boxes fallback は helper 内で扱う）
+      if (sgBand.reference !== 'timearrow') {
+        const outerCoord = computeBandOuterCoord(sheet, layout, sgBand, 'bottom', typeLabelVisibility);
+        if (outerCoord != null) {
+          // さらに band 内の SDSG が spaceInsetItem で外側にはみ出していたら追加考慮
+          let insetExt = 0;
+          sheet.sdsg.forEach((sg) => {
+            if (sg.spaceMode !== 'band-bottom') return;
+            const inset = sg.spaceInsetItem ?? 0;
+            // 低 IL 方向 = 横型: 正方向 y / 縦型: 負方向 x。
+            // spaceInsetItem > 0 が outer 方向（band.start→band.end）と一致。
+            if (inset > insetExt) insetExt = inset;
+          });
+          // 符号: 横型 bottom は ow=+1、縦型 bottom は ow=-1
+          const ow = isHLocal ? 1 : -1;
+          const finalOuter = outerCoord + ow * insetExt;
+          if (isHLocal) ys.push(finalOuter + LABEL_MARGIN_PX);
+          else xs.push(finalOuter - LABEL_MARGIN_PX);
+        }
+      }
     }
   }
 
@@ -105,7 +124,8 @@ export function computeTimeArrow(
   const arrowStartTime = (minTimeLevel + settings.timeStartExtension) * LEVEL_PX;
   const arrowEndTime = (maxTimeLevel + settings.timeEndExtension) * LEVEL_PX;
   const refUserIL = settings.itemReference === 'max' ? userMaxItemLevel : userMinItemLevel;
-  const targetUserIL = refUserIL + settings.itemOffset;
+  // itemOffset の +/- を UI 直感に合わせて反転（+ で外側へ / - で内側へ）
+  const targetUserIL = refUserIL - settings.itemOffset;
   // ユーザ座標 → ストレージ座標
   const arrowItem = isH ? -targetUserIL * LEVEL_PX : targetUserIL * LEVEL_PX;
 
