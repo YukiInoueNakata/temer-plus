@@ -144,11 +144,14 @@ function BoxTable() {
   const changeBoxType = useTEMStore((s) => s.changeBoxType);
   const layout = useTEMStore((s) => s.doc.settings.layout);
   const levelStep = useTEMStore((s) => s.doc.settings.levelStep);
+  const selectedBoxIds = useTEMStore((s) => s.selection.boxIds);
+  const setSelection = useTEMStore((s) => s.setSelection);
   const [sortField, setSortField] = useState<SortField>('timeLevel');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState('');
   const [insertCount, setInsertCount] = useState(1);
-  const [colWidths, setColWidth] = useResizableColumns([90, 80, 160, 60, 60, 30]);
+  const [colWidths, setColWidth] = useResizableColumns([28, 90, 80, 160, 60, 60, 30]);
+  const lastClickedIdx = useRef<number | null>(null);
 
   const sortedBoxes = useMemo(() => {
     if (!sheet) return [];
@@ -187,12 +190,15 @@ function BoxTable() {
   const handleInsertAfter = (afterIndex: number, count: number) => {
     const prev = sortedBoxes[afterIndex];
     const next = sortedBoxes[afterIndex + 1];
+    const newIds: string[] = [];
     for (let i = 1; i <= count; i++) {
       const ratio = i / (count + 1);
       const newX = prev && next ? prev.x + (next.x - prev.x) * ratio : (prev ? prev.x + LEVEL_PX : LEVEL_PX);
       const newY = prev && next ? prev.y + (next.y - prev.y) * ratio : (prev ? prev.y : 200);
-      addBox({ x: newX, y: newY });
+      newIds.push(addBox({ x: newX, y: newY }));
     }
+    // addBox は最後の Box だけを選択するので、挿入した全 Box を選択し直す
+    if (newIds.length > 0) setSelection(newIds);
   };
 
   const handleIdEdit = (oldId: string) => {
@@ -214,10 +220,44 @@ function BoxTable() {
     const currentBox = sheet.boxes.find((b) => b.id === currentBoxId);
     let lastX = currentBox?.x ?? 0;
     const baseY = currentBox?.y ?? 200;
+    const newIds: string[] = [currentBoxId];
     for (let i = 1; i < lines.length; i++) {
       lastX += LEVEL_PX;
-      addBox({ label: lines[i], x: lastX, y: baseY });
+      newIds.push(addBox({ label: lines[i], x: lastX, y: baseY }));
     }
+    if (newIds.length > 0) setSelection(newIds);
+  };
+
+  // チェックボックスクリック: Ctrl/Cmd で追加選択、Shift で範囲選択、通常で切替
+  const handleSelectClick = (idx: number, boxId: string, e: React.MouseEvent) => {
+    const currentSet = new Set(selectedBoxIds);
+    if (e.shiftKey && lastClickedIdx.current != null) {
+      // 範囲選択: lastClicked〜idx 全部を selectedBoxIds に加える
+      const from = Math.min(lastClickedIdx.current, idx);
+      const to = Math.max(lastClickedIdx.current, idx);
+      const rangeIds = sortedBoxes.slice(from, to + 1).map((x) => x.id);
+      setSelection(Array.from(new Set([...selectedBoxIds, ...rangeIds])));
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd: トグル
+      if (currentSet.has(boxId)) currentSet.delete(boxId);
+      else currentSet.add(boxId);
+      setSelection(Array.from(currentSet));
+      lastClickedIdx.current = idx;
+    } else {
+      // 通常クリック: トグル（選択中ならこの 1 つだけに／非選択なら追加）
+      if (currentSet.has(boxId) && currentSet.size === 1) {
+        setSelection([]);
+      } else {
+        setSelection([boxId]);
+      }
+      lastClickedIdx.current = idx;
+    }
+  };
+
+  const allVisibleSelected = sortedBoxes.length > 0 && sortedBoxes.every((b) => selectedBoxIds.includes(b.id));
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) setSelection([]);
+    else setSelection(sortedBoxes.map((b) => b.id));
   };
 
   return (
@@ -229,23 +269,45 @@ function BoxTable() {
           onChange={(e) => setFilter(e.target.value)}
           className="filter-input"
         />
+        {selectedBoxIds.length > 0 && (
+          <span style={{ fontSize: '0.77em', color: '#2684ff', marginLeft: 4 }}>
+            選択 {selectedBoxIds.length}個
+          </span>
+        )}
       </div>
       <div style={{ overflow: 'auto' }}>
         <table className="data-table resizable">
           <thead>
             <tr>
-              <ColHeader label="ID" width={colWidths[0]} onResize={(w) => setColWidth(0, w)} onSort={() => handleSort('id')} sortArrow={arrow('id')} />
-              <ColHeader label="種別" width={colWidths[1]} onResize={(w) => setColWidth(1, w)} onSort={() => handleSort('type')} sortArrow={arrow('type')} />
-              <ColHeader label="ラベル" width={colWidths[2]} onResize={(w) => setColWidth(2, w)} onSort={() => handleSort('label')} sortArrow={arrow('label')} />
-              <ColHeader label="Time" width={colWidths[3]} onResize={(w) => setColWidth(3, w)} onSort={() => handleSort('timeLevel')} sortArrow={arrow('timeLevel')} />
-              <ColHeader label="Item" width={colWidths[4]} onResize={(w) => setColWidth(4, w)} onSort={() => handleSort('itemLevel')} sortArrow={arrow('itemLevel')} />
-              <ColHeader label="" width={colWidths[5]} onResize={(w) => setColWidth(5, w)} />
+              <th style={{ width: colWidths[0], minWidth: colWidths[0], textAlign: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAll}
+                  title="表示中の全て選択/解除"
+                />
+              </th>
+              <ColHeader label="ID" width={colWidths[1]} onResize={(w) => setColWidth(1, w)} onSort={() => handleSort('id')} sortArrow={arrow('id')} />
+              <ColHeader label="種別" width={colWidths[2]} onResize={(w) => setColWidth(2, w)} onSort={() => handleSort('type')} sortArrow={arrow('type')} />
+              <ColHeader label="ラベル" width={colWidths[3]} onResize={(w) => setColWidth(3, w)} onSort={() => handleSort('label')} sortArrow={arrow('label')} />
+              <ColHeader label="Time" width={colWidths[4]} onResize={(w) => setColWidth(4, w)} onSort={() => handleSort('timeLevel')} sortArrow={arrow('timeLevel')} />
+              <ColHeader label="Item" width={colWidths[5]} onResize={(w) => setColWidth(5, w)} onSort={() => handleSort('itemLevel')} sortArrow={arrow('itemLevel')} />
+              <ColHeader label="" width={colWidths[6]} onResize={(w) => setColWidth(6, w)} />
             </tr>
           </thead>
           <tbody>
             {sortedBoxes.map((b, idx) => (
               <>
-                <tr key={b.id}>
+                <tr key={b.id} className={selectedBoxIds.includes(b.id) ? 'row-selected' : ''}>
+                  <td style={{ textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedBoxIds.includes(b.id)}
+                      onClick={(e) => handleSelectClick(idx, b.id, e)}
+                      onChange={() => { /* handled by onClick */ }}
+                      title="クリック: 単独選択 / Ctrl+クリック: 追加 / Shift+クリック: 範囲選択"
+                    />
+                  </td>
                   <td>
                     <input
                       value={b.id}
@@ -303,7 +365,7 @@ function BoxTable() {
                 </tr>
                 {idx < sortedBoxes.length - 1 && (
                   <tr className="insert-row" key={`insert-${b.id}`}>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <button
                         className="insert-between-btn"
                         onClick={() => handleInsertAfter(idx, insertCount)}
@@ -315,7 +377,7 @@ function BoxTable() {
               </>
             ))}
             {sortedBoxes.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#888', padding: 20 }}>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#888', padding: 20 }}>
                 {filter ? '該当するBoxがありません' : 'Boxがありません。下の「+追加」で作成'}
               </td></tr>
             )}

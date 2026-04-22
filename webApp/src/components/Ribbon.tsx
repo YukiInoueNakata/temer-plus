@@ -333,10 +333,10 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
           title="シート全体を用紙サイズや任意の倍率でリサイズ"
         />
         <RibbonButton
-          label="一括移動..."
+          label="移動..."
           icon="✥"
           onClick={onOpenShiftContent}
-          title="時期区分・時間矢印・凡例以外を Time/Item 方向にまとめて移動"
+          title="選択中の Box または全体を Time/Item 方向に移動（▲▼ で即時 / 数値で一括）"
         />
       </RibbonGroup>
     </>

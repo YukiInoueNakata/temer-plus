@@ -570,6 +570,13 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
 .row-btn.danger { color: #d33; }
 .row-btn.danger:hover { background: #fee; }
 
+.data-table tr.row-selected > td {
+  background: rgba(38, 132, 255, 0.10);
+}
+.data-table tr.row-selected > td:first-child {
+  box-shadow: inset 3px 0 0 #2684ff;
+}
+
 .insert-row { height: 4px; }
 .insert-row td {
   padding: 0 !important;
