@@ -40,12 +40,12 @@ export const PAPER_SIZES_INCH: Record<Exclude<PaperSizeKey, 'custom'>, PaperDimP
 };
 
 export const PAPER_LABELS: Record<Exclude<PaperSizeKey, 'custom'>, string> = {
-  'A4-landscape': 'A4 横',
-  'A4-portrait':  'A4 縦',
-  'A3-landscape': 'A3 横',
-  'A3-portrait':  'A3 縦',
-  '16:9':         '16:9 スライド',
-  '4:3':          '4:3 スライド',
+  'A4-landscape': 'A4',
+  'A4-portrait':  'A4',
+  'A3-landscape': 'A3',
+  'A3-portrait':  'A3',
+  '16:9':         '16:9',
+  '4:3':          '4:3',
 };
 
 export function getPaperPx(size: PaperSizeKey, customW?: number, customH?: number): PaperDimPx {
@@ -72,3 +72,20 @@ export const PAPER_SIZE_OPTIONS: { value: Exclude<PaperSizeKey, 'custom'>; label
   { value: '16:9',         label: '16:9 スライド（13.33×7.5 in）' },
   { value: '4:3',          label: '4:3 スライド（10.67×8.0 in）' },
 ];
+
+/**
+ * layout に応じた用紙サイズ選択肢を返す（横型なら landscape 側、縦型なら portrait 側）。
+ * ラベルは "A4" "A3" "16:9" "4:3" のようにシンプル。
+ * スライド系 (16:9 / 4:3) は固定サイズで layout を問わない。
+ */
+export function getPaperSizeOptionsForLayout(
+  layout: 'horizontal' | 'vertical',
+): { value: Exclude<PaperSizeKey, 'custom'>; label: string }[] {
+  const isH = layout === 'horizontal';
+  return [
+    { value: isH ? 'A4-landscape' : 'A4-portrait', label: 'A4' },
+    { value: isH ? 'A3-landscape' : 'A3-portrait', label: 'A3' },
+    { value: '16:9', label: '16:9' },
+    { value: '4:3',  label: '4:3' },
+  ];
+}

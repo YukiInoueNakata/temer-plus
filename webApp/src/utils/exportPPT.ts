@@ -35,6 +35,8 @@ import { computeContentBounds } from './fitBounds';
 import { BOX_RENDER_SPECS } from '../store/defaults';
 import { computeBoxDisplay } from './typeDisplay';
 import { getPaperInch, type PaperSizeKey } from './paperSizes';
+import type { PageBounds } from './pageSplit';
+import { rectIntersectsPage } from './pageSplit';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -47,6 +49,10 @@ export interface PPTXExportOptions {
   scale?: boolean;              // 既定 true
   offset?: number;              // 既定 0.1
   paperSize?: PaperSizeKey;     // 既定: レイアウトに応じて 16:9
+  /** N ページ分割（未指定または要素 1 個なら単一スライド） */
+  pages?: PageBounds[];
+  /** 分割モード。Phase 1 では overlap のみ対応（duplicate は将来拡張） */
+  pageSplitMode?: 'overlap' | 'duplicate';
 }
 
 const PX_PER_INCH = 96;
@@ -79,25 +85,77 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   const bbox = computeContentBounds(opts.sheet, layout, opts.settings)
     ?? { x: 0, y: 0, width: slideWpx, height: slideHpx };
 
-  const t = buildTransform(bbox, slideWpx, slideHpx, scale, offsetRatio);
-
   const pres = new PptxGenJS();
   pres.defineLayout({ name: 'TEMER', width: slideW, height: slideH });
   pres.layout = 'TEMER';
-  const slide = pres.addSlide();
-  // 背景は未設定
 
-  // 描画（背面 → 前面の順）
-  drawTimeArrow(pres, slide, opts.sheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
-  drawPeriodLabels(pres, slide, opts.sheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
-  drawLines(pres, slide, opts.sheet, layout, t);
-  drawSDSGs(pres, slide, opts.sheet, layout, opts.settings, t);
-  drawBoxes(pres, slide, opts.sheet, layout, opts.settings, t);
-  drawLegend(pres, slide, opts.sheet, layout, opts.settings.legend, t);
+  const pages = opts.pages && opts.pages.length > 1 ? opts.pages : null;
 
-  // PptxGenJS の標準の writeFile でダウンロード（ポストプロセスなし、
-  // 二重線は 2 矩形重ね描きで視覚的に同等）
+  if (!pages) {
+    // 単一スライド（従来動作）
+    const t = buildTransform(bbox, slideWpx, slideHpx, scale, offsetRatio);
+    const slide = pres.addSlide();
+    drawTimeArrow(pres, slide, opts.sheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
+    drawPeriodLabels(pres, slide, opts.sheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
+    drawLines(pres, slide, opts.sheet, layout, t);
+    drawSDSGs(pres, slide, opts.sheet, layout, opts.settings, t);
+    drawBoxes(pres, slide, opts.sheet, layout, opts.settings, t);
+    drawLegend(pres, slide, opts.sheet, layout, opts.settings.legend, t);
+    await pres.writeFile({ fileName: filename });
+    return;
+  }
+
+  // N スライド分割出力（Phase 1: overlap モードのみ対応。duplicate は Phase 2 で）
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const slide = pres.addSlide();
+    const pageBbox = {
+      x: page.innerX, y: page.innerY,
+      width: page.innerWidth, height: page.innerHeight,
+    };
+    // ページ内の部分をスライドにフィットさせる
+    const t = buildTransform(pageBbox, slideWpx, slideHpx, false, 0);
+    // ページ範囲に重なる要素だけを抽出したフィルタシート
+    const pageSheet = filterSheetForPage(opts.sheet, page, layout);
+    drawTimeArrow(pres, slide, pageSheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
+    drawPeriodLabels(pres, slide, pageSheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
+    drawLines(pres, slide, pageSheet, layout, t);
+    drawSDSGs(pres, slide, pageSheet, layout, opts.settings, t);
+    drawBoxes(pres, slide, pageSheet, layout, opts.settings, t);
+    // 凡例は全スライドに表示（SPEC）
+    drawLegend(pres, slide, pageSheet, layout, opts.settings.legend, t);
+  }
   await pres.writeFile({ fileName: filename });
+}
+
+/**
+ * シートをページ範囲でフィルタ: ページの描画窓に bbox が重なる Box/SDSG/Line のみ残す。
+ * 時期区分ラベルは position (Time_Level) がページの時間範囲内にあるもののみ残す。
+ * overlap モードで Box の bbox がページ境界をまたぐとき、両ページに含まれる（= 複製）。
+ */
+function filterSheetForPage(sheet: Sheet, page: PageBounds, layout: 'horizontal' | 'vertical'): Sheet {
+  const visibleBoxes = sheet.boxes.filter((b) =>
+    rectIntersectsPage({ x: b.x, y: b.y, width: b.width, height: b.height }, page),
+  );
+  const visibleBoxIds = new Set(visibleBoxes.map((b) => b.id));
+  // SDSG は attachedTo Box がページ内にあれば残す（簡易ルール）
+  const visibleSDSGs = sheet.sdsg.filter((sg) => visibleBoxIds.has(sg.attachedTo));
+  // Line は両端の Box がともにページ内にあれば残す（overlap でも duplicate でも簡易）
+  const visibleLines = sheet.lines.filter((l) => visibleBoxIds.has(l.from) && visibleBoxIds.has(l.to));
+  // 時期区分: position (Time_Level) が ページの時間範囲に入っていれば残す
+  const LEVEL = 100;
+  const tStart = layout === 'horizontal' ? page.innerX / LEVEL : page.innerY / LEVEL;
+  const tEnd = layout === 'horizontal'
+    ? (page.innerX + page.innerWidth) / LEVEL
+    : (page.innerY + page.innerHeight) / LEVEL;
+  const visiblePeriodLabels = sheet.periodLabels.filter((p) => p.position >= tStart && p.position <= tEnd);
+  return {
+    ...sheet,
+    boxes: visibleBoxes,
+    sdsg: visibleSDSGs,
+    lines: visibleLines,
+    periodLabels: visiblePeriodLabels,
+  };
 }
 
 // ----------------------------------------------------------------------------

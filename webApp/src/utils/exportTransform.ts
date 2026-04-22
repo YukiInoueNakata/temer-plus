@@ -51,6 +51,16 @@ export interface ExportTransform {
   minBorderWidth: number;
   // 用紙内中央へ自動配置（要素 bbox の中心を用紙の短辺中央に合わせる）
   autoCenterOnPaper?: boolean;
+
+  // 位置シフト（autoCenterOnPaper の結果からさらに追加で Box / SDSG / 時期ラベル / 凡例を平行移動）
+  offsetX: number;                                // world px 単位
+  offsetY: number;                                // world px 単位
+
+  // ページ分割（長辺方向分割）
+  pageCount: number;                              // 1 = 分割なし
+  pageSplitMode: 'overlap' | 'duplicate';         // 既定 overlap
+  pageOverlapPx: number;                          // 各ページの隣接側 padding（両モードで有効）
+  showContinuationMarkers: boolean;               // duplicate モード時「→続」マーカー表示
 }
 
 export const DEFAULT_EXPORT_TRANSFORM: ExportTransform = {
@@ -74,6 +84,12 @@ export const DEFAULT_EXPORT_TRANSFORM: ExportTransform = {
   minFontSize: 6,
   minBorderWidth: 0.5,
   autoCenterOnPaper: true,
+  offsetX: 0,
+  offsetY: 0,
+  pageCount: 1,
+  pageSplitMode: 'overlap',
+  pageOverlapPx: 50,
+  showContinuationMarkers: true,
 };
 
 // ----------------------------------------------------------------------------
@@ -186,11 +202,17 @@ export function applyExportTransform(
   if (xf.autoCenterOnPaper && newBounds) {
     const paper = getPaperPx(xf.paperSize);
     const isH = newDoc.settings.layout === 'horizontal';
-    // 用紙中心（world 座標）: Level 0 は短辺中央
-    //   横型: 長辺=x なので paper.width は長辺、paper.height は短辺 → 中心 = (paper.width/2, 0)
-    //   縦型: 長辺=y なので paper.width は短辺、paper.height は長辺 → 中心 = (0, paper.height/2)
-    const targetCx = isH ? paper.width / 2 : 0;
-    const targetCy = isH ? 0 : paper.height / 2;
+    const nPages = Math.max(1, xf.pageCount ?? 1);
+    const overlap = Math.max(0, xf.pageOverlapPx ?? 0);
+    // ストリップ全長 = paperLong + (N-1) * (paperLong - overlap)
+    const totalH = isH
+      ? paper.width + (nPages - 1) * (paper.width - overlap)
+      : paper.width;
+    const totalV = isH
+      ? paper.height
+      : paper.height + (nPages - 1) * (paper.height - overlap);
+    const targetCx = isH ? totalH / 2 : 0;
+    const targetCy = isH ? 0 : totalV / 2;
     const bCx = newBounds.x + newBounds.width / 2;
     const bCy = newBounds.y + newBounds.height / 2;
     const ox = targetCx - bCx;
@@ -212,6 +234,26 @@ export function applyExportTransform(
         ? computeContentBounds(finalSheet, finalDoc.settings.layout, finalDoc.settings)
         : newBounds;
     }
+  }
+
+  // 追加の位置シフト (offsetX / offsetY)
+  const offX = xf.offsetX ?? 0;
+  const offY = xf.offsetY ?? 0;
+  if (offX !== 0 || offY !== 0) {
+    finalDoc = produce(finalDoc, (d) => {
+      for (const sh of d.sheets) {
+        sh.boxes.forEach((b) => { b.x += offX; b.y += offY; });
+        sh.periodLabels.forEach((p) => {
+          p.position += (newDoc.settings.layout === 'horizontal' ? offX : offY) / 100;
+        });
+      }
+      d.settings.legend.position.x += offX;
+      d.settings.legend.position.y += offY;
+    });
+    const finalSheet = finalDoc.sheets.find((s) => s.id === finalDoc.activeSheetId);
+    newBounds = finalSheet
+      ? computeContentBounds(finalSheet, finalDoc.settings.layout, finalDoc.settings)
+      : newBounds;
   }
 
   return { doc: finalDoc, effectiveScale, bbox: newBounds };
