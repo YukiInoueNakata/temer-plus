@@ -32,6 +32,8 @@ import { TimeArrowOverlay } from './Canvas';
 import { TEMViewContext, type TEMViewContextValue } from '../context/TEMViewContext';
 import { getPaperPx, type PaperSizeKey } from '../utils/paperSizes';
 import { MINOR_TICK_PX } from '../store/defaults';
+import type { PageBounds } from '../utils/pageSplit';
+import { useStore as useReactFlowStore } from 'reactflow';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
 const edgeTypes = { line: LineEdge };
@@ -45,6 +47,16 @@ export interface ExportPreviewCanvasProps {
   showPaperGuide?: boolean;
   showGrid?: boolean;
   background?: 'white' | 'transparent';
+  /** ページ分割情報（未指定時は単一ページ） */
+  pageBounds?: PageBounds[];
+  /** プレビュー時にハイライトするページ index（未指定時は全ページ均等表示） */
+  highlightPageIndex?: number;
+  /**
+   * ユーザがプレビュー内でパン/ズームした際のコールバック。
+   * panDeltaWorldX/Y: world 座標単位の平行移動量（Box 等に加算する想定）
+   * zoomRatio:       viewport zoom の倍率変化
+   */
+  onPanZoomChange?: (delta: { panDeltaWorldX: number; panDeltaWorldY: number; zoomRatio: number }) => void;
   style?: React.CSSProperties;
 }
 
@@ -65,9 +77,16 @@ function Inner({
   showPaperGuide = true,
   showGrid = false,
   background = 'white',
+  pageBounds,
+  highlightPageIndex,
+  onPanZoomChange,
   style,
 }: ExportPreviewCanvasProps) {
   const sheet = doc.sheets.find((s) => s.id === doc.activeSheetId) ?? doc.sheets[0] ?? null;
+
+  // パン/ズーム同期用: PaperExtentHelper が fit 完了後の viewport をここに保存
+  const fitViewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
+  const rfInstanceRef = useRef<ReturnType<typeof useReactFlow> | null>(null);
 
   const ctxValue: TEMViewContextValue = useMemo(() => ({
     sheet,
@@ -320,6 +339,30 @@ function Inner({
   const paper = getPaperPx(paperSize, customPaperWidth, customPaperHeight);
   void showPaperGuide;
 
+  // ストリップ全体のサイズ（pageBounds から算出）
+  const isH = doc.settings.layout === 'horizontal';
+  const stripBounds = (() => {
+    if (pageBounds && pageBounds.length > 0) {
+      const xs = pageBounds.flatMap((p) => [p.innerX, p.innerX + p.innerWidth]);
+      const ys = pageBounds.flatMap((p) => [p.innerY, p.innerY + p.innerHeight]);
+      const x = Math.min(...xs);
+      const y = Math.min(...ys);
+      const w = Math.max(...xs) - x;
+      const h = Math.max(...ys) - y;
+      return { x, y, width: w, height: h };
+    }
+    return {
+      x: isH ? 0 : -paper.width / 2,
+      y: isH ? -paper.height / 2 : 0,
+      width: paper.width,
+      height: paper.height,
+    };
+  })();
+  const stripOriginX = stripBounds.x;
+  const stripOriginY = stripBounds.y;
+  const stripWidth = stripBounds.width;
+  const stripHeight = stripBounds.height;
+
   // 親要素のサイズを ResizeObserver で測定、aspectRatio に合わせた内側サイズを計算
   const outerRef = useRef<HTMLDivElement>(null);
   const [outerSize, setOuterSize] = useState<{ w: number; h: number }>({ w: 400, h: 300 });
@@ -341,18 +384,18 @@ function Inner({
     return () => ro.disconnect();
   }, []);
 
-  // 親サイズと用紙比率から、収まる最大の内側サイズを計算
-  const paperAspect = paper.width / paper.height;
+  // 親サイズとストリップ比率から、収まる最大の内側サイズを計算
+  const stripAspect = stripWidth / stripHeight;
   const containerAspect = outerSize.w / Math.max(1, outerSize.h);
   let innerW: number;
   let innerH: number;
-  if (containerAspect > paperAspect) {
+  if (containerAspect > stripAspect) {
     // 親が用紙より横長 → 高さ基準で揃える
     innerH = outerSize.h;
-    innerW = innerH * paperAspect;
+    innerW = innerH * stripAspect;
   } else {
     innerW = outerSize.w;
-    innerH = innerW / paperAspect;
+    innerH = innerW / stripAspect;
   }
 
   return (
@@ -401,10 +444,11 @@ function Inner({
             edges={edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            panOnDrag={true}
-            zoomOnScroll={true}
-            zoomOnPinch={true}
+            panOnDrag={!!onPanZoomChange}
+            zoomOnScroll={!!onPanZoomChange}
+            zoomOnPinch={!!onPanZoomChange}
             panOnScroll={false}
+            zoomOnDoubleClick={false}
             preventScrolling={true}
             nodesDraggable={false}
             nodesConnectable={false}
@@ -414,12 +458,54 @@ function Inner({
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
             minZoom={0.05}
             maxZoom={10}
+            onMoveEnd={onPanZoomChange ? (event, viewport) => {
+              // event が null のときは programmatic (rf.fitBounds / rf.setViewport 等) なのでスキップ
+              if (!event) return;
+              const base = fitViewportRef.current;
+              if (!base) return;
+              const dx = viewport.x - base.x;
+              const dy = viewport.y - base.y;
+              const zoomRatio = viewport.zoom / base.zoom;
+              const movedEnough = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
+              const zoomedEnough = Math.abs(zoomRatio - 1) > 0.001;
+              if (!movedEnough && !zoomedEnough) return;
+              // CSS px → world px 変換はストリップ fit 時の zoom を使う
+              const panDeltaWorldX = dx / base.zoom;
+              const panDeltaWorldY = dy / base.zoom;
+              onPanZoomChange({
+                panDeltaWorldX,
+                panDeltaWorldY,
+                zoomRatio,
+              });
+              // viewport を fit 状態に戻す（変更は props の再注入でコンテンツ座標に反映される）
+              const rf0 = rfInstanceRef.current;
+              if (rf0) {
+                setTimeout(() => { try { rf0.setViewport(base); } catch { /* ignore */ } }, 0);
+              }
+            } : undefined}
           >
             {showGrid && <Background gap={MINOR_TICK_PX} variant={BackgroundVariant.Dots} />}
-            <PaperExtentHelper width={paper.width} height={paper.height} />
+            <PaperExtentHelper
+              x={stripOriginX}
+              y={stripOriginY}
+              width={stripWidth}
+              height={stripHeight}
+              onAfterFit={(viewport, rfInstance) => {
+                fitViewportRef.current = viewport;
+                rfInstanceRef.current = rfInstance;
+              }}
+            />
             <TimeArrowOverlay />
             <PeriodLabelsOverlay />
             <LegendOverlay />
+            {/* ページ分割のガイド線（キャプチャから除外するため `page-split-overlay` クラスを付与） */}
+            {pageBounds && pageBounds.length > 1 && (
+              <PageSplitOverlay
+                pages={pageBounds}
+                highlightIndex={highlightPageIndex}
+                layout={doc.settings.layout}
+              />
+            )}
           </ReactFlow>
         </div>
         </div>
@@ -428,20 +514,130 @@ function Inner({
   );
 }
 
-// 用紙領域にぴったりフィットさせる
-function PaperExtentHelper({ width, height }: { width: number; height: number }) {
+// 用紙ストリップ領域にぴったりフィットさせる。fit 完了後の viewport を onAfterFit に渡す。
+function PaperExtentHelper({
+  x, y, width, height, onAfterFit,
+}: {
+  x: number; y: number; width: number; height: number;
+  onAfterFit?: (viewport: { x: number; y: number; zoom: number }, rf: ReturnType<typeof useReactFlow>) => void;
+}) {
   const rf = useReactFlow();
   useEffect(() => {
     const t = setTimeout(() => {
       try {
-        rf.fitBounds({ x: 0, y: 0, width, height }, { padding: 0 });
+        rf.fitBounds({ x, y, width, height }, { padding: 0 });
+        // fit 後の viewport を取得して上層へ返す
+        setTimeout(() => {
+          try {
+            const v = rf.getViewport();
+            onAfterFit?.(v, rf);
+          } catch { /* ignore */ }
+        }, 20);
       } catch {
         // ignore
       }
     }, 30);
     return () => clearTimeout(t);
-  }, [rf, width, height]);
+  }, [rf, x, y, width, height, onAfterFit]);
   return null;
+}
+
+// ページ分割の境界線・非アクティブページマスクオーバーレイ
+// - DOM 位置は ReactFlow の transform (zoom/pan) に追従
+// - class 'page-split-overlay' をキャプチャ除外フィルタ対象にする
+function PageSplitOverlay({
+  pages,
+  highlightIndex,
+  layout,
+}: {
+  pages: PageBounds[];
+  highlightIndex?: number;
+  layout: 'horizontal' | 'vertical';
+}) {
+  const transform = useReactFlowStore((s) => s.transform);
+  const [panX, panY, zoom] = transform;
+  const isH = layout === 'horizontal';
+
+  const elements: React.ReactNode[] = [];
+
+  // 各ページ境界線（inner の境界を描画）
+  for (let i = 1; i < pages.length; i++) {
+    const prev = pages[i - 1];
+    if (isH) {
+      const splitX = (prev.innerX + prev.innerWidth) * zoom + panX;
+      const topY = prev.innerY * zoom + panY;
+      const h = prev.innerHeight * zoom;
+      elements.push(
+        <div
+          key={`split-${i}`}
+          style={{
+            position: 'absolute',
+            left: splitX,
+            top: topY,
+            width: 0,
+            height: h,
+            borderLeft: '1.5px dashed #ff6b6b',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        />,
+      );
+    } else {
+      const splitY = (prev.innerY + prev.innerHeight) * zoom + panY;
+      const leftX = prev.innerX * zoom + panX;
+      const w = prev.innerWidth * zoom;
+      elements.push(
+        <div
+          key={`split-${i}`}
+          style={{
+            position: 'absolute',
+            left: leftX,
+            top: splitY,
+            width: w,
+            height: 0,
+            borderTop: '1.5px dashed #ff6b6b',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        />,
+      );
+    }
+  }
+
+  // 非アクティブページのマスク（highlightIndex 指定時のみ）
+  if (highlightIndex != null) {
+    pages.forEach((p, i) => {
+      if (i === highlightIndex) return;
+      const x = p.innerX * zoom + panX;
+      const y = p.innerY * zoom + panY;
+      const w = p.innerWidth * zoom;
+      const h = p.innerHeight * zoom;
+      elements.push(
+        <div
+          key={`mask-${i}`}
+          style={{
+            position: 'absolute',
+            left: x,
+            top: y,
+            width: w,
+            height: h,
+            background: 'rgba(0,0,0,0.18)',
+            pointerEvents: 'none',
+            zIndex: 9,
+          }}
+        />,
+      );
+    });
+  }
+
+  return (
+    <div
+      className="page-split-overlay"
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+    >
+      {elements}
+    </div>
+  );
 }
 
 // 用紙枠の描画はコンテナ自身が担うため、別途の PreviewPaperGuide は不要（削除）

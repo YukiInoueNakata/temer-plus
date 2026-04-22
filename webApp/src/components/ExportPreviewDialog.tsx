@@ -11,13 +11,13 @@ import { useTEMStore } from '../store/store';
 import {
   applyExportTransform,
   DEFAULT_EXPORT_TRANSFORM,
-  EXPORT_PRESETS,
   type ExportTransform,
   type FitMode,
 } from '../utils/exportTransform';
-import { PAPER_SIZE_OPTIONS, type PaperSizeKey } from '../utils/paperSizes';
+import { getPaperPx, getPaperSizeOptionsForLayout, type PaperSizeKey } from '../utils/paperSizes';
 import { ExportPreviewCanvas } from './ExportPreviewCanvas';
 import type { ExportOptions } from '../utils/exportImage';
+import { computePageBounds } from '../utils/pageSplit';
 
 type Format = 'png' | 'svg' | 'pdf' | 'pptx';
 
@@ -49,6 +49,46 @@ export function ExportPreviewDialog({
   const [includePaperGuides, setIncludePaperGuides] = useState(false);
   const [pdfMargin, setPdfMargin] = useState(0.3);
 
+  // 印刷モードタブ: 'single' = 単一印刷 / 'multi' = 複数印刷
+  const [exportMode, setExportMode] = useState<'single' | 'multi'>('single');
+
+  // プレビュー中のページ index（単一モードでは 0 固定）
+  const [previewPageIndex, setPreviewPageIndex] = useState(0);
+
+  // ダイアログ open 時の初期化:
+  //  - 印刷モードは常に 'single' からスタート
+  //  - paperGuides[0].pageCount は複数モード切替時の初期値として使う
+  //  - layout に応じた既定用紙サイズ（縦型 = A4 縦 / 横型 = A4 横）を設定
+  const paperGuidePageCount = doc.settings.paperGuides?.[0]?.pageCount ?? 1;
+  const layoutDefaultPaperSize: PaperSizeKey = doc.settings.layout === 'vertical' ? 'A4-portrait' : 'A4-landscape';
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!open) { initializedRef.current = false; return; }
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    setExportMode('single');
+    setXf((cur) => ({
+      ...cur,
+      pageCount: 1,
+      paperSize: layoutDefaultPaperSize,
+    }));
+    setPreviewPageIndex(0);
+  }, [open, layoutDefaultPaperSize]);
+
+  // 単一⇔複数 タブ切替時に pageCount を同期
+  const switchMode = (mode: 'single' | 'multi') => {
+    setExportMode(mode);
+    if (mode === 'single') {
+      setXf((cur) => ({ ...cur, pageCount: 1 }));
+      setPreviewPageIndex(0);
+    } else {
+      // 複数モード初期値: paperGuides.pageCount、なければ 2
+      const n = Math.max(2, paperGuidePageCount > 1 ? paperGuidePageCount : 2);
+      setXf((cur) => ({ ...cur, pageCount: n }));
+      setPreviewPageIndex(0);
+    }
+  };
+
   // ダイアログ位置
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -73,6 +113,18 @@ export function ExportPreviewDialog({
   // 変換後 doc（プレビュー / エクスポート両方で使用）
   const transformed = useMemo(() => applyExportTransform(doc, xf), [doc, xf]);
 
+  // ページ境界を計算（プレビュー / 実出力で共用）
+  const pageBounds = useMemo(() => {
+    const paper = getPaperPx(xf.paperSize);
+    return computePageBounds({
+      paperWidth: paper.width,
+      paperHeight: paper.height,
+      layout: transformed.doc.settings.layout,
+      pageCount: Math.max(1, xf.pageCount),
+      overlapPx: xf.pageOverlapPx,
+    });
+  }, [xf.paperSize, xf.pageCount, xf.pageOverlapPx, transformed.doc.settings.layout]);
+
   if (!open) return null;
 
   const update = (patch: Partial<ExportTransform>) => setXf((x) => ({ ...x, ...patch }));
@@ -88,11 +140,11 @@ export function ExportPreviewDialog({
     ? { width: 1000, maxWidth: '95vw', position: 'absolute', left: pos.x, top: pos.y, margin: 0 }
     : { width: 1000, maxWidth: '95vw' };
 
-  const applyPreset = (key: string) => {
-    const p = EXPORT_PRESETS[key];
-    if (!p) return;
-    setXf((cur) => ({ ...DEFAULT_EXPORT_TRANSFORM, ...cur, ...p }));
-  };
+  // layout に応じた用紙サイズ選択肢
+  const paperOptions = useMemo(
+    () => getPaperSizeOptionsForLayout(doc.settings.layout),
+    [doc.settings.layout],
+  );
 
   const runExport = async () => {
     setBusy(true);
@@ -105,13 +157,23 @@ export function ExportPreviewDialog({
         includeRulers: false,
         background,
       };
+      const multi = exportMode === 'multi' && xf.pageCount > 1 ? pageBounds : null;
       if (format === 'png') {
-        const { exportToPNG } = await import('../utils/exportImage');
-        // プレビュー DOM をキャプチャ
-        await exportToPNG(PREVIEW_ID, `${baseName}.png`, 2, imgOpts);
+        if (multi) {
+          const { exportToPNGPages } = await import('../utils/exportImage');
+          await exportToPNGPages(PREVIEW_ID, baseName, multi, 2, imgOpts);
+        } else {
+          const { exportToPNG } = await import('../utils/exportImage');
+          await exportToPNG(PREVIEW_ID, `${baseName}.png`, 2, imgOpts);
+        }
       } else if (format === 'svg') {
-        const { exportToSVG } = await import('../utils/exportImage');
-        await exportToSVG(PREVIEW_ID, `${baseName}.svg`, imgOpts);
+        if (multi) {
+          const { exportToSVGPages } = await import('../utils/exportImage');
+          await exportToSVGPages(PREVIEW_ID, baseName, multi, imgOpts);
+        } else {
+          const { exportToSVG } = await import('../utils/exportImage');
+          await exportToSVG(PREVIEW_ID, `${baseName}.svg`, imgOpts);
+        }
       } else if (format === 'pdf') {
         const { exportToPDF } = await import('../utils/exportPDF');
         await exportToPDF(PREVIEW_ID, `${baseName}.pdf`, {
@@ -121,6 +183,7 @@ export function ExportPreviewDialog({
           includeGrid,
           includePaperGuides,
           includeRulers: false,
+          pages: multi ?? undefined,
         });
       } else if (format === 'pptx') {
         const { exportToPPTX } = await import('../utils/exportPPT');
@@ -130,10 +193,11 @@ export function ExportPreviewDialog({
           filename: `${baseName}.pptx`,
           sheet,
           settings: transformed.doc.settings,
-          // 変換層ですでにスケール適用済なので PPTX 側は追加スケーリングしない
           scale: false,
           offset: 0,
           paperSize: xf.paperSize,
+          pages: multi ?? undefined,
+          pageSplitMode: xf.pageSplitMode,
         });
       }
     } catch (e) {
@@ -163,21 +227,17 @@ export function ExportPreviewDialog({
         <div className="modal-body" style={{ padding: 0, display: 'flex', gap: 0, height: 560, overflow: 'hidden' }}>
           {/* 左: パラメータ */}
           <div style={{ width: 360, padding: '10px 14px', overflowY: 'auto', borderRight: '1px solid #e0e0e0' }}>
-            <section className="settings-section">
-              <h4>プリセット</h4>
-              <div className="setting-row">
-                <label>選択</label>
-                <select
-                  onChange={(e) => { if (e.target.value) applyPreset(e.target.value); }}
-                  defaultValue=""
-                >
-                  <option value="">（選択して適用）</option>
-                  {Object.entries(EXPORT_PRESETS).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
-                  ))}
-                </select>
-              </div>
-            </section>
+            {/* 印刷モードタブ */}
+            <div className="settings-tabs" style={{ marginBottom: 10, padding: 0 }}>
+              <button
+                className={exportMode === 'single' ? 'settings-tab active' : 'settings-tab'}
+                onClick={() => switchMode('single')}
+              >単一印刷</button>
+              <button
+                className={exportMode === 'multi' ? 'settings-tab active' : 'settings-tab'}
+                onClick={() => switchMode('multi')}
+              >複数印刷（分割）</button>
+            </div>
 
             <section className="settings-section">
               <h4>用紙とフィット</h4>
@@ -188,7 +248,7 @@ export function ExportPreviewDialog({
                   onChange={(e) => update({ paperSize: e.target.value as PaperSizeKey })}
                   style={{ maxWidth: 200 }}
                 >
-                  {PAPER_SIZE_OPTIONS.map((o) => (
+                  {paperOptions.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
@@ -233,8 +293,112 @@ export function ExportPreviewDialog({
               </div>
             </section>
 
+            {exportMode === 'multi' && (
+              <section className="settings-section">
+                <h4>ページ分割（長辺方向）</h4>
+                <p className="hint" style={{ marginTop: 0 }}>
+                  {doc.settings.layout === 'horizontal'
+                    ? '横型レイアウト: x 軸方向（横）に N 分割して出力'
+                    : '縦型レイアウト: y 軸方向（縦）に N 分割して出力'}
+                </p>
+                <div className="setting-row">
+                  <label>分割数</label>
+                  <input
+                    type="number"
+                    min={2}
+                    max={20}
+                    step={1}
+                    value={xf.pageCount}
+                    onChange={(e) => {
+                      const n = Math.max(2, Math.min(20, Math.floor(Number(e.target.value) || 2)));
+                      update({ pageCount: n });
+                      if (previewPageIndex >= n) setPreviewPageIndex(0);
+                    }}
+                    style={{ width: 80 }}
+                  />
+                </div>
+                <div className="setting-row">
+                  <label>分割方式</label>
+                  <select
+                    value={xf.pageSplitMode}
+                    onChange={(e) => update({ pageSplitMode: e.target.value as 'overlap' | 'duplicate' })}
+                    style={{ maxWidth: 220 }}
+                  >
+                    <option value="overlap">オーバーラップ方式（単純クロップ）</option>
+                    <option value="duplicate">SPEC方式（Box複製+続マーカー、PPTX 限定）</option>
+                  </select>
+                </div>
+                <div className="setting-row">
+                  <label>オーバーラップ量 (px)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={500}
+                    step={5}
+                    value={xf.pageOverlapPx}
+                    onChange={(e) => update({ pageOverlapPx: Math.max(0, Number(e.target.value) || 0) })}
+                    style={{ width: 80 }}
+                  />
+                </div>
+                {xf.pageSplitMode === 'duplicate' && (
+                  <>
+                    <div className="setting-row">
+                      <label>続マーカーを表示</label>
+                      <input
+                        type="checkbox"
+                        checked={xf.showContinuationMarkers}
+                        onChange={(e) => update({ showContinuationMarkers: e.target.checked })}
+                      />
+                    </div>
+                    {format !== 'pptx' && (
+                      <p className="hint" style={{ color: '#b36b00' }}>
+                        ※ PPTX 以外ではオーバーラップ方式で出力されます（Box 複製・続マーカーは PPTX 限定機能）
+                      </p>
+                    )}
+                  </>
+                )}
+                <div className="setting-row" style={{ justifyContent: 'flex-start', gap: 6 }}>
+                  <button
+                    className="ribbon-btn-small"
+                    onClick={() => setPreviewPageIndex((i) => Math.max(0, i - 1))}
+                    disabled={previewPageIndex <= 0}
+                  >◀</button>
+                  <span style={{ fontSize: '0.85em' }}>
+                    プレビュー: {previewPageIndex + 1} / {xf.pageCount}
+                  </span>
+                  <button
+                    className="ribbon-btn-small"
+                    onClick={() => setPreviewPageIndex((i) => Math.min(xf.pageCount - 1, i + 1))}
+                    disabled={previewPageIndex >= xf.pageCount - 1}
+                  >▶</button>
+                </div>
+              </section>
+            )}
+
             <section className="settings-section">
               <h4>微調整</h4>
+              <div className="setting-row">
+                <label>位置 X (px)</label>
+                <input
+                  type="number"
+                  step={10}
+                  value={xf.offsetX}
+                  onChange={(e) => update({ offsetX: Number(e.target.value) })}
+                  style={{ width: 80 }}
+                  title="用紙中心を基準に全要素を X 方向に平行移動"
+                />
+              </div>
+              <div className="setting-row">
+                <label>位置 Y (px)</label>
+                <input
+                  type="number"
+                  step={10}
+                  value={xf.offsetY}
+                  onChange={(e) => update({ offsetY: Number(e.target.value) })}
+                  style={{ width: 80 }}
+                  title="用紙中心を基準に全要素を Y 方向に平行移動"
+                />
+              </div>
               <div className="setting-row">
                 <label>文字サイズ ±</label>
                 <input
@@ -427,7 +591,7 @@ export function ExportPreviewDialog({
           {/* 右: プレビュー */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <div style={{ padding: '6px 10px', borderBottom: '1px solid #e0e0e0', fontSize: '0.85em', color: '#555' }}>
-              プレビュー（ホイールでズーム、ドラッグでスクロール）
+              プレビュー（ドラッグ＝位置シフト / ホイール＝全体倍率 に反映）
             </div>
             <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
               <ExportPreviewCanvas
@@ -437,6 +601,24 @@ export function ExportPreviewDialog({
                 showPaperGuide={true}
                 showGrid={includeGrid}
                 background={background}
+                pageBounds={exportMode === 'multi' ? pageBounds : undefined}
+                highlightPageIndex={exportMode === 'multi' && xf.pageCount > 1 ? previewPageIndex : undefined}
+                onPanZoomChange={(delta) => {
+                  // パン → offsetX/Y、ズーム → fitMode=manual + globalScale に反映
+                  setXf((cur) => {
+                    const next: ExportTransform = { ...cur };
+                    if (delta.panDeltaWorldX !== 0 || delta.panDeltaWorldY !== 0) {
+                      next.offsetX = cur.offsetX + delta.panDeltaWorldX;
+                      next.offsetY = cur.offsetY + delta.panDeltaWorldY;
+                    }
+                    if (Math.abs(delta.zoomRatio - 1) > 0.001) {
+                      next.fitMode = 'manual';
+                      const base = cur.fitMode === 'manual' ? cur.globalScale : 1;
+                      next.globalScale = Math.max(0.1, base * delta.zoomRatio);
+                    }
+                    return next;
+                  });
+                }}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>
