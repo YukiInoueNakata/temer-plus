@@ -1116,6 +1116,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
 function LineProperties({ lines }: { lines: Line[] }) {
   const updateLines = useTEMStore((s) => s.updateLines);
   const removeLines = useTEMStore((s) => s.removeLines);
+  const sheet = useActiveSheet();
 
   const isMulti = lines.length > 1;
   const first = lines[0];
@@ -1272,6 +1273,19 @@ function LineProperties({ lines }: { lines: Line[] }) {
               {first.from} → {first.to}
             </div>
           </div>
+          {(() => {
+            const siblings = sheet?.lines.filter((l) => l.from === first.from && l.to === first.to) ?? [];
+            if (siblings.length <= 1) return null;
+            const index = siblings.findIndex((l) => l.id === first.id);
+            return (
+              <div className="prop-row">
+                <label>並列位置</label>
+                <div style={{ fontSize: '0.85em', color: '#666' }}>
+                  {index + 1} 本目 / {siblings.length} 本（同一 from→to）
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
 

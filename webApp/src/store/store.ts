@@ -818,6 +818,14 @@ export const useTEMStore = create<Store>()(
           }
         });
         const id = patch?.id ?? `${prefix}${maxN + 1}`;
+
+        // 同 from→to の既存 Line 数を数え、2 本目以降は Item 軸方向に ±5 ずつずらす
+        // パターン: 1本目=0、2本目=+5、3本目=-5、4本目=+10、5本目=-10 …
+        const duplicateCount = sheet?.lines.filter((l) => l.from === from && l.to === to).length ?? 0;
+        const autoOffsetItem = duplicateCount === 0
+          ? 0
+          : (duplicateCount % 2 === 1 ? 1 : -1) * 5 * Math.ceil(duplicateCount / 2);
+
         set((st) => ({
           doc: mutateActiveSheet(st.doc, (sh) => {
             const defaults: Line = {
@@ -828,7 +836,12 @@ export const useTEMStore = create<Store>()(
               connectionMode: 'center-to-center',
               shape: 'straight',
             };
-            sh.lines.push({ ...defaults, ...patch, id, from, to });
+            // 自動オフセット（autoPatch）→ patch の順で spread するため、
+            // 明示的に startOffsetItem / endOffsetItem を指定した場合はユーザ値が勝つ
+            const autoPatch: Partial<Line> = autoOffsetItem !== 0
+              ? { startOffsetItem: autoOffsetItem, endOffsetItem: autoOffsetItem }
+              : {};
+            sh.lines.push({ ...defaults, ...autoPatch, ...patch, id, from, to });
           }),
           dirty: true,
         }));
