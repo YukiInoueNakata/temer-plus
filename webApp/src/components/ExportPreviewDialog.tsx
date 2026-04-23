@@ -20,12 +20,14 @@ import type { ExportOptions } from '../utils/exportImage';
 import { computePageBounds } from '../utils/pageSplit';
 
 type Format = 'png' | 'svg' | 'pdf' | 'pptx';
+type OutputMethod = Format | 'print';
 
-const FORMATS: { key: Format; label: string }[] = [
-  { key: 'png', label: 'PNG' },
-  { key: 'svg', label: 'SVG' },
-  { key: 'pdf', label: 'PDF' },
-  { key: 'pptx', label: 'PPTX' },
+const OUTPUT_METHODS: { key: OutputMethod; label: string }[] = [
+  { key: 'png',   label: 'PNG ファイル（画像）' },
+  { key: 'svg',   label: 'SVG ファイル（ベクター画像）' },
+  { key: 'pdf',   label: 'PDF ファイル' },
+  { key: 'pptx',  label: 'PPTX ファイル（PowerPoint）' },
+  { key: 'print', label: '🖨️ プリンターで印刷' },
 ];
 
 const PREVIEW_ID = 'export-preview-canvas';
@@ -39,7 +41,8 @@ export function ExportPreviewDialog({
 }) {
   const doc = useTEMStore((s) => s.doc);
   const [xf, setXf] = useState<ExportTransform>(DEFAULT_EXPORT_TRANSFORM);
-  const [format, setFormat] = useState<Format>('png');
+  const [method, setMethod] = useState<OutputMethod>('png');
+  const format: Format = method === 'print' ? 'png' : method;
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -268,6 +271,28 @@ export function ExportPreviewDialog({
         <div className="modal-body" style={{ padding: 0, display: 'flex', gap: 0, height: 560, overflow: 'hidden' }}>
           {/* 左: パラメータ */}
           <div style={{ width: 360, padding: '10px 14px', overflowY: 'auto', borderRight: '1px solid #e0e0e0' }}>
+            {/* 出力方式プルダウン（最上部） */}
+            <div
+              className="setting-row"
+              style={{
+                margin: '0 -14px 10px',
+                padding: '8px 14px 10px',
+                background: '#f5f8ff',
+                borderBottom: '1px solid #dde4f0',
+              }}
+            >
+              <label style={{ fontWeight: 'bold' }}>出力方式</label>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value as OutputMethod)}
+                style={{ flex: 1, minWidth: 0 }}
+              >
+                {OUTPUT_METHODS.map((m) => (
+                  <option key={m.key} value={m.key}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+
             {/* 印刷モードタブ */}
             <div className="settings-tabs" style={{ marginBottom: 10, padding: 0 }}>
               <button
@@ -675,9 +700,8 @@ export function ExportPreviewDialog({
         </div>
         <div
           className="modal-footer"
-          style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 14px', flexWrap: 'wrap' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' }}
         >
-          {/* 左: 閉じる（破壊的動作から離す） */}
           <button
             className="ribbon-btn-small"
             onClick={onClose}
@@ -685,64 +709,24 @@ export function ExportPreviewDialog({
           >
             閉じる
           </button>
-
-          {/* 中央: 印刷（紙への出力・グループ A） */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              paddingLeft: 12,
-              borderLeft: '1px solid #d8d8d8',
-            }}
-          >
-            <span style={{ fontSize: '0.78em', color: '#777' }}>紙に出力</span>
-            <button
-              className="ribbon-btn-small"
-              onClick={runPrint}
-              disabled={busy}
-              title="プリンターで印刷（新規ウィンドウを開いてブラウザの印刷ダイアログを表示）"
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              🖨️ プリンターで印刷
-            </button>
-          </div>
-
-          {/* 右: ファイル保存（グループ B）— notice と primary を右端にまとめる */}
-          <div
-            style={{
-              marginLeft: 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              paddingLeft: 12,
-              borderLeft: '1px solid #d8d8d8',
-            }}
-          >
-            <span style={{ fontSize: '0.78em', color: '#777' }}>ファイルに保存</span>
-            <div style={{ display: 'flex', gap: 2 }}>
-              {FORMATS.map((f) => (
-                <button
-                  key={f.key}
-                  className={format === f.key ? 'settings-tab active' : 'settings-tab'}
-                  onClick={() => setFormat(f.key)}
-                  style={{
-                    borderBottom: format === f.key ? '2px solid #2684ff' : '2px solid transparent',
-                    padding: '4px 10px',
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            {notice && <span style={{ color: '#b36b00', fontSize: '0.82em' }}>{notice}</span>}
+          {notice && <span style={{ color: '#b36b00', fontSize: '0.82em' }}>{notice}</span>}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               className="ribbon-btn-primary"
-              onClick={runExport}
+              onClick={method === 'print' ? runPrint : runExport}
               disabled={busy}
-              style={{ whiteSpace: 'nowrap' }}
+              style={{ whiteSpace: 'nowrap', padding: '6px 16px' }}
+              title={
+                method === 'print'
+                  ? 'プリンターで印刷（新規ウィンドウを開いてブラウザの印刷ダイアログを表示）'
+                  : `${method.toUpperCase()} ファイルとして保存`
+              }
             >
-              {busy ? '出力中...' : `💾 ${format.toUpperCase()} で保存`}
+              {busy
+                ? '出力中...'
+                : method === 'print'
+                  ? '🖨️ プリンターで印刷'
+                  : `💾 ${method.toUpperCase()} で保存`}
             </button>
           </div>
         </div>
