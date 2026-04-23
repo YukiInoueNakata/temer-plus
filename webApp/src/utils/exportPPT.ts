@@ -276,18 +276,22 @@ function computeLineSegment(
   const to = resolved.to;
 
   // 角度モード: forward-time 辺中点 → 指定角度で to の backward-time 辺まで
+  //   調整は startOffset* / endOffset*（Time/Item 軸）で行う。margin は適用しない
   if (l.angleMode) {
     const ep = computeAngleEndpoints(from, to, clampAngleDeg(l.angleDeg), layout);
-    const dx = ep.ex - ep.sx;
-    const dy = ep.ey - ep.sy;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const ux = dx / len;
-    const uy = dy / len;
+    const sOffT = resolved.startOffsetTime;
+    const eOffT = resolved.endOffsetTime;
+    const sOffI = resolved.startOffsetItem;
+    const eOffI = resolved.endOffsetItem;
+    const sDx = isH ? sOffT : sOffI;
+    const sDy = isH ? -sOffI : sOffT;
+    const eDx = isH ? eOffT : eOffI;
+    const eDy = isH ? -eOffI : eOffT;
     return {
-      sx: ep.sx + ux * resolved.startMargin,
-      sy: ep.sy + uy * resolved.startMargin,
-      ex: ep.ex - ux * resolved.endMargin,
-      ey: ep.ey - uy * resolved.endMargin,
+      sx: ep.sx + sDx,
+      sy: ep.sy + sDy,
+      ex: ep.ex + eDx,
+      ey: ep.ey + eDy,
       shouldDash,
     };
   }

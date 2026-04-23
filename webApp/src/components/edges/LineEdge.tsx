@@ -73,18 +73,22 @@ export function LineEdge({
 
   if (hasBoxes && data!.angleMode) {
     // 角度モード: forward-time 辺中点 → 指定角度で to の backward-time 辺まで
+    //   調整は startOffset* / endOffset*（Time/Item 軸）で行う。margin は適用しない
     const resolved = resolveLineDirection(line, data!.fromBox!, data!.toBox!, layout);
     const ep = computeAngleEndpoints(resolved.from, resolved.to, clampAngleDeg(data!.angleDeg), layout);
-    // マージンを方向ベクトル沿いに適用
-    const dx = ep.ex - ep.sx;
-    const dy = ep.ey - ep.sy;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const ux = dx / len;
-    const uy = dy / len;
-    sx = ep.sx + ux * resolved.startMargin;
-    sy = ep.sy + uy * resolved.startMargin;
-    tx = ep.ex - ux * resolved.endMargin;
-    ty = ep.ey - uy * resolved.endMargin;
+    const sOffT = resolved.startOffsetTime;
+    const eOffT = resolved.endOffsetTime;
+    const sOffI = resolved.startOffsetItem;
+    const eOffI = resolved.endOffsetItem;
+    // 横型: Time=+x, Item=-y / 縦型: Time=+y, Item=+x
+    const sDx = isH ? sOffT : sOffI;
+    const sDy = isH ? -sOffI : sOffT;
+    const eDx = isH ? eOffT : eOffI;
+    const eDy = isH ? -eOffI : eOffT;
+    sx = ep.sx + sDx;
+    sy = ep.sy + sDy;
+    tx = ep.ex + eDx;
+    ty = ep.ey + eDy;
   } else if (hasBoxes) {
     // 通常モード + 自動入れ替え: bbox から forward-time 辺中点を自前計算
     const resolved = resolveLineDirection(line, data!.fromBox!, data!.toBox!, layout);

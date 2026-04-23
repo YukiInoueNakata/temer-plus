@@ -1202,7 +1202,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
       </h5>
       {allAngleOn && (
         <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
-          角度モード中は Time/Item オフセットは無効（角度で端点が決まるため）。マージンのみ有効。
+          角度モード中はオフセットで端点を調整。マージン（方向沿い）は無効。
         </p>
       )}
       <div className="prop-row">
@@ -1212,14 +1212,12 @@ function LineProperties({ lines }: { lines: Line[] }) {
             type="number"
             value={commonStartOffTime ?? 0}
             placeholder={commonStartOffTime === undefined ? '混在' : ''}
-            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { startOffsetTime: Number(e.target.value) })}
           />
           <input
             type="number"
             value={commonStartOffItem ?? 0}
             placeholder={commonStartOffItem === undefined ? '混在' : ''}
-            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { startOffsetItem: Number(e.target.value) })}
           />
         </div>
@@ -1231,14 +1229,12 @@ function LineProperties({ lines }: { lines: Line[] }) {
             type="number"
             value={commonEndOffTime ?? 0}
             placeholder={commonEndOffTime === undefined ? '混在' : ''}
-            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { endOffsetTime: Number(e.target.value) })}
           />
           <input
             type="number"
             value={commonEndOffItem ?? 0}
             placeholder={commonEndOffItem === undefined ? '混在' : ''}
-            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { endOffsetItem: Number(e.target.value) })}
           />
         </div>
@@ -1249,6 +1245,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
           type="number"
           value={commonStartMargin ?? 0}
           placeholder={commonStartMargin === undefined ? '（混在）' : ''}
+          disabled={allAngleOn}
           onChange={(e) => updateLines(ids, { startMargin: Number(e.target.value) })}
         />
       </div>
@@ -1258,6 +1255,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
           type="number"
           value={commonEndMargin ?? 0}
           placeholder={commonEndMargin === undefined ? '（混在）' : ''}
+          disabled={allAngleOn}
           onChange={(e) => updateLines(ids, { endMargin: Number(e.target.value) })}
         />
       </div>
