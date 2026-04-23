@@ -38,6 +38,11 @@ import { computeBoxDisplay } from './typeDisplay';
 import { getPaperInch, type PaperSizeKey } from './paperSizes';
 import type { PageBounds } from './pageSplit';
 import { rectIntersectsPage } from './pageSplit';
+import {
+  resolveLineDirection,
+  computeAngleEndpoints,
+  clampAngleDeg,
+} from './lineDirection';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -257,21 +262,45 @@ function computeLineSegment(
   byId: Map<string, Box>,
   layout: LayoutDirection,
 ): { sx: number; sy: number; ex: number; ey: number; shouldDash: boolean } | null {
-  const from = byId.get(l.from);
-  const to = byId.get(l.to);
-  if (!from || !to) return null;
+  const fromOrig = byId.get(l.from);
+  const toOrig = byId.get(l.to);
+  if (!fromOrig || !toOrig) return null;
   const isH = layout === 'horizontal';
   const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
-  const connectsDashed = dashedEndpoints.has(from.type) || dashedEndpoints.has(to.type);
+  const connectsDashed = dashedEndpoints.has(fromOrig.type) || dashedEndpoints.has(toOrig.type);
   const shouldDash = l.type === 'XLine' || connectsDashed;
+
+  // 自動入れ替え + マージン/オフセットの swap
+  const resolved = resolveLineDirection(l, fromOrig, toOrig, layout);
+  const from = resolved.from;
+  const to = resolved.to;
+
+  // 角度モード: forward-time 辺中点 → 指定角度で to の backward-time 辺まで
+  if (l.angleMode) {
+    const ep = computeAngleEndpoints(from, to, clampAngleDeg(l.angleDeg), layout);
+    const dx = ep.ex - ep.sx;
+    const dy = ep.ey - ep.sy;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    return {
+      sx: ep.sx + ux * resolved.startMargin,
+      sy: ep.sy + uy * resolved.startMargin,
+      ex: ep.ex - ux * resolved.endMargin,
+      ey: ep.ey - uy * resolved.endMargin,
+      shouldDash,
+    };
+  }
+
+  // 通常モード
   const x1 = isH ? from.x + from.width : from.x + from.width / 2;
   const y1 = isH ? from.y + from.height / 2 : from.y + from.height;
   const x2 = isH ? to.x : to.x + to.width / 2;
   const y2 = isH ? to.y + to.height / 2 : to.y;
-  const sOffT = l.startOffsetTime ?? 0;
-  const eOffT = l.endOffsetTime ?? 0;
-  const sOffI = l.startOffsetItem ?? 0;
-  const eOffI = l.endOffsetItem ?? 0;
+  const sOffT = resolved.startOffsetTime;
+  const eOffT = resolved.endOffsetTime;
+  const sOffI = resolved.startOffsetItem;
+  const eOffI = resolved.endOffsetItem;
   const sDx = isH ? sOffT : sOffI;
   const sDy = isH ? -sOffI : sOffT;
   const eDx = isH ? eOffT : eOffI;
@@ -285,13 +314,11 @@ function computeLineSegment(
   const len = Math.sqrt(dxs * dxs + dys * dys) || 1;
   const ux = dxs / len;
   const uy = dys / len;
-  const startMargin = l.startMargin ?? 0;
-  const endMargin = l.endMargin ?? 0;
   return {
-    sx: sx0 + ux * startMargin,
-    sy: sy0 + uy * startMargin,
-    ex: tx0 - ux * endMargin,
-    ey: ty0 - uy * endMargin,
+    sx: sx0 + ux * resolved.startMargin,
+    sy: sy0 + uy * resolved.startMargin,
+    ex: tx0 - ux * resolved.endMargin,
+    ey: ty0 - uy * resolved.endMargin,
     shouldDash,
   };
 }

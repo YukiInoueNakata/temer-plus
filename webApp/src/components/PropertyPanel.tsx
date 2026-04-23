@@ -1130,6 +1130,11 @@ function LineProperties({ lines }: { lines: Line[] }) {
   const commonEndOffTime = getCommon(lines, 'endOffsetTime');
   const commonStartOffItem = getCommon(lines, 'startOffsetItem');
   const commonEndOffItem = getCommon(lines, 'endOffsetItem');
+  const commonAngleMode = lines.every((l) => (l.angleMode ?? false) === (first.angleMode ?? false))
+    ? !!first.angleMode
+    : undefined;
+  const commonAngleDeg = getCommon(lines, 'angleDeg');
+  const allAngleOn = lines.every((l) => l.angleMode);
 
   return (
     <div className="prop-section">
@@ -1163,8 +1168,43 @@ function LineProperties({ lines }: { lines: Line[] }) {
       </div>
 
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>
+        角度モード
+      </h5>
+      <div className="prop-row">
+        <label>角度モード</label>
+        <input
+          type="checkbox"
+          checked={!!commonAngleMode}
+          ref={(el) => { if (el) el.indeterminate = commonAngleMode === undefined; }}
+          onChange={(e) => updateLines(ids, { angleMode: e.target.checked })}
+        />
+      </div>
+      <div className="prop-row">
+        <label>角度 (°)</label>
+        <input
+          type="number"
+          min={-85}
+          max={85}
+          step={1}
+          value={commonAngleDeg ?? 0}
+          placeholder={commonAngleDeg === undefined ? '（混在）' : ''}
+          disabled={!allAngleOn}
+          onChange={(e) => {
+            const v = Math.max(-85, Math.min(85, Number(e.target.value) || 0));
+            updateLines(ids, { angleDeg: v });
+          }}
+          title="-85〜85°。時間軸方向 0° を基準、正で視覚的に上（横型）/右（縦型）に傾く"
+        />
+      </div>
+
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>
         始点・終点オフセット
       </h5>
+      {allAngleOn && (
+        <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
+          角度モード中は Time/Item オフセットは無効（角度で端点が決まるため）。マージンのみ有効。
+        </p>
+      )}
       <div className="prop-row">
         <label>始点 Time / Item (px)</label>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -1172,12 +1212,14 @@ function LineProperties({ lines }: { lines: Line[] }) {
             type="number"
             value={commonStartOffTime ?? 0}
             placeholder={commonStartOffTime === undefined ? '混在' : ''}
+            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { startOffsetTime: Number(e.target.value) })}
           />
           <input
             type="number"
             value={commonStartOffItem ?? 0}
             placeholder={commonStartOffItem === undefined ? '混在' : ''}
+            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { startOffsetItem: Number(e.target.value) })}
           />
         </div>
@@ -1189,12 +1231,14 @@ function LineProperties({ lines }: { lines: Line[] }) {
             type="number"
             value={commonEndOffTime ?? 0}
             placeholder={commonEndOffTime === undefined ? '混在' : ''}
+            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { endOffsetTime: Number(e.target.value) })}
           />
           <input
             type="number"
             value={commonEndOffItem ?? 0}
             placeholder={commonEndOffItem === undefined ? '混在' : ''}
+            disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { endOffsetItem: Number(e.target.value) })}
           />
         </div>

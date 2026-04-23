@@ -137,6 +137,10 @@ export interface Line {
   // 始点・終点の Item 方向オフセット（px、ユーザ座標）
   startOffsetItem?: number;
   endOffsetItem?: number;
+  // 角度モード: from の forward-time 辺中点から角度 θ で to の backward-time 辺まで伸ばす
+  // ON のとき startOffset* / endOffset* は無効化し、startMargin/endMargin のみ適用
+  angleMode?: boolean;
+  angleDeg?: number;   // [-85, 85] にクランプ。既定 0
 }
 
 export interface SDSG {
