@@ -13,7 +13,7 @@
 
 import { BaseEdge, getStraightPath, type EdgeProps } from 'reactflow';
 import { useTEMView } from '../../context/TEMViewContext';
-import type { Box, Line } from '../../types';
+import type { Line } from '../../types';
 import {
   resolveLineDirection,
   computeAngleEndpoints,
@@ -29,8 +29,8 @@ export interface LineEdgeData {
   endOffsetItem?: number;
   angleMode?: boolean;
   angleDeg?: number;
-  fromBox?: Box;
-  toBox?: Box;
+  fromBoxId?: string;
+  toBoxId?: string;
 }
 
 export function LineEdge({
@@ -47,15 +47,18 @@ export function LineEdge({
   const layout = view.settings.layout;
   const isH = layout === 'horizontal';
 
-  // angle モード or 自動入れ替えには fromBox/toBox が必要。無い場合は従来動作
-  const hasBoxes = !!(data?.fromBox && data?.toBox);
+  // angle モード / 自動入れ替えには from/to Box 座標が必要。
+  // data.fromBoxId / toBoxId を view.sheet から解決
+  const fromBox = data?.fromBoxId ? view.sheet?.boxes.find((b) => b.id === data.fromBoxId) : undefined;
+  const toBox = data?.toBoxId ? view.sheet?.boxes.find((b) => b.id === data.toBoxId) : undefined;
+  const hasBoxes = !!(fromBox && toBox);
 
-  // 擬似 Line を組んで resolveLineDirection へ（実際のユーザ意図は data 経由で渡される）
+  // 擬似 Line（resolveLineDirection に margin/offset を渡すため）
   const line: Line = {
     id,
     type: 'RLine',
-    from: data?.fromBox?.id ?? '',
-    to: data?.toBox?.id ?? '',
+    from: data?.fromBoxId ?? '',
+    to: data?.toBoxId ?? '',
     connectionMode: 'center-to-center',
     shape: 'straight',
     startMargin: data?.startMargin,
@@ -74,7 +77,7 @@ export function LineEdge({
   if (hasBoxes && data!.angleMode) {
     // 角度モード: forward-time 辺中点 → 指定角度で to の backward-time 辺まで
     //   調整は startOffset* / endOffset*（Time/Item 軸）で行う。margin は適用しない
-    const resolved = resolveLineDirection(line, data!.fromBox!, data!.toBox!, layout);
+    const resolved = resolveLineDirection(line, fromBox!, toBox!, layout);
     const ep = computeAngleEndpoints(resolved.from, resolved.to, clampAngleDeg(data!.angleDeg), layout);
     const sOffT = resolved.startOffsetTime;
     const eOffT = resolved.endOffsetTime;
@@ -91,7 +94,7 @@ export function LineEdge({
     ty = ep.ey + eDy;
   } else if (hasBoxes) {
     // 通常モード + 自動入れ替え: bbox から forward-time 辺中点を自前計算
-    const resolved = resolveLineDirection(line, data!.fromBox!, data!.toBox!, layout);
+    const resolved = resolveLineDirection(line, fromBox!, toBox!, layout);
     const from = resolved.from;
     const to = resolved.to;
     const sx0Base = isH ? from.x + from.width : from.x + from.width / 2;

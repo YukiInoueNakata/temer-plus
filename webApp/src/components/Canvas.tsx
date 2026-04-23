@@ -477,8 +477,8 @@ function CanvasInner({
               endOffsetItem: l.endOffsetItem ?? 0,
               angleMode: !!l.angleMode,
               angleDeg: l.angleDeg ?? 0,
-              fromBox,
-              toBox,
+              fromBoxId: l.from,
+              toBoxId: l.to,
             }
           : undefined,
         style: {
