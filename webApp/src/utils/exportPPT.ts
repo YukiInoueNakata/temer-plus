@@ -538,6 +538,15 @@ function drawBoxTypeLabel(
   const bold = b.typeLabelBold !== false;
   const italic = !!b.typeLabelItalic;
   const fontFace = b.typeLabelFontFamily;
+  const textColor = rgbToHex(b.typeLabelColor ?? '#222');
+  const bgColor = b.typeLabelBackgroundColor && b.typeLabelBackgroundColor !== 'transparent'
+    ? { color: rgbToHex(b.typeLabelBackgroundColor) }
+    : { color: 'FFFFFF', transparency: 100 };
+  const borderW = b.typeLabelBorderWidth ?? 0;
+  const hasBorder = borderW > 0 && !!b.typeLabelBorderColor;
+  const lineProp = hasBorder
+    ? { color: rgbToHex(b.typeLabelBorderColor!), width: borderW }
+    : undefined;
 
   if (isH) {
     // 横型: Box 上辺の外側中央
@@ -554,7 +563,9 @@ function drawBoxTypeLabel(
       bold,
       italic,
       fontFace,
-      color: '222222',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       margin: 1,
     });
   } else {
@@ -572,7 +583,9 @@ function drawBoxTypeLabel(
       bold,
       italic,
       fontFace,
-      color: '222222',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       vert: 'eaVert',
       margin: 1,
     });
@@ -587,6 +600,15 @@ function drawBoxSubLabel(slide: PptxGenJS.Slide, b: Box, layout: LayoutDirection
   const fs = fontSizeScaled(baseFS, t);
   const offX = b.subLabelOffsetX ?? 0;
   const offY = b.subLabelOffsetY ?? 0;
+  const textColor = rgbToHex(b.subLabelColor ?? '#555');
+  const bgColor = b.subLabelBackgroundColor && b.subLabelBackgroundColor !== 'transparent'
+    ? { color: rgbToHex(b.subLabelBackgroundColor) }
+    : { color: 'FFFFFF', transparency: 100 };
+  const borderW = b.subLabelBorderWidth ?? 0;
+  const hasBorder = borderW > 0 && !!b.subLabelBorderColor;
+  const lineProp = hasBorder
+    ? { color: rgbToHex(b.subLabelBorderColor!), width: borderW }
+    : undefined;
   if (isH) {
     const wpx = Math.max(80, b.width);
     const hpx = Math.max(14, baseFS * 1.6);
@@ -598,7 +620,9 @@ function drawBoxSubLabel(slide: PptxGenJS.Slide, b: Box, layout: LayoutDirection
       align: 'center',
       valign: 'top',
       fontSize: fs,
-      color: '555555',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       margin: 1,
     });
   } else {
@@ -612,7 +636,9 @@ function drawBoxSubLabel(slide: PptxGenJS.Slide, b: Box, layout: LayoutDirection
       align: 'center',
       valign: 'middle',
       fontSize: fs,
-      color: '555555',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       vert: 'eaVert',
       margin: 1,
     });
@@ -892,6 +918,14 @@ function drawSDSGTypeLabel(
   const bold = sg.typeLabelBold !== false;
   const italic = !!sg.typeLabelItalic;
   const fontFace = sg.typeLabelFontFamily;
+  const textColor = rgbToHex(sg.typeLabelColor ?? '#222');
+  const bgColor = sg.typeLabelBackgroundColor && sg.typeLabelBackgroundColor !== 'transparent'
+    ? { color: rgbToHex(sg.typeLabelBackgroundColor) }
+    : { color: 'FFFFFF', transparency: 100 };
+  const borderW = sg.typeLabelBorderWidth ?? 0;
+  const lineProp = borderW > 0 && sg.typeLabelBorderColor
+    ? { color: rgbToHex(sg.typeLabelBorderColor), width: borderW }
+    : undefined;
   if (isH) {
     const wpx = Math.max(60, w);
     const hpx = Math.max(14, baseFS * 1.8);
@@ -906,7 +940,9 @@ function drawSDSGTypeLabel(
       bold,
       italic,
       fontFace,
-      color: '222222',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       margin: 1,
     });
   } else {
@@ -923,7 +959,9 @@ function drawSDSGTypeLabel(
       bold,
       italic,
       fontFace,
-      color: '222222',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       vert: 'eaVert',
       margin: 1,
     });
@@ -945,6 +983,14 @@ function drawSDSGSubLabel(
   const fs = fontSizeScaled(baseFS, t);
   const offX = sg.subLabelOffsetX ?? 0;
   const offY = sg.subLabelOffsetY ?? 0;
+  const textColor = rgbToHex(sg.subLabelColor ?? '#555');
+  const bgColor = sg.subLabelBackgroundColor && sg.subLabelBackgroundColor !== 'transparent'
+    ? { color: rgbToHex(sg.subLabelBackgroundColor) }
+    : { color: 'FFFFFF', transparency: 100 };
+  const borderW = sg.subLabelBorderWidth ?? 0;
+  const lineProp = borderW > 0 && sg.subLabelBorderColor
+    ? { color: rgbToHex(sg.subLabelBorderColor), width: borderW }
+    : undefined;
   if (isH) {
     const wpx = Math.max(80, w);
     const hpx = Math.max(14, baseFS * 1.6);
@@ -956,7 +1002,9 @@ function drawSDSGSubLabel(
       align: 'center',
       valign: 'top',
       fontSize: fs,
-      color: '555555',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       margin: 1,
     });
   } else {
@@ -970,7 +1018,9 @@ function drawSDSGSubLabel(
       align: 'center',
       valign: 'middle',
       fontSize: fs,
-      color: '555555',
+      color: textColor,
+      fill: bgColor,
+      line: lineProp,
       vert: 'eaVert',
       margin: 1,
     });

@@ -17,7 +17,9 @@ export interface SDSGNodeData extends Pick<
   SDSG,
   'type' | 'label' | 'width' | 'height' | 'style' | 'rectRatio' |
   'subLabel' | 'subLabelOffsetX' | 'subLabelOffsetY' | 'subLabelFontSize' | 'subLabelAsciiUpright' |
+  'subLabelColor' | 'subLabelBackgroundColor' | 'subLabelBorderColor' | 'subLabelBorderWidth' |
   'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' | 'typeLabelAsciiUpright' |
+  'typeLabelColor' | 'typeLabelBackgroundColor' | 'typeLabelBorderColor' | 'typeLabelBorderWidth' |
   'asciiUpright'
 > {
   id: string;
@@ -138,73 +140,65 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const typeFontWeight = data.typeLabelBold === false ? 400 : 700;
   const typeFontStyle = data.typeLabelItalic ? 'italic' : 'normal';
   const typeFontFamily = data.typeLabelFontFamily ?? 'inherit';
+  const typeLabelColor = data.typeLabelColor ?? '#222';
+  const typeLabelBg = data.typeLabelBackgroundColor;
+  const typeLabelBorderColor = data.typeLabelBorderColor;
+  const typeLabelBorderWidth = data.typeLabelBorderWidth ?? 0;
+  const typeLabelBorder = typeLabelBorderWidth > 0 && typeLabelBorderColor
+    ? `${typeLabelBorderWidth}px solid ${typeLabelBorderColor}`
+    : undefined;
+
+  const typeTagCommon: React.CSSProperties = {
+    fontSize: typeFontSize,
+    padding: '2px 4px',
+    color: typeLabelColor,
+    background: typeLabelBg,
+    border: typeLabelBorder,
+    fontWeight: typeFontWeight,
+    fontStyle: typeFontStyle,
+    fontFamily: typeFontFamily,
+    whiteSpace: 'nowrap',
+    pointerEvents: 'none',
+  };
 
   // SD = 上（横型）/ 右（縦型）、SG = 下（横型）/ 左（縦型）
   // typeTag は SDSG の外側（Box と反対側）に表示
   const typeTagStyle: React.CSSProperties = isVerticalLayout
     ? isSD
       ? {
+          ...typeTagCommon,
           position: 'absolute',
           top: '50%',
           left: `calc(100% + 6px)`,
           transform: 'translateY(-50%)',
-          fontSize: typeFontSize,
-          padding: '2px 4px',
-          color: '#222',
-          fontWeight: typeFontWeight,
-          fontStyle: typeFontStyle,
-          fontFamily: typeFontFamily,
           writingMode: 'vertical-rl',
           textOrientation: typeAsciiUpright ? 'upright' : 'mixed',
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
         }
       : {
+          ...typeTagCommon,
           position: 'absolute',
           top: '50%',
           right: `calc(100% + 6px)`,
           transform: 'translateY(-50%)',
-          fontSize: typeFontSize,
-          padding: '2px 4px',
-          color: '#222',
-          fontWeight: typeFontWeight,
-          fontStyle: typeFontStyle,
-          fontFamily: typeFontFamily,
           writingMode: 'vertical-rl',
           textOrientation: typeAsciiUpright ? 'upright' : 'mixed',
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
         }
     : isSD
       ? {
+          ...typeTagCommon,
           position: 'absolute',
           bottom: `calc(100% + 6px)`,
           left: '50%',
           transform: 'translateX(-50%)',
-          fontSize: typeFontSize,
-          padding: '2px 4px',
-          color: '#222',
-          fontWeight: typeFontWeight,
-          fontStyle: typeFontStyle,
-          fontFamily: typeFontFamily,
           writingMode: 'horizontal-tb',
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
         }
       : {
+          ...typeTagCommon,
           position: 'absolute',
           top: `calc(100% + 6px)`,
           left: '50%',
           transform: 'translateX(-50%)',
-          fontSize: typeFontSize,
-          padding: '2px 4px',
-          color: '#222',
-          fontWeight: typeFontWeight,
-          fontStyle: typeFontStyle,
-          fontFamily: typeFontFamily,
           writingMode: 'horizontal-tb',
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
         };
 
   // --- サブラベル（Box と同じ形式） ---
@@ -213,31 +207,38 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const subOffsetY = data.subLabelOffsetY ?? 0;
   const subFontSize = data.subLabelFontSize ?? 10;
   const subAsciiUpright = data.subLabelAsciiUpright ?? asciiUpright;
+  const subLabelColor = data.subLabelColor ?? '#555';
+  const subLabelBg = data.subLabelBackgroundColor ?? 'rgba(255,255,255,0.85)';
+  const subLabelBorderColor = data.subLabelBorderColor;
+  const subLabelBorderWidth = data.subLabelBorderWidth ?? 0;
+  const subLabelBorder = subLabelBorderWidth > 0 && subLabelBorderColor
+    ? `${subLabelBorderWidth}px solid ${subLabelBorderColor}`
+    : undefined;
+  const subLabelCommon: React.CSSProperties = {
+    fontSize: subFontSize,
+    color: subLabelColor,
+    background: subLabelBg,
+    border: subLabelBorder,
+    padding: '0 4px',
+    whiteSpace: 'nowrap',
+  };
   const subLabelStyle: React.CSSProperties = isVerticalLayout
     ? {
+        ...subLabelCommon,
         position: 'absolute',
         top: `calc(50% + ${subOffsetY}px)`,
         left: `calc(100% + 6px + ${subOffsetX}px)`,
         transform: 'translateY(-50%)',
-        fontSize: subFontSize,
-        color: '#555',
-        background: 'rgba(255,255,255,0.85)',
-        padding: '0 4px',
         writingMode: 'vertical-rl',
         textOrientation: subAsciiUpright ? 'upright' : 'mixed',
-        whiteSpace: 'nowrap',
       }
     : {
+        ...subLabelCommon,
         position: 'absolute',
         top: `calc(100% + 6px + ${subOffsetY}px)`,
         left: `calc(50% + ${subOffsetX}px)`,
         transform: 'translateX(-50%)',
-        fontSize: subFontSize,
-        color: '#555',
-        background: 'rgba(255,255,255,0.85)',
-        padding: '0 4px',
         writingMode: 'horizontal-tb',
-        whiteSpace: 'nowrap',
       };
 
   return (

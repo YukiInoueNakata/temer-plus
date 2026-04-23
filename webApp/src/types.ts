@@ -100,9 +100,19 @@ export interface Box {
   //   true/undefined: 同種別複数時に "OPP-1", "2nd EFP" など連番化
   //   false          : 連番を付けず種別名のみ（例: "OPP", "EFP"）
   typeLabelNumbered?: boolean;
+  // タイプラベル色（既定: 文字 '#222'、背景透明、枠なし）
+  typeLabelColor?: string;
+  typeLabelBackgroundColor?: string;
+  typeLabelBorderColor?: string;
+  typeLabelBorderWidth?: number;       // 0 = 枠なし
 
   // サブラベル個別 ASCII
   subLabelAsciiUpright?: boolean;
+  // サブラベル色（既定: 文字 '#555'、背景 '#ffffffd9'、枠なし）
+  subLabelColor?: string;
+  subLabelBackgroundColor?: string;
+  subLabelBorderColor?: string;
+  subLabelBorderWidth?: number;        // 0 = 枠なし
 
   // 縦書き時の半角英数の向き: true=upright(縦積み)、false=mixed(横倒し)
   // 未指定時は true（upright）が既定
@@ -193,6 +203,16 @@ export interface SDSG {
   //   true/undefined: 同種別複数時に "SD1", "SD2" など連番化
   //   false          : 連番を付けず "SD" / "SG" のみ
   typeLabelNumbered?: boolean;
+  // タイプラベル色（既定: 文字 '#222'、背景透明、枠なし）
+  typeLabelColor?: string;
+  typeLabelBackgroundColor?: string;
+  typeLabelBorderColor?: string;
+  typeLabelBorderWidth?: number;
+  // サブラベル色（既定: 文字 '#555'、背景 '#ffffffd9'、枠なし）
+  subLabelColor?: string;
+  subLabelBackgroundColor?: string;
+  subLabelBorderColor?: string;
+  subLabelBorderWidth?: number;
   // 縦書き英数向き（本体テキスト用）
   asciiUpright?: boolean;
 }

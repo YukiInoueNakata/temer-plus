@@ -10,6 +10,7 @@ import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
 import { RichTextToolbar } from './RichTextToolbar';
 import { LegendSettingsSection } from './SettingsDialog';
+import { ColorPicker } from './ColorPicker';
 
 export function PropertyPanel() {
   const visible = useTEMStore((s) => s.view.propertyPanelVisible);
@@ -355,6 +356,32 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           </div>
         </div>
         <div className="prop-row">
+          <label>文字色</label>
+          <ColorPicker
+            value={first.style?.color}
+            onChange={(c) => updateBoxes(ids, { style: { ...first.style, color: c } })}
+            defaultLabel="既定 (#222)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>背景色</label>
+          <ColorPicker
+            value={first.style?.backgroundColor}
+            onChange={(c) => updateBoxes(ids, { style: { ...first.style, backgroundColor: c } })}
+            allowNone
+            defaultLabel="既定 (白)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線色</label>
+          <ColorPicker
+            value={first.style?.borderColor}
+            onChange={(c) => updateBoxes(ids, { style: { ...first.style, borderColor: c } })}
+            allowNone
+            defaultLabel="既定 (#222)"
+          />
+        </div>
+        <div className="prop-row">
           <label>テキスト方向</label>
           <select
             value={commonOrientation}
@@ -469,6 +496,45 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             <option value="mixed">横倒し</option>
           </select>
         </div>
+        <div className="prop-row">
+          <label>文字色</label>
+          <ColorPicker
+            value={getCommon(boxes, 'typeLabelColor')}
+            onChange={(c) => updateBoxes(ids, { typeLabelColor: c })}
+            defaultLabel="既定 (#222)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>背景色</label>
+          <ColorPicker
+            value={getCommon(boxes, 'typeLabelBackgroundColor')}
+            onChange={(c) => updateBoxes(ids, { typeLabelBackgroundColor: c })}
+            allowNone
+            defaultLabel="既定 (透明)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線色</label>
+          <ColorPicker
+            value={getCommon(boxes, 'typeLabelBorderColor')}
+            onChange={(c) => updateBoxes(ids, { typeLabelBorderColor: c })}
+            allowNone
+            defaultLabel="既定 (枠なし)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線太さ (px)</label>
+          <input
+            type="number"
+            min={0}
+            max={5}
+            step={0.5}
+            value={getCommon(boxes, 'typeLabelBorderWidth') ?? 0}
+            placeholder={getCommon(boxes, 'typeLabelBorderWidth') === undefined ? '混在' : ''}
+            onChange={(e) => updateBoxes(ids, { typeLabelBorderWidth: Number(e.target.value) })}
+            title="0 = 枠線なし"
+          />
+        </div>
       </>}
 
       {/* ========== サブラベル ========== */}
@@ -522,6 +588,45 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             <option value="upright">縦向き（上下積み）</option>
             <option value="mixed">横倒し（伝統的）</option>
           </select>
+        </div>
+        <div className="prop-row">
+          <label>文字色</label>
+          <ColorPicker
+            value={getCommon(boxes, 'subLabelColor')}
+            onChange={(c) => updateBoxes(ids, { subLabelColor: c })}
+            defaultLabel="既定 (#555)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>背景色</label>
+          <ColorPicker
+            value={getCommon(boxes, 'subLabelBackgroundColor')}
+            onChange={(c) => updateBoxes(ids, { subLabelBackgroundColor: c })}
+            allowNone
+            defaultLabel="既定 (白半透明)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線色</label>
+          <ColorPicker
+            value={getCommon(boxes, 'subLabelBorderColor')}
+            onChange={(c) => updateBoxes(ids, { subLabelBorderColor: c })}
+            allowNone
+            defaultLabel="既定 (枠なし)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線太さ (px)</label>
+          <input
+            type="number"
+            min={0}
+            max={5}
+            step={0.5}
+            value={getCommon(boxes, 'subLabelBorderWidth') ?? 0}
+            placeholder={getCommon(boxes, 'subLabelBorderWidth') === undefined ? '混在' : ''}
+            onChange={(e) => updateBoxes(ids, { subLabelBorderWidth: Number(e.target.value) })}
+            title="0 = 枠線なし"
+          />
         </div>
       </>}
 
@@ -942,26 +1047,28 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             </div>
             <div className="prop-row">
               <label>文字色</label>
-              <input
-                type="color"
-                value={first.style?.color ?? '#222222'}
-                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, color: e.target.value } })}
+              <ColorPicker
+                value={first.style?.color}
+                onChange={(c) => updateSDSG(first.id, { style: { ...first.style, color: c } })}
+                defaultLabel="既定 (#222)"
               />
             </div>
             <div className="prop-row">
               <label>背景色</label>
-              <input
-                type="color"
-                value={first.style?.backgroundColor ?? '#ffffff'}
-                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, backgroundColor: e.target.value } })}
+              <ColorPicker
+                value={first.style?.backgroundColor}
+                onChange={(c) => updateSDSG(first.id, { style: { ...first.style, backgroundColor: c } })}
+                allowNone
+                defaultLabel="既定 (白)"
               />
             </div>
             <div className="prop-row">
               <label>枠線色</label>
-              <input
-                type="color"
-                value={first.style?.borderColor ?? '#333333'}
-                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, borderColor: e.target.value } })}
+              <ColorPicker
+                value={first.style?.borderColor}
+                onChange={(c) => updateSDSG(first.id, { style: { ...first.style, borderColor: c } })}
+                allowNone
+                defaultLabel="既定 (#333)"
               />
             </div>
             <div className="prop-row">
@@ -1051,6 +1158,44 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                 onChange={(e) => updateSDSG(first.id, { typeLabelAsciiUpright: e.target.checked })}
               />
             </div>
+            <div className="prop-row">
+              <label>文字色</label>
+              <ColorPicker
+                value={first.typeLabelColor}
+                onChange={(c) => updateSDSG(first.id, { typeLabelColor: c })}
+                defaultLabel="既定 (#222)"
+              />
+            </div>
+            <div className="prop-row">
+              <label>背景色</label>
+              <ColorPicker
+                value={first.typeLabelBackgroundColor}
+                onChange={(c) => updateSDSG(first.id, { typeLabelBackgroundColor: c })}
+                allowNone
+                defaultLabel="既定 (透明)"
+              />
+            </div>
+            <div className="prop-row">
+              <label>枠線色</label>
+              <ColorPicker
+                value={first.typeLabelBorderColor}
+                onChange={(c) => updateSDSG(first.id, { typeLabelBorderColor: c })}
+                allowNone
+                defaultLabel="既定 (枠なし)"
+              />
+            </div>
+            <div className="prop-row">
+              <label>枠線太さ (px)</label>
+              <input
+                type="number"
+                min={0}
+                max={5}
+                step={0.5}
+                value={first.typeLabelBorderWidth ?? 0}
+                onChange={(e) => updateSDSG(first.id, { typeLabelBorderWidth: Number(e.target.value) })}
+                title="0 = 枠線なし"
+              />
+            </div>
           </>}
 
           {/* ========== サブラベル ========== */}
@@ -1094,6 +1239,44 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                 type="checkbox"
                 checked={first.subLabelAsciiUpright ?? (first.asciiUpright ?? true)}
                 onChange={(e) => updateSDSG(first.id, { subLabelAsciiUpright: e.target.checked })}
+              />
+            </div>
+            <div className="prop-row">
+              <label>文字色</label>
+              <ColorPicker
+                value={first.subLabelColor}
+                onChange={(c) => updateSDSG(first.id, { subLabelColor: c })}
+                defaultLabel="既定 (#555)"
+              />
+            </div>
+            <div className="prop-row">
+              <label>背景色</label>
+              <ColorPicker
+                value={first.subLabelBackgroundColor}
+                onChange={(c) => updateSDSG(first.id, { subLabelBackgroundColor: c })}
+                allowNone
+                defaultLabel="既定 (白半透明)"
+              />
+            </div>
+            <div className="prop-row">
+              <label>枠線色</label>
+              <ColorPicker
+                value={first.subLabelBorderColor}
+                onChange={(c) => updateSDSG(first.id, { subLabelBorderColor: c })}
+                allowNone
+                defaultLabel="既定 (枠なし)"
+              />
+            </div>
+            <div className="prop-row">
+              <label>枠線太さ (px)</label>
+              <input
+                type="number"
+                min={0}
+                max={5}
+                step={0.5}
+                value={first.subLabelBorderWidth ?? 0}
+                onChange={(e) => updateSDSG(first.id, { subLabelBorderWidth: Number(e.target.value) })}
+                title="0 = 枠線なし"
               />
             </div>
           </>}
@@ -1167,6 +1350,37 @@ function LineProperties({ lines }: { lines: Line[] }) {
           <option value="curve">曲線</option>
         </select>
       </div>
+
+      {(() => {
+        const firstColor = first.style?.color;
+        const commonLineColor = lines.every((l) => l.style?.color === firstColor) ? firstColor : undefined;
+        const firstWidth = first.style?.strokeWidth;
+        const commonWidth = lines.every((l) => l.style?.strokeWidth === firstWidth) ? firstWidth : undefined;
+        return (
+          <>
+            <div className="prop-row">
+              <label>線の色</label>
+              <ColorPicker
+                value={commonLineColor}
+                onChange={(c) => updateLines(ids, { style: { ...first.style, color: c } })}
+                defaultLabel="既定 (#222)"
+              />
+            </div>
+            <div className="prop-row">
+              <label>線の太さ (px)</label>
+              <input
+                type="number"
+                min={0.5}
+                max={6}
+                step={0.5}
+                value={commonWidth ?? 1.5}
+                placeholder={commonWidth === undefined ? '（混在）' : ''}
+                onChange={(e) => updateLines(ids, { style: { ...first.style, strokeWidth: Number(e.target.value) } })}
+              />
+            </div>
+          </>
+        );
+      })()}
 
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>
         角度モード
