@@ -9,6 +9,7 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { InsertBetweenDialog } from './components/InsertBetweenDialog';
 import { PeriodLabelsDialog } from './components/PeriodLabelsDialog';
 import { ExportPreviewDialog } from './components/ExportPreviewDialog';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { PaperReportDialog } from './components/PaperReportDialog';
 import { ResizeDialog } from './components/ResizeDialog';
 import { CSVImportDialog } from './components/CSVImportDialog';
@@ -275,7 +276,24 @@ export default function App() {
       />
       <InsertBetweenDialog open={insertBetweenOpen} onClose={() => setInsertBetweenOpen(false)} />
       <PeriodLabelsDialog open={periodLabelsOpen} onClose={() => setPeriodLabelsOpen(false)} />
-      <ExportPreviewDialog open={exportOpen} onClose={() => setExportOpen(false)} />
+      <ErrorBoundary
+        label="ExportPreviewDialog"
+        resetKey={exportOpen}
+        fallback={(err) => exportOpen ? (
+          <div className="modal-backdrop" onClick={() => setExportOpen(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 560, padding: 16 }}>
+              <h3 style={{ marginTop: 0, color: '#c00' }}>出力プレビューでエラー</h3>
+              <p style={{ fontSize: 13 }}>ダイアログの描画中にエラーが発生しました。console にスタックトレースが出ています。</p>
+              <pre style={{ background: '#f8f8f8', padding: 8, fontSize: 12, whiteSpace: 'pre-wrap' }}>
+                {String(err.message)}
+              </pre>
+              <button className="ribbon-btn-small" onClick={() => setExportOpen(false)}>閉じる</button>
+            </div>
+          </div>
+        ) : null}
+      >
+        <ExportPreviewDialog open={exportOpen} onClose={() => setExportOpen(false)} />
+      </ErrorBoundary>
       <PaperReportDialog open={reportOpen} onClose={() => setReportOpen(false)} />
       <ResizeDialog open={resizeOpen} onClose={() => setResizeOpen(false)} />
       <CSVImportDialog open={csvOpen} onClose={() => setCsvOpen(false)} />
