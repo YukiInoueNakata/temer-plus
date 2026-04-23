@@ -16,7 +16,7 @@ import type {
 import { computeContentBounds } from './fitBounds';
 import { getPaperPx, type PaperSizeKey } from './paperSizes';
 
-export type FitMode = 'manual' | 'fit-width' | 'fit-height' | 'fit-both';
+export type FitMode = 'manual' | 'fit-width' | 'fit-height' | 'fit-both' | 'fit-short';
 
 export interface ExportTransform {
   // フィット制御
@@ -103,6 +103,7 @@ export function computeFitScale(
   paperMarginRatio: number,
   customPaperWidth?: number,
   customPaperHeight?: number,
+  layout?: 'horizontal' | 'vertical',
 ): number {
   if (fitMode === 'manual') return 1; // 呼び出し元で globalScale を使う
   const paper = getPaperPx(paperSize, customPaperWidth, customPaperHeight);
@@ -113,6 +114,11 @@ export function computeFitScale(
   const sy = innerH / Math.max(1, bbox.height);
   if (fitMode === 'fit-width') return sx;
   if (fitMode === 'fit-height') return sy;
+  if (fitMode === 'fit-short') {
+    // 短辺フィット：横型レイアウト→y(短辺)に合わせる、縦型→x(短辺)に合わせる
+    // 長辺方向は pageCount で分割される前提
+    return layout === 'vertical' ? sx : sy;
+  }
   return Math.min(sx, sy); // fit-both
 }
 
@@ -129,7 +135,7 @@ export function applyExportTransform(
 
   // 1) 全体スケール（座標・サイズ）
   const fitScale = bounds
-    ? computeFitScale(bounds, xf.paperSize, xf.fitMode, xf.paperMarginRatio)
+    ? computeFitScale(bounds, xf.paperSize, xf.fitMode, xf.paperMarginRatio, undefined, undefined, doc.settings.layout)
     : 1;
   const effectiveScale = xf.fitMode === 'manual' ? xf.globalScale : fitScale;
 
@@ -353,39 +359,3 @@ function applyProjectAdjust(d: TEMDocument, xf: ExportTransform, effectiveScale:
   );
 }
 
-// ----------------------------------------------------------------------------
-// プリセット
-// ----------------------------------------------------------------------------
-
-export const EXPORT_PRESETS: Record<string, Partial<ExportTransform> & { label: string }> = {
-  default: {
-    label: '既定（変換なし）',
-  },
-  poster_a1: {
-    label: '学会ポスター（A1想定）',
-    fitMode: 'fit-both',
-    paperSize: 'A3-landscape',
-    fontSizeDelta: 4,
-    lineStrokeWidthDelta: 1,
-    boxBorderWidthDelta: 1,
-  },
-  paper_a4: {
-    label: '論文用（A4横）',
-    fitMode: 'fit-both',
-    paperSize: 'A4-landscape',
-    fontSizeDelta: 1,
-  },
-  slide_16_9: {
-    label: 'スライド（16:9）',
-    fitMode: 'fit-both',
-    paperSize: '16:9',
-    fontSizeDelta: 2,
-    lineStrokeWidthDelta: 0.5,
-  },
-  compact: {
-    label: '小型印刷',
-    fitMode: 'fit-both',
-    paperSize: 'A4-landscape',
-    fontSizeDelta: -2,
-  },
-};

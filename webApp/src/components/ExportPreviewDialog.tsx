@@ -71,20 +71,38 @@ export function ExportPreviewDialog({
       ...cur,
       pageCount: 1,
       paperSize: layoutDefaultPaperSize,
+      fitMode: 'fit-both',
+      globalScale: 1,
+      offsetX: 0,
+      offsetY: 0,
     }));
     setPreviewPageIndex(0);
   }, [open, layoutDefaultPaperSize]);
 
-  // 単一⇔複数 タブ切替時に pageCount を同期
+  // 単一⇔複数 タブ切替時に pageCount と fitMode を同期
   const switchMode = (mode: 'single' | 'multi') => {
     setExportMode(mode);
     if (mode === 'single') {
-      setXf((cur) => ({ ...cur, pageCount: 1 }));
+      setXf((cur) => ({
+        ...cur,
+        pageCount: 1,
+        fitMode: 'fit-both',
+        globalScale: 1,
+        offsetX: 0,
+        offsetY: 0,
+      }));
       setPreviewPageIndex(0);
     } else {
-      // 複数モード初期値: paperGuides.pageCount、なければ 2
+      // 複数モード初期値: paperGuides.pageCount、なければ 2。fitMode は短辺フィット
       const n = Math.max(2, paperGuidePageCount > 1 ? paperGuidePageCount : 2);
-      setXf((cur) => ({ ...cur, pageCount: n }));
+      setXf((cur) => ({
+        ...cur,
+        pageCount: n,
+        fitMode: 'fit-short',
+        globalScale: 1,
+        offsetX: 0,
+        offsetY: 0,
+      }));
       setPreviewPageIndex(0);
     }
   };
@@ -209,6 +227,28 @@ export function ExportPreviewDialog({
     }
   };
 
+  const runPrint = async () => {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const multi = exportMode === 'multi' && xf.pageCount > 1 ? pageBounds : null;
+      const { printDiagram } = await import('../utils/printing');
+      await printDiagram(PREVIEW_ID, {
+        paperSize: xf.paperSize,
+        background,
+        includeGrid,
+        includePaperGuides,
+        includeRulers: false,
+        pages: multi ?? undefined,
+      });
+    } catch (e) {
+      console.error(e);
+      alert(`印刷の準備に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
@@ -264,8 +304,16 @@ export function ExportPreviewDialog({
                   <option value="fit-both">両方に収める</option>
                   <option value="fit-width">横だけ収める</option>
                   <option value="fit-height">縦だけ収める</option>
+                  <option value="fit-short">短辺だけ収める（複数印刷向け）</option>
                 </select>
               </div>
+              {xf.fitMode === 'fit-short' && (
+                <p className="hint" style={{ marginTop: 0 }}>
+                  {doc.settings.layout === 'horizontal'
+                    ? '横型: 縦方向（短辺）を用紙高さに合わせる。横方向はページ数で分割'
+                    : '縦型: 横方向（短辺）を用紙幅に合わせる。縦方向はページ数で分割'}
+                </p>
+              )}
               {xf.fitMode === 'manual' && (
                 <div className="setting-row">
                   <label>全体倍率</label>
@@ -640,6 +688,15 @@ export function ExportPreviewDialog({
           </div>
           <div>
             {notice && <span style={{ color: '#b36b00', fontSize: '0.82em', marginRight: 8 }}>{notice}</span>}
+            <button
+              className="ribbon-btn-small"
+              onClick={runPrint}
+              disabled={busy}
+              title="プリンターで印刷（新規ウィンドウを開きます）"
+              style={{ marginRight: 8 }}
+            >
+              印刷
+            </button>
             <button className="ribbon-btn-primary" onClick={runExport} disabled={busy}>
               {busy ? '出力中...' : `${format.toUpperCase()} で保存`}
             </button>
