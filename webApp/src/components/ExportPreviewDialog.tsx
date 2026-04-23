@@ -673,40 +673,76 @@ export function ExportPreviewDialog({
             </div>
           </div>
         </div>
-        <div className="modal-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {FORMATS.map((f) => (
-              <button
-                key={f.key}
-                className={format === f.key ? 'settings-tab active' : 'settings-tab'}
-                onClick={() => setFormat(f.key)}
-                style={{ borderBottom: format === f.key ? '2px solid #2684ff' : '2px solid transparent' }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <div>
-            {notice && <span style={{ color: '#b36b00', fontSize: '0.82em', marginRight: 8 }}>{notice}</span>}
+        <div
+          className="modal-footer"
+          style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 14px', flexWrap: 'wrap' }}
+        >
+          {/* 左: 閉じる（破壊的動作から離す） */}
+          <button
+            className="ribbon-btn-small"
+            onClick={onClose}
+            disabled={busy}
+          >
+            閉じる
+          </button>
+
+          {/* 中央: 印刷（紙への出力・グループ A） */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              paddingLeft: 12,
+              borderLeft: '1px solid #d8d8d8',
+            }}
+          >
+            <span style={{ fontSize: '0.78em', color: '#777' }}>紙に出力</span>
             <button
               className="ribbon-btn-small"
               onClick={runPrint}
               disabled={busy}
-              title="プリンターで印刷（新規ウィンドウを開きます）"
-              style={{ marginRight: 8 }}
+              title="プリンターで印刷（新規ウィンドウを開いてブラウザの印刷ダイアログを表示）"
+              style={{ whiteSpace: 'nowrap' }}
             >
-              印刷
+              🖨️ プリンターで印刷
             </button>
-            <button className="ribbon-btn-primary" onClick={runExport} disabled={busy}>
-              {busy ? '出力中...' : `${format.toUpperCase()} で保存`}
-            </button>
+          </div>
+
+          {/* 右: ファイル保存（グループ B）— notice と primary を右端にまとめる */}
+          <div
+            style={{
+              marginLeft: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              paddingLeft: 12,
+              borderLeft: '1px solid #d8d8d8',
+            }}
+          >
+            <span style={{ fontSize: '0.78em', color: '#777' }}>ファイルに保存</span>
+            <div style={{ display: 'flex', gap: 2 }}>
+              {FORMATS.map((f) => (
+                <button
+                  key={f.key}
+                  className={format === f.key ? 'settings-tab active' : 'settings-tab'}
+                  onClick={() => setFormat(f.key)}
+                  style={{
+                    borderBottom: format === f.key ? '2px solid #2684ff' : '2px solid transparent',
+                    padding: '4px 10px',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {notice && <span style={{ color: '#b36b00', fontSize: '0.82em' }}>{notice}</span>}
             <button
-              className="ribbon-btn-small"
-              onClick={onClose}
+              className="ribbon-btn-primary"
+              onClick={runExport}
               disabled={busy}
-              style={{ marginLeft: 8 }}
+              style={{ whiteSpace: 'nowrap' }}
             >
-              閉じる
+              {busy ? '出力中...' : `💾 ${format.toUpperCase()} で保存`}
             </button>
           </div>
         </div>
