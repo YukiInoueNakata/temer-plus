@@ -154,6 +154,19 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
   },
 };
 
+// snapEnabled は localStorage に保存してプロジェクト跨ぎでユーザ好みを維持
+const SNAP_ENABLED_KEY = 'temer:snapEnabled';
+function readSnapEnabled(): boolean {
+  try {
+    const v = localStorage.getItem(SNAP_ENABLED_KEY);
+    if (v === null) return true;
+    return v === '1';
+  } catch { return true; }
+}
+export function writeSnapEnabled(on: boolean): void {
+  try { localStorage.setItem(SNAP_ENABLED_KEY, on ? '1' : '0'); } catch { /* noop */ }
+}
+
 export const DEFAULT_VIEW_STATE: ViewState = {
   zoom: 1,
   panX: 0,
@@ -167,7 +180,7 @@ export const DEFAULT_VIEW_STATE: ViewState = {
   showLeftRuler: true,
   dataSheetVisible: false,
   propertyPanelVisible: true,
-  snapEnabled: true,
+  snapEnabled: readSnapEnabled(),
   commentMode: false,
   canvasMode: 'move',
   dataSheetWidth: 360,

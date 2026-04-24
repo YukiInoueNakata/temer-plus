@@ -21,6 +21,7 @@ import {
   createEmptyDocument,
   createEmptySheet,
   DEFAULT_VIEW_STATE,
+  writeSnapEnabled,
   LEVEL_PX,
   genBoxId,
   genBoxIdByType,
@@ -1753,7 +1754,11 @@ export const useTEMStore = create<Store>()(
       toggleDataSheet: () => set((state) => ({ view: { ...state.view, dataSheetVisible: !state.view.dataSheetVisible } })),
       togglePropertyPanel: () => set((state) => ({ view: { ...state.view, propertyPanelVisible: !state.view.propertyPanelVisible } })),
       toggleGrid: () => set((state) => ({ view: { ...state.view, showGrid: !state.view.showGrid } })),
-      toggleSnap: () => set((state) => ({ view: { ...state.view, snapEnabled: !state.view.snapEnabled } })),
+      toggleSnap: () => set((state) => {
+        const next = !state.view.snapEnabled;
+        writeSnapEnabled(next);
+        return { view: { ...state.view, snapEnabled: next } };
+      }),
       togglePaperGuides: () => set((state) => ({ view: { ...state.view, showPaperGuides: !state.view.showPaperGuides } })),
       toggleCommentMode: () => set((state) => ({ view: { ...state.view, commentMode: !state.view.commentMode } })),
       toggleBoxIds: () => set((state) => ({ view: { ...state.view, showBoxIds: !state.view.showBoxIds } })),

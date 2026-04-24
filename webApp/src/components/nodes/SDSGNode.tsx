@@ -103,6 +103,8 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const triRatio = 1 - rectRatio;
 
   let points: string;
+  // 文字は矩形部分にだけ配置（三角部分に被らない）
+  let textRect = { top: 0, left: 0, width, height };
   if (isHorizontalLayout) {
     // 横型: 矩形上側、三角が上下いずれかに出る
     // SD 下向き: 矩形上 + 三角下、rectRatio = 矩形高さ / 全高
@@ -110,9 +112,11 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
     if (isSD) {
       const rectBottom = height * rectRatio;
       points = `0,0 ${width},0 ${width},${rectBottom} ${width / 2},${height} 0,${rectBottom}`;
+      textRect = { top: 0, left: 0, width, height: rectBottom };
     } else {
       const rectTop = height * triRatio;
       points = `${width / 2},0 ${width},${rectTop} ${width},${height} 0,${height} 0,${rectTop}`;
+      textRect = { top: rectTop, left: 0, width, height: height - rectTop };
     }
   } else {
     // 縦型: 矩形左右、三角が左右に出る
@@ -121,9 +125,11 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
     if (isSD) {
       const rectLeft = width * triRatio;
       points = `${rectLeft},0 ${width},0 ${width},${height} ${rectLeft},${height} 0,${height / 2}`;
+      textRect = { top: 0, left: rectLeft, width: width - rectLeft, height };
     } else {
       const rectRight = width * rectRatio;
       points = `0,0 ${rectRight},0 ${width},${height / 2} ${rectRight},${height} 0,${height}`;
+      textRect = { top: 0, left: 0, width: rectRight, height };
     }
   }
 
@@ -298,10 +304,10 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
+            top: textRect.top,
+            left: textRect.left,
+            width: textRect.width,
+            height: textRect.height,
             border: 'none',
             outline: 'none',
             resize: 'none',
@@ -330,10 +336,10 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
             <div
               style={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
+                top: textRect.top,
+                left: textRect.left,
+                width: textRect.width,
+                height: textRect.height,
                 display: 'grid',
                 justifyItems: xAlign,
                 alignItems: yAlign,

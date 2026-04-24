@@ -975,12 +975,24 @@ function drawSDSGs(
       line: { color: borderColor, width: 1.5 },
       rotate,
     });
-    // ラベル (本体): 中央
+    // ラベル (本体): 矩形部分に限定配置（三角部分に被らない）
+    const sgRectRatio = Math.max(0.05, Math.min(0.95, sg.rectRatio ?? 0.55));
+    const sgTriRatio = 1 - sgRectRatio;
+    // H SD: text rect = top portion、H SG: bottom portion
+    // V SD: text rect = right portion、V SG: left portion
+    let tx2 = wx, ty2 = wy, tw2 = w, th2 = h;
+    if (isH) {
+      if (isSD) { th2 = h * sgRectRatio; }
+      else      { ty2 = wy + h * sgTriRatio; th2 = h * sgRectRatio; }
+    } else {
+      if (isSD) { tx2 = wx + w * sgTriRatio; tw2 = w * sgRectRatio; }
+      else      { tw2 = w * sgRectRatio; }
+    }
     slide.addText(sg.label, {
-      x: t.toX(wx),
-      y: t.toY(wy),
-      w: t.toLen(w),
-      h: t.toLen(h),
+      x: t.toX(tx2),
+      y: t.toY(ty2),
+      w: t.toLen(tw2),
+      h: t.toLen(th2),
       align: 'center',
       valign: 'middle',
       fontSize: fontSizeScaled(sg.style?.fontSize ?? 11, t),
