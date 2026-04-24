@@ -49,6 +49,7 @@ import {
   type Pt as LinePathPt,
 } from './linePath';
 import { checkAborted, type ProgressCallback } from './exportProgress';
+import { resolveAttachedAnchor, anchorCenter } from './sdsgAttach';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -1112,6 +1113,10 @@ function drawSDSGs(
 ) {
   const isH = layout === 'horizontal';
 
+  // O(1) lookup: SDSG attach の解決に使う
+  const boxById = new Map(sheet.boxes.map((bx) => [bx.id, bx]));
+  const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
+
   // band モード事前計算（PPTX と同ロジック）
   const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
   sheet.sdsg.forEach((sg) => {
@@ -1119,8 +1124,8 @@ function drawSDSGs(
     if (!bk) return;
     let tS: number, tE: number;
     if (sg.anchorMode === 'between' && sg.attachedTo2) {
-      const a = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
-      const bx2 = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+      const a = boxById.get(sg.attachedTo);
+      const bx2 = boxById.get(sg.attachedTo2);
       if (!a || !bx2) return;
       const mode = sg.betweenMode ?? 'edge-to-edge';
       const aT = isH ? a.x : a.y; const bT = isH ? bx2.x : bx2.y;
@@ -1130,7 +1135,7 @@ function drawSDSGs(
       if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
       else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
     } else {
-      const attached = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
+      const attached = boxById.get(sg.attachedTo);
       if (!attached) return;
       const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
       const w0 = sg.spaceWidth ?? sg.width ?? 70;
@@ -1166,8 +1171,8 @@ function drawSDSGs(
       const autoFlip = settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
       flipDirection = autoFlip && ((bk === 'top' && sg.type === 'SG') || (bk === 'bottom' && sg.type === 'SD'));
     } else if (sg.anchorMode === 'between' && sg.attachedTo2) {
-      const boxA = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
-      const boxB = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+      const boxA = boxById.get(sg.attachedTo);
+      const boxB = boxById.get(sg.attachedTo2);
       if (!boxA || !boxB) continue;
       const mode = sg.betweenMode ?? 'edge-to-edge';
       let startPos: number, endPos: number;
@@ -1194,22 +1199,9 @@ function drawSDSGs(
       wx = anchorX - w / 2 + (isH ? (sg.timeOffset ?? 0) : (sg.itemOffset ?? 0));
       wy = anchorY - h / 2 + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
     } else {
-      let anchorX = 0, anchorY = 0;
-      const attBox = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
-      if (attBox) {
-        anchorX = attBox.x + attBox.width / 2;
-        anchorY = attBox.y + attBox.height / 2;
-      } else {
-        const attLine = sheet.lines.find((l) => l.id === sg.attachedTo);
-        if (attLine) {
-          const fb = sheet.boxes.find((bx) => bx.id === attLine.from);
-          const tb = sheet.boxes.find((bx) => bx.id === attLine.to);
-          if (fb && tb) {
-            anchorX = (fb.x + fb.width / 2 + tb.x + tb.width / 2) / 2;
-            anchorY = (fb.y + fb.height / 2 + tb.y + tb.height / 2) / 2;
-          } else { continue; }
-        } else { continue; }
-      }
+      const anchor = resolveAttachedAnchor(sg, boxById, lineById);
+      if (!anchor) continue;
+      const { x: anchorX, y: anchorY } = anchorCenter(anchor);
       const timeOff = sg.timeOffset ?? 0;
       const itemOff = sg.itemOffset ?? 0;
       w = sg.width ?? 70;

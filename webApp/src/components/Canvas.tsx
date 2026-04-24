@@ -36,6 +36,7 @@ import {
   computeBandRowAssignments,
   computeSDSGBandPosition,
 } from '../utils/sdsgSpaceLayout';
+import { resolveAttachedAnchor, anchorCenter } from '../utils/sdsgAttach';
 import { useTEMView } from '../context/TEMViewContext';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
@@ -216,6 +217,8 @@ function CanvasInner({
     if (!sheet) return [];
     const selSdsgIds = new Set(storeSdsgIds);
     const isH = layout === 'horizontal';
+    const boxById = new Map(sheet.boxes.map((b) => [b.id, b]));
+    const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
 
     // --- band モードの事前計算: 帯の位置 + row 割り当て ---
     // 1st pass: row 割り当てだけ先に行うため、仮の band layout を計算
@@ -229,8 +232,8 @@ function CanvasInner({
       let timeStart: number;
       let timeEnd: number;
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
-        const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+        const a = boxById.get(sg.attachedTo);
+        const b = boxById.get(sg.attachedTo2);
         if (!a || !b) return;
         const mode = sg.betweenMode ?? 'edge-to-edge';
         const aT = isH ? a.x : a.y;
@@ -247,7 +250,7 @@ function CanvasInner({
           timeEnd = right.t + right.sz / 2;
         }
       } else {
-        const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        const attached = boxById.get(sg.attachedTo);
         if (!attached) return;
         const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
         // time 軸方向のサイズ: 横型 = spaceWidth / 縦型 = spaceHeight
@@ -340,8 +343,8 @@ function CanvasInner({
 
       // between モード: 2 つの Box の間に配置
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const boxA = sheet.boxes.find((b) => b.id === sg.attachedTo);
-        const boxB = sheet.boxes.find((b) => b.id === sg.attachedTo2);
+        const boxA = boxById.get(sg.attachedTo);
+        const boxB = boxById.get(sg.attachedTo2);
         if (!boxA || !boxB) return null;
         // Time 軸（layout により x/y）で先頭/末尾を自動判定
         const betweenMode = sg.betweenMode ?? 'edge-to-edge';
@@ -423,27 +426,9 @@ function CanvasInner({
       }
 
       // single モード（既定）: 既存ロジック
-      let anchorX = 0;
-      let anchorY = 0;
-      const attachedBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
-      if (attachedBox) {
-        anchorX = attachedBox.x + attachedBox.width / 2;
-        anchorY = attachedBox.y + attachedBox.height / 2;
-      } else {
-        const attachedLine = sheet.lines.find((l) => l.id === sg.attachedTo);
-        if (attachedLine) {
-          const fromBox = sheet.boxes.find((b) => b.id === attachedLine.from);
-          const toBox = sheet.boxes.find((b) => b.id === attachedLine.to);
-          if (fromBox && toBox) {
-            anchorX = (fromBox.x + fromBox.width / 2 + toBox.x + toBox.width / 2) / 2;
-            anchorY = (fromBox.y + fromBox.height / 2 + toBox.y + toBox.height / 2) / 2;
-          } else {
-            return null;
-          }
-        } else {
-          return null;
-        }
-      }
+      const anchor = resolveAttachedAnchor(sg, boxById, lineById);
+      if (!anchor) return null;
+      const { x: anchorX, y: anchorY } = anchorCenter(anchor);
       const w = sg.width ?? 70;
       const h = sg.height ?? 40;
       const x = anchorX - w / 2 + (isH ? timeOff : itemOff);

@@ -31,6 +31,7 @@ import { PeriodLabelsOverlay } from './PeriodLabelsOverlay';
 import { TimeArrowOverlay } from './Canvas';
 import { TEMViewContext, type TEMViewContextValue } from '../context/TEMViewContext';
 import { getPaperPx, type PaperSizeKey } from '../utils/paperSizes';
+import { resolveAttachedAnchor, anchorCenter } from '../utils/sdsgAttach';
 import { MINOR_TICK_PX } from '../store/defaults';
 import type { PageBounds } from '../utils/pageSplit';
 import { useStore as useReactFlowStore } from 'reactflow';
@@ -165,14 +166,16 @@ function Inner({
     }));
 
     // band / between モードも考慮した SDSG レンダリング（Canvas.tsx と同じ計算を使用）
+    const boxById = new Map(sheet.boxes.map((b) => [b.id, b]));
+    const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
     const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
     sheet.sdsg.forEach((sg) => {
       const bk = sdsgBandKey(sg);
       if (!bk) return;
       let timeStart: number, timeEnd: number;
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
-        const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+        const a = boxById.get(sg.attachedTo);
+        const b = boxById.get(sg.attachedTo2);
         if (!a || !b) return;
         const mode = sg.betweenMode ?? 'edge-to-edge';
         const aT = isH ? a.x : a.y;
@@ -184,7 +187,7 @@ function Inner({
         if (mode === 'edge-to-edge') { timeStart = left.t + left.sz; timeEnd = right.t; }
         else { timeStart = left.t + left.sz / 2; timeEnd = right.t + right.sz / 2; }
       } else {
-        const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        const attached = boxById.get(sg.attachedTo);
         if (!attached) return;
         const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
         const w0 = sg.spaceWidth ?? sg.width ?? 70;
@@ -233,8 +236,8 @@ function Inner({
         } else { return null as unknown as Node<SDSGNodeData>; }
       } else if (sg.anchorMode === 'between' && sg.attachedTo2) {
         // between モード
-        const boxA = sheet.boxes.find((b) => b.id === sg.attachedTo);
-        const boxB = sheet.boxes.find((b) => b.id === sg.attachedTo2);
+        const boxA = boxById.get(sg.attachedTo);
+        const boxB = boxById.get(sg.attachedTo2);
         if (!boxA || !boxB) return null as unknown as Node<SDSGNodeData>;
         const mode = sg.betweenMode ?? 'edge-to-edge';
         let startPos: number, endPos: number;
@@ -262,22 +265,8 @@ function Inner({
         y = anchorY - h / 2 + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
       } else {
         // single モード（既存）
-        const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
-        let anchorX = 0, anchorY = 0;
-        if (attached) {
-          anchorX = attached.x + attached.width / 2;
-          anchorY = attached.y + attached.height / 2;
-        } else {
-          const line = sheet.lines.find((l) => l.id === sg.attachedTo);
-          if (line) {
-            const fb = sheet.boxes.find((b) => b.id === line.from);
-            const tb = sheet.boxes.find((b) => b.id === line.to);
-            if (fb && tb) {
-              anchorX = (fb.x + fb.width / 2 + tb.x + tb.width / 2) / 2;
-              anchorY = (fb.y + fb.height / 2 + tb.y + tb.height / 2) / 2;
-            }
-          }
-        }
+        const anchor = resolveAttachedAnchor(sg, boxById, lineById);
+        const { x: anchorX, y: anchorY } = anchor ? anchorCenter(anchor) : { x: 0, y: 0 };
         w = sg.width ?? 70;
         h = sg.height ?? 40;
         const to = sg.timeOffset ?? 0;

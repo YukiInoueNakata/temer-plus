@@ -170,6 +170,12 @@ export interface SDSG {
   type: SDSGType;
   label: string;
   attachedTo: string;                  // Box or Line ID
+  /**
+   * attachedTo が Box を指すか Line を指すかの明示フラグ。
+   * 未指定時は実行時に両コレクションを走査するフォールバックを取るが、
+   * 新規作成とファイル読込の migration で常にセットされる。
+   */
+  attachedType?: 'box' | 'line';
   // 2 アイテム間に配置するモード用: 2 つ目の Box ID
   attachedTo2?: string;
   // アンカー方式: 'single' = attachedTo のみ / 'between' = attachedTo と attachedTo2 の間

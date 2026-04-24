@@ -130,6 +130,15 @@ function validateAndParse(text: string): TEMDocument {
       delete sh.annotations;
     }
     if (sh && !Array.isArray(sh.notes)) sh.notes = [];
+    // SDSG.attachedType が未設定のものを補完 (旧ファイル互換)
+    if (sh && Array.isArray(sh.sdsg) && Array.isArray(sh.boxes) && Array.isArray(sh.lines)) {
+      const boxIds = new Set<string>(sh.boxes.map((b: { id: string }) => b.id));
+      for (const sg of sh.sdsg) {
+        if (sg && !sg.attachedType && typeof sg.attachedTo === 'string') {
+          sg.attachedType = boxIds.has(sg.attachedTo) ? 'box' : 'line';
+        }
+      }
+    }
   }
   return data as TEMDocument;
 }

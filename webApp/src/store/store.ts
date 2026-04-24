@@ -931,17 +931,21 @@ export const useTEMStore = create<Store>()(
             const layout = st.doc.settings.layout;
             const sdItemOff = layout === 'horizontal' ? -80 : 80;
             const sgItemOff = -sdItemOff;
+            // attachedType を推定（明示指定があればそれを使用）
+            const attachedType: 'box' | 'line' = partial.attachedType
+              ?? (sh.boxes.some((b) => b.id === partial.attachedTo) ? 'box' : 'line');
             const defaults: SDSG = {
               id,
               type: partial.type,
               label: partial.type,
               attachedTo: partial.attachedTo,
+              attachedType,
               itemOffset: partial.type === 'SD' ? sdItemOff : sgItemOff,
               timeOffset: 0,
               width: 70,
               height: 40,
             };
-            sh.sdsg.push({ ...defaults, ...partial, id });
+            sh.sdsg.push({ ...defaults, ...partial, id, attachedType });
           }),
           // addBox と同様に、挿入した SDSG を自動選択状態に
           selection: {
