@@ -146,6 +146,9 @@ function BoxTable() {
   const levelStep = useTEMStore((s) => s.doc.settings.levelStep);
   const selectedBoxIds = useTEMStore((s) => s.selection.boxIds);
   const setSelection = useTEMStore((s) => s.setSelection);
+  const pasteAtStore = useTEMStore((s) => s.pasteFromClipboardAt);
+  const getClipboardInfo = useTEMStore((s) => s.getClipboardInfo);
+  const clipboardBoxCount = getClipboardInfo().boxCount;
   const [sortField, setSortField] = useState<SortField>('timeLevel');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState('');
@@ -296,6 +299,14 @@ function BoxTable() {
             </tr>
           </thead>
           <tbody>
+            <InsertSlot
+              kind="box"
+              index={0}
+              disabled={clipboardBoxCount === 0}
+              pasteCount={clipboardBoxCount}
+              onPaste={() => pasteAtStore('box', 0)}
+              colSpan={7}
+            />
             {sortedBoxes.map((b, idx) => (
               <>
                 <tr key={b.id} className={selectedBoxIds.includes(b.id) ? 'row-selected' : ''}>
@@ -360,6 +371,17 @@ function BoxTable() {
                     />
                   </td>
                   <td>
+                    <button
+                      className="row-btn"
+                      onClick={() => {
+                        if (!sheet) return;
+                        const sheetIdx = sheet.boxes.findIndex((x) => x.id === b.id);
+                        if (sheetIdx >= 0) pasteAtStore('box', sheetIdx + 1);
+                      }}
+                      disabled={clipboardBoxCount === 0}
+                      title={clipboardBoxCount > 0 ? `この下にクリップボードを挿入（${clipboardBoxCount} 行）` : 'クリップボード空'}
+                      style={{ opacity: clipboardBoxCount > 0 ? 1 : 0.35 }}
+                    >⬇</button>
                     <button className="row-btn danger" onClick={() => removeBoxes([b.id])} title="削除">×</button>
                   </td>
                 </tr>
@@ -381,6 +403,14 @@ function BoxTable() {
                 {filter ? '該当するBoxがありません' : 'Boxがありません。下の「+追加」で作成'}
               </td></tr>
             )}
+            <InsertSlot
+              kind="box"
+              index={sheet?.boxes.length ?? 0}
+              disabled={clipboardBoxCount === 0}
+              pasteCount={clipboardBoxCount}
+              onPaste={() => pasteAtStore('box', sheet?.boxes.length ?? 0)}
+              colSpan={7}
+            />
           </tbody>
         </table>
       </div>
@@ -481,26 +511,187 @@ function LineTable() {
 
 function SDSGTable() {
   const sheet = useActiveSheet();
+  const selection = useTEMStore((s) => s.selection);
+  const addSDSG = useTEMStore((s) => s.addSDSG);
+  const updateSDSG = useTEMStore((s) => s.updateSDSG);
+  const removeSDSG = useTEMStore((s) => s.removeSDSG);
+  const pasteAt = useTEMStore((s) => s.pasteFromClipboardAt);
+  const clipboardInfo = useTEMStore((s) => s.getClipboardInfo?.());
   if (!sheet) return null;
 
+  const clipboardSDSGCount = clipboardInfo?.sdsgCount ?? 0;
+  const canPaste = clipboardSDSGCount > 0;
+
+  // 追加ボタン: 選択中 Line あれば Line、なければ最後の Box
+  const resolveAttachTarget = (): string | null => {
+    if (selection.lineIds.length > 0) return selection.lineIds[0];
+    const boxes = sheet.boxes;
+    if (boxes.length === 0) return null;
+    return boxes[boxes.length - 1].id;
+  };
+  const addOne = (type: 'SD' | 'SG') => {
+    const target = resolveAttachTarget();
+    if (!target) { alert('先に Box を 1 つ以上作成してください'); return; }
+    addSDSG({ type, attachedTo: target });
+  };
+
   return (
-    <table className="data-table">
-      <thead>
-        <tr><th>ID</th><th>種別</th><th>ラベル</th><th>対象</th></tr>
-      </thead>
-      <tbody>
-        {sheet.sdsg.map((s) => (
-          <tr key={s.id}>
-            <td><code>{s.id.slice(0, 10)}</code></td>
-            <td>{s.type}</td>
-            <td>{s.label}</td>
-            <td><code>{s.attachedTo.slice(0, 10)}</code></td>
+    <div>
+      <div style={{ display: 'flex', gap: 6, padding: '6px 10px', borderBottom: '1px solid #e0e0e0' }}>
+        <button className="ribbon-btn-small" onClick={() => addOne('SD')} disabled={sheet.boxes.length === 0}>+ SD 追加</button>
+        <button className="ribbon-btn-small" onClick={() => addOne('SG')} disabled={sheet.boxes.length === 0}>+ SG 追加</button>
+        <span style={{ fontSize: '0.82em', color: '#888', alignSelf: 'center', marginLeft: 8 }}>
+          {selection.lineIds.length > 0
+            ? `→ Line ${selection.lineIds[0]} に紐づけ`
+            : sheet.boxes.length > 0
+              ? `→ 最後の Box ${sheet.boxes[sheet.boxes.length - 1].id} に紐づけ`
+              : '→ Box がありません'}
+        </span>
+      </div>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>種別</th><th>ラベル</th><th>対象</th><th style={{ width: 30 }}></th>
           </tr>
-        ))}
-        {sheet.sdsg.length === 0 && (
-          <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888', padding: 20 }}>SD/SGは次のPhaseで追加機能を実装</td></tr>
-        )}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <InsertSlot
+            kind="sdsg"
+            index={0}
+            disabled={!canPaste}
+            pasteCount={clipboardSDSGCount}
+            onPaste={() => pasteAt('sdsg', 0)}
+            colSpan={5}
+          />
+          {sheet.sdsg.map((s, idx) => (
+            <tr key={s.id} className="data-row">
+              <td><code style={{ fontSize: '0.82em' }}>{s.id}</code></td>
+              <td>{s.type}</td>
+              <td>
+                <textarea
+                  value={s.label}
+                  onChange={(e) => updateSDSG(s.id, { label: e.target.value })}
+                  rows={1}
+                  style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: '0.9em', minHeight: 22 }}
+                />
+              </td>
+              <td>
+                <select
+                  value={s.attachedTo}
+                  onChange={(e) => updateSDSG(s.id, { attachedTo: e.target.value })}
+                  style={{ fontFamily: 'monospace', fontSize: '0.82em' }}
+                >
+                  {!sheet.boxes.some((b) => b.id === s.attachedTo)
+                    && !sheet.lines.some((l) => l.id === s.attachedTo) && (
+                    <option value={s.attachedTo}>（現: {s.attachedTo}）</option>
+                  )}
+                  <optgroup label="Box">
+                    {sheet.boxes.map((b) => (
+                      <option key={b.id} value={b.id}>Box: {b.id}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Line">
+                    {sheet.lines.map((l) => (
+                      <option key={l.id} value={l.id}>Line: {l.id}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </td>
+              <td style={{ position: 'relative' }}>
+                <RowHoverButtons
+                  canPaste={canPaste}
+                  pasteCount={clipboardSDSGCount}
+                  onPaste={() => pasteAt('sdsg', idx + 1)}
+                  onDelete={() => removeSDSG(s.id)}
+                />
+              </td>
+            </tr>
+          ))}
+          <InsertSlot
+            kind="sdsg"
+            index={sheet.sdsg.length}
+            disabled={!canPaste}
+            pasteCount={clipboardSDSGCount}
+            onPaste={() => pasteAt('sdsg', sheet.sdsg.length)}
+            colSpan={5}
+          />
+          {sheet.sdsg.length === 0 && (
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#888', padding: 20 }}>
+              SD/SG はまだありません。上のボタンから追加できます。
+            </td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ============================================================================
+// 挿入スロット / 行ホバーボタン
+// ============================================================================
+
+function InsertSlot(props: {
+  kind: 'box' | 'sdsg';
+  index: number;
+  disabled: boolean;
+  pasteCount: number;
+  onPaste: () => void;
+  colSpan: number;
+}) {
+  void props.kind; void props.index;
+  return (
+    <tr>
+      <td colSpan={props.colSpan} style={{ padding: 0 }}>
+        <button
+          onClick={props.onPaste}
+          disabled={props.disabled}
+          style={{
+            width: '100%',
+            height: 24,
+            border: '1px dashed #b0b8c8',
+            background: props.disabled ? '#f6f6f6' : '#fafcff',
+            opacity: props.disabled ? 0.4 : 1,
+            cursor: props.disabled ? 'not-allowed' : 'pointer',
+            fontSize: '0.8em',
+            color: '#567',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            transition: 'background-color 0.15s',
+          }}
+          onMouseEnter={(e) => { if (!props.disabled) e.currentTarget.style.background = '#e8f0ff'; }}
+          onMouseLeave={(e) => { if (!props.disabled) e.currentTarget.style.background = '#fafcff'; }}
+          title={props.disabled ? 'クリップボードに貼り付け可能な要素がありません' : `ここにクリップボードを挿入（${props.pasteCount} 行）`}
+        >
+          ＋ クリップボードをここに挿入 {props.pasteCount > 0 ? `(${props.pasteCount} 行)` : ''}
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function RowHoverButtons(props: {
+  canPaste: boolean;
+  pasteCount: number;
+  onPaste: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <div className="row-hover-buttons" style={{ display: 'inline-flex', gap: 2 }}>
+      <button
+        onClick={props.onPaste}
+        disabled={!props.canPaste}
+        style={{
+          width: 24, height: 22, padding: 0,
+          border: '1px solid #bbb', borderRadius: 3,
+          background: '#fff',
+          opacity: props.canPaste ? 1 : 0.35,
+          cursor: props.canPaste ? 'pointer' : 'not-allowed',
+          fontSize: 12,
+        }}
+        title={props.canPaste ? `この下にクリップボードを挿入（${props.pasteCount} 行）` : 'クリップボード空'}
+      >⬇</button>
+    </div>
   );
 }

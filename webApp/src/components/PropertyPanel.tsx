@@ -777,9 +777,73 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               </select>
             </div>
             <div className="prop-row">
-              <label>紐付け対象ID</label>
-              <input value={first.attachedTo} readOnly style={{ fontFamily: 'monospace', fontSize: '0.85em' }} />
+              <label>紐付け対象 (attachedTo)</label>
+              {sheet ? (
+                <select
+                  value={first.attachedTo}
+                  onChange={(e) => updateSDSG(first.id, { attachedTo: e.target.value })}
+                  style={{ fontFamily: 'monospace', fontSize: '0.85em' }}
+                >
+                  {/* 現在値が Box / Line どちらにも無い場合の救済 */}
+                  {!sheet.boxes.some((b) => b.id === first.attachedTo)
+                    && !sheet.lines.some((l) => l.id === first.attachedTo) && (
+                    <option value={first.attachedTo}>（現: {first.attachedTo}）</option>
+                  )}
+                  <optgroup label="Box">
+                    {sheet.boxes.map((b) => (
+                      <option key={b.id} value={b.id}>Box: {b.id} — {b.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Line">
+                    {sheet.lines.map((l) => (
+                      <option key={l.id} value={l.id}>Line: {l.id}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              ) : null}
             </div>
+
+            {/* アンカー方式（band/attached どちらでも表示。band + between も可） */}
+            <div className="prop-row">
+              <label>アンカー方式</label>
+              <select
+                value={first.anchorMode ?? 'single'}
+                onChange={(e) => {
+                  const mode = e.target.value as 'single' | 'between';
+                  if (mode === 'between' && !first.attachedTo2) {
+                    alert('between モードには 2 つ目の対象の指定が必要です。下の「2 つ目の対象」で選択してください');
+                  }
+                  updateSDSG(first.id, { anchorMode: mode });
+                }}
+              >
+                <option value="single">single（単一）</option>
+                <option value="between">between（2 アイテム間）</option>
+              </select>
+            </div>
+            {first.anchorMode === 'between' && (
+              <div className="prop-row">
+                <label>2 つ目の対象 (attachedTo2)</label>
+                {sheet ? (
+                  <select
+                    value={first.attachedTo2 ?? ''}
+                    onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
+                    style={{ fontFamily: 'monospace', fontSize: '0.85em' }}
+                  >
+                    <option value="">（未指定）</option>
+                    <optgroup label="Box">
+                      {sheet.boxes.filter((b) => b.id !== first.attachedTo).map((b) => (
+                        <option key={b.id} value={b.id}>Box: {b.id} — {b.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Line">
+                      {sheet.lines.filter((l) => l.id !== first.attachedTo).map((l) => (
+                        <option key={l.id} value={l.id}>Line: {l.id}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                ) : null}
+              </div>
+            )}
 
             {/* 配置方式 */}
             <div className="prop-row">
@@ -891,43 +955,11 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               </>
             )}
 
-            {/* attached モード固有の設定 */}
+            {/* attached モード固有の設定（attachedTo2 / anchorMode は上の共通 UI を使用） */}
             {(first.spaceMode == null || first.spaceMode === 'attached') && (
               <>
-                <div className="prop-row">
-                  <label>アンカー方式</label>
-                  <select
-                    value={first.anchorMode ?? 'single'}
-                    onChange={(e) => {
-                      const mode = e.target.value as 'single' | 'between';
-                      if (mode === 'between' && !first.attachedTo2) {
-                        alert('between モードには 2 つ目の対象 Box の指定が必要です。下の「2 つ目の対象」で選択してください');
-                      }
-                      updateSDSG(first.id, { anchorMode: mode });
-                    }}
-                  >
-                    <option value="single">single（単一 Box / Line に紐付け）</option>
-                    <option value="between">between（2 アイテム間）</option>
-                  </select>
-                </div>
                 {first.anchorMode === 'between' && (
                   <>
-                    <div className="prop-row">
-                      <label>2 つ目の対象</label>
-                      {sheet ? (
-                        <select
-                          value={first.attachedTo2 ?? ''}
-                          onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
-                        >
-                          <option value="">（未指定）</option>
-                          {sheet.boxes
-                            .filter((b) => b.id !== first.attachedTo)
-                            .map((b) => (
-                              <option key={b.id} value={b.id}>{b.id}: {b.label}</option>
-                            ))}
-                        </select>
-                      ) : null}
-                    </div>
                     <div className="prop-row">
                       <label>幅の定義</label>
                       <select

@@ -133,6 +133,8 @@ interface Actions {
   // Cross-sheet clipboard (simple in-memory for now)
   copyToClipboard: () => void;
   pasteFromClipboard: (targetSheetId?: string) => void;
+  pasteFromClipboardAt: (kind: 'box' | 'sdsg', index: number) => void;
+  getClipboardInfo: () => { boxCount: number; lineCount: number; sdsgCount: number };
 
   // Z-order
   bringToFront: (id: string) => void;
@@ -921,6 +923,15 @@ export const useTEMStore = create<Store>()(
             };
             sh.sdsg.push({ ...defaults, ...partial, id });
           }),
+          // addBox と同様に、挿入した SDSG を自動選択状態に
+          selection: {
+            ...st.selection,
+            boxIds: [],
+            lineIds: [],
+            sdsgIds: [id],
+            annotationIds: [],
+            legendSelected: false,
+          },
           dirty: true,
         }));
         return id;
@@ -970,16 +981,14 @@ export const useTEMStore = create<Store>()(
               }
               const prevMode = s.spaceMode ?? 'attached';
               s.spaceMode = mode;
-              // モード切替時は offset をリセット
-              s.timeOffset = 0;
-              s.itemOffset = 0;
-              s.spaceInsetItem = 0;
-              s.spaceInsetTime = 0;
-              // attached → band の切替時は、現在の width/height を
-              // 必ず spaceWidth/spaceHeight に上書きコピー（元サイズの保持）
+              // モード切替時はオフセット類を **保持** する（attached ↔ band 往復時の位置消失を防止）
+              //   timeOffset / itemOffset      … attached モード時のみ読まれる
+              //   spaceInsetTime / spaceInsetItem … band モード時のみ読まれる
+              //   なので各モードでの独立編集履歴が往復で失われない
+              // attached → band 切替時は band 側サイズ未設定なら現 width/height を初期値に移植
               if ((mode === 'band-top' || mode === 'band-bottom') && prevMode === 'attached') {
-                s.spaceWidth = s.width ?? 70;
-                s.spaceHeight = s.height ?? 40;
+                if (s.spaceWidth == null) s.spaceWidth = s.width ?? 70;
+                if (s.spaceHeight == null) s.spaceHeight = s.height ?? 40;
               }
             });
           }),
@@ -1114,6 +1123,37 @@ export const useTEMStore = create<Store>()(
           };
         });
       },
+      // 指定位置挿入: index は「N 番目の前に挿入」（length で末尾後）
+      pasteFromClipboardAt: (kind, index) => {
+        if (!clipboard) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            if (kind === 'box') {
+              const idMap = new Map<string, string>();
+              const newBoxes = clipboard!.boxes.map((b) => {
+                const newId = genBoxIdByType(b.type, [...sheet.boxes.map((x) => x.id), ...idMap.values()]);
+                idMap.set(b.id, newId);
+                return { ...b, id: newId, x: b.x + 20, y: b.y + 20 };
+              });
+              const safeIndex = Math.max(0, Math.min(index, sheet.boxes.length));
+              sheet.boxes.splice(safeIndex, 0, ...newBoxes);
+            } else {
+              const newSDSGs = clipboard!.sdsg.map((s) => {
+                const newId = genSDSGId();
+                return { ...s, id: newId };
+              });
+              const safeIndex = Math.max(0, Math.min(index, sheet.sdsg.length));
+              sheet.sdsg.splice(safeIndex, 0, ...newSDSGs);
+            }
+          }),
+          dirty: true,
+        }));
+      },
+      getClipboardInfo: () => ({
+        boxCount: clipboard?.boxes.length ?? 0,
+        lineCount: clipboard?.lines.length ?? 0,
+        sdsgCount: clipboard?.sdsg.length ?? 0,
+      }),
 
       // --- Z-order (for boxes mainly) ---
       bringToFront: (id) => {

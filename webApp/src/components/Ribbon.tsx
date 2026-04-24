@@ -561,26 +561,27 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
       </RibbonGroup>
       <RibbonGroup title="SD/SG 配置">
         <RibbonButton
-          label="上部(SD)帯へ"
-          icon="↥"
+          label="帯モードへ"
+          icon="☰"
           onClick={() => {
-            const ids = useTEMStore.getState().selection.sdsgIds;
+            const st = useTEMStore.getState();
+            const ids = st.selection.sdsgIds;
             if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
-            if (!confirm('選択した SD/SG を上部(SD)帯に配置します（オフセットはリセット）')) return;
-            useTEMStore.getState().setSDSGSpaceMode(ids, 'band-top');
+            const sheet = st.doc.sheets.find((s) => s.id === st.doc.activeSheetId);
+            if (!sheet) return;
+            // 選択中 SDSG を種別別に分割: SD → band-top, SG → band-bottom
+            const sdIds: string[] = [];
+            const sgIds: string[] = [];
+            sheet.sdsg.forEach((s) => {
+              if (!ids.includes(s.id)) return;
+              if (s.type === 'SD') sdIds.push(s.id);
+              else sgIds.push(s.id);
+            });
+            if (sdIds.length === 0 && sgIds.length === 0) return;
+            if (sdIds.length > 0) st.setSDSGSpaceMode(sdIds, 'band-top');
+            if (sgIds.length > 0) st.setSDSGSpaceMode(sgIds, 'band-bottom');
           }}
-          title="選択中の SD/SG を上部(SD)帯に配置（縦型では右側）"
-        />
-        <RibbonButton
-          label="下部(SG)帯へ"
-          icon="↧"
-          onClick={() => {
-            const ids = useTEMStore.getState().selection.sdsgIds;
-            if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
-            if (!confirm('選択した SD/SG を下部(SG)帯に配置します（オフセットはリセット）')) return;
-            useTEMStore.getState().setSDSGSpaceMode(ids, 'band-bottom');
-          }}
-          title="選択中の SD/SG を下部(SG)帯に配置（縦型では左側）"
+          title="選択中 SD/SG を種別に応じて帯に配置（SD→上部帯 / SG→下部帯、縦型では右/左）"
         />
         <RibbonButton
           label="attached に"
@@ -588,10 +589,9 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
           onClick={() => {
             const ids = useTEMStore.getState().selection.sdsgIds;
             if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
-            if (!confirm('選択した SD/SG を attached モード（Box 追従）に戻します')) return;
             useTEMStore.getState().setSDSGSpaceMode(ids, 'attached');
           }}
-          title="選択中の SD/SG を attached モードに戻す"
+          title="選択中の SD/SG を attached モード（Box 追従）に戻す"
         />
       </RibbonGroup>
       <RibbonGroup title="その他">

@@ -6,7 +6,7 @@
 
 import type { Sheet, PeriodLabelSettings, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings, TypeLabelVisibilityMap } from '../types';
 import { LEVEL_PX } from '../store/defaults';
-import { computeBandOuterCoord } from './sdsgSpaceLayout';
+import { computeBandOuterCoord, resolveBandOuterBounds } from './sdsgSpaceLayout';
 
 export interface PeriodLabelGeometry {
   startX: number;
@@ -70,12 +70,12 @@ export function computePeriodLabels(
     } else {
       xs.push(Math.max(...xs) + LABEL_MARGIN_PX);
     }
-    // SD 帯の実際の外側エッジ
+    // SD 帯の実際の外側エッジ（row 数積み上げを反映した実効位置）
     if (sdsgSpace?.enabled) {
       const sdBand = sdsgSpace.bands.top;
       if (sdBand.reference !== 'period') {
-        const outerCoord = computeBandOuterCoord(sheet, layout, sdBand, 'top', typeLabelVisibility);
-        if (outerCoord != null) {
+        const { topOuter } = resolveBandOuterBounds(sheet, layout, sdsgSpace, typeLabelVisibility);
+        if (topOuter != null) {
           let insetExt = 0;
           sheet.sdsg.forEach((sg) => {
             if (sg.spaceMode !== 'band-top') return;
@@ -84,13 +84,14 @@ export function computePeriodLabels(
           });
           // 高 IL 方向: 横型 ow=-1、縦型 ow=+1
           const ow = isHLocal ? -1 : 1;
-          const finalOuter = outerCoord + ow * insetExt;
+          const finalOuter = topOuter + ow * insetExt;
           if (isHLocal) ys.push(finalOuter - LABEL_MARGIN_PX);
           else xs.push(finalOuter + LABEL_MARGIN_PX);
         }
       }
     }
   }
+  void computeBandOuterCoord;  // 旧関数は他所で参照される可能性があるため import は残す
 
   if (xs.length === 0) return null;
 

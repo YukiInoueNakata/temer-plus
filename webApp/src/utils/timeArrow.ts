@@ -4,7 +4,7 @@
 
 import type { Sheet, TimeArrowSettings, LayoutDirection, SDSGSpaceSettings, TypeLabelVisibilityMap } from '../types';
 import { LEVEL_PX } from '../store/defaults';
-import { computeBandOuterCoord } from './sdsgSpaceLayout';
+import { computeBandOuterCoord, resolveBandOuterBounds } from './sdsgSpaceLayout';
 
 export interface TimeArrowGeometry {
   startX: number;
@@ -75,31 +75,27 @@ export function computeTimeArrow(
     } else {
       xs.push(Math.min(...xs) - LABEL_MARGIN_PX);
     }
-    // SG 帯の実際の外側エッジ（heightMode / spaceInsetItem を反映）
+    // SG 帯の実際の外側エッジ（row 数積み上げを反映した実効位置）
     if (sdsgSpace?.enabled) {
       const sgBand = sdsgSpace.bands.bottom;
-      // reference='timearrow' は自己参照回避のため skip（boxes fallback は helper 内で扱う）
       if (sgBand.reference !== 'timearrow') {
-        const outerCoord = computeBandOuterCoord(sheet, layout, sgBand, 'bottom', typeLabelVisibility);
-        if (outerCoord != null) {
-          // さらに band 内の SDSG が spaceInsetItem で外側にはみ出していたら追加考慮
+        const { bottomOuter } = resolveBandOuterBounds(sheet, layout, sdsgSpace, typeLabelVisibility);
+        if (bottomOuter != null) {
           let insetExt = 0;
           sheet.sdsg.forEach((sg) => {
             if (sg.spaceMode !== 'band-bottom') return;
             const inset = sg.spaceInsetItem ?? 0;
-            // 低 IL 方向 = 横型: 正方向 y / 縦型: 負方向 x。
-            // spaceInsetItem > 0 が outer 方向（band.start→band.end）と一致。
             if (inset > insetExt) insetExt = inset;
           });
-          // 符号: 横型 bottom は ow=+1、縦型 bottom は ow=-1
           const ow = isHLocal ? 1 : -1;
-          const finalOuter = outerCoord + ow * insetExt;
+          const finalOuter = bottomOuter + ow * insetExt;
           if (isHLocal) ys.push(finalOuter + LABEL_MARGIN_PX);
           else xs.push(finalOuter - LABEL_MARGIN_PX);
         }
       }
     }
   }
+  void computeBandOuterCoord;  // 旧関数は他所で参照される可能性があるため import は残す
 
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);

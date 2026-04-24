@@ -267,6 +267,103 @@ export function computeBandOuterCoord(
 }
 
 /**
+ * row 数を含めて帯の実効外端を計算する（積み上げ対応）。
+ * computeBandOuterCoord は 1 row 前提の高さを返すが、こちらは autoExpand で拡張された高さを
+ * row 数倍して、period labels / time arrow が帯を越える位置に描画されるようにする。
+ */
+export function resolveBandOuterBounds(
+  sheet: Sheet,
+  layout: LayoutDirection,
+  sdsgSpace: ProjectSettings['sdsgSpace'] | undefined,
+  typeLabelVisibility?: Record<string, boolean>,
+): { topOuter?: number; bottomOuter?: number } {
+  const space = sdsgSpace;
+  if (!space || !space.enabled) return {};
+  const isH = layout === 'horizontal';
+
+  const collectEntries = (side: 'top' | 'bottom') => {
+    const sgs = sheet.sdsg.filter((sg) =>
+      (side === 'top' && sg.spaceMode === 'band-top') ||
+      (side === 'bottom' && sg.spaceMode === 'band-bottom')
+    );
+    return sgs.map((sg) => {
+      // band 時の時間範囲の概算（詳細は computeBandRowAssignments と整合）
+      let tS = 0, tE = 0;
+      if (sg.anchorMode === 'between' && sg.attachedTo2) {
+        const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+        if (!a || !b) return null;
+        const aT = isH ? a.x : a.y;
+        const bT = isH ? b.x : b.y;
+        const aSize = isH ? a.width : a.height;
+        const bSize = isH ? b.width : b.height;
+        const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
+        const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
+        tS = left.t + left.sz; tE = right.t;
+      } else {
+        const at = sheet.boxes.find((b) => b.id === sg.attachedTo);
+        if (!at) return null;
+        const centerT = isH ? at.x + at.width / 2 : at.y + at.height / 2;
+        const w0 = sg.spaceWidth ?? sg.width ?? 70;
+        tS = centerT - w0 / 2; tE = centerT + w0 / 2;
+      }
+      return { id: sg.id, timeStart: tS, timeEnd: tE, rowOverride: sg.spaceRowOverride };
+    }).filter((e): e is NonNullable<typeof e> => e !== null);
+  };
+
+  const calcOuter = (side: 'top' | 'bottom'): number | undefined => {
+    const band = side === 'top' ? space.bands.top : space.bands.bottom;
+    if (!band.enabled) return undefined;
+    const entries = collectEntries(side);
+    if (entries.length === 0) return undefined;
+
+    // row 数を算出
+    const rows = space.autoArrange
+      ? computeBandRowAssignments(entries)
+      : new Map<string, number>();
+    const totalRows = Math.max(1, ...Array.from(rows.values()).map((v) => v + 1));
+
+    // 単一 row の高さを computeBandOuterCoord と同式で算出し、totalRows 分拡張
+    const ow: 1 | -1 = side === 'top' ? (isH ? -1 : 1) : (isH ? 1 : -1);
+    if (sheet.boxes.length === 0) return undefined;
+    let min = Infinity, max = -Infinity;
+    sheet.boxes.forEach((b) => {
+      const a = isH ? b.y : b.x;
+      const c = isH ? b.y + b.height : b.x + b.width;
+      if (a < min) min = a;
+      if (c > max) max = c;
+    });
+    const boxEdge = ow < 0 ? min : max;
+
+    const TYPE_LABEL_MARGIN = 20;
+    const mode = band.heightMode ?? 'auto';
+    let perRowHeight: number;
+    if (mode === 'auto') {
+      let maxItemSize = 0;
+      entries.forEach((e) => {
+        const sg = sheet.sdsg.find((x) => x.id === e.id);
+        if (!sg) return;
+        const itemSize = isH
+          ? (sg.spaceHeight ?? sg.height ?? 40)
+          : (sg.spaceWidth ?? sg.width ?? 70);
+        const labelVis = typeLabelVisibility?.[sg.type] !== false;
+        const extra = labelVis ? TYPE_LABEL_MARGIN : 0;
+        if (itemSize + extra > maxItemSize) maxItemSize = itemSize + extra;
+      });
+      perRowHeight = Math.max(60, maxItemSize + 10);
+    } else {
+      perRowHeight = (band.heightLevel * LEVEL_PX) / Math.max(1, totalRows);
+    }
+
+    const totalHeight = perRowHeight * totalRows;
+    const offsetPx = band.offsetLevel * LEVEL_PX;
+    return boxEdge + ow * (offsetPx + totalHeight);
+  };
+
+  return { topOuter: calcOuter('top'), bottomOuter: calcOuter('bottom') };
+}
+
+/**
  * 帯内での自動整列: 同じ Time 位置で重なる SDSG を Item 方向に縦積み
  * spaceRowOverride が指定されている SDSG はそれを優先、残りのみ自動割当
  * 返り値: SDSG ID → 帯内での row index（0 から）
