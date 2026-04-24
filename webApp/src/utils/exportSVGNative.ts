@@ -125,7 +125,11 @@ function buildSVGDocuments(opts: SVGNativeExportOptions): string[] {
     const pageBbox = { x: page.innerX, y: page.innerY, width: page.innerWidth, height: page.innerHeight };
     const t = buildTransform(pageBbox, paperW, paperH, false, 0);
     const pageSheet = filterSheetForPage(opts.sheet, page, layout);
-    const svg = renderPage(pageSheet, opts.settings, t, paperW, paperH, opts.background, includeIds);
+    // Line は原シートの全 Box を使って polyline を構築し、pageInnerRect で精密クリップ
+    const svg = renderPage(
+      pageSheet, opts.settings, t, paperW, paperH, opts.background, includeIds,
+      opts.sheet, pageBbox,
+    );
     docs.push(svg);
   }
   return docs;
@@ -139,6 +143,8 @@ function renderPage(
   paperH: number,
   background: 'white' | 'transparent' = 'white',
   includeIds: { box: boolean; sdsg: boolean; line: boolean } = { box: false, sdsg: false, line: false },
+  lineSourceSheet?: Sheet,
+  pageInnerRect?: { x: number; y: number; width: number; height: number },
 ): string {
   const b = new SVGBuilder(paperW, paperH);
   if (background !== 'transparent') {
@@ -146,7 +152,7 @@ function renderPage(
   }
   drawTimeArrow(b, sheet, settings.layout, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
   drawPeriodLabels(b, sheet, settings.layout, settings.periodLabels, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
-  drawLines(b, sheet, settings.layout, t, includeIds.line);
+  drawLines(b, lineSourceSheet ?? sheet, settings.layout, t, includeIds.line, pageInnerRect);
   drawSDSGs(b, sheet, settings.layout, settings, t, includeIds.sdsg);
   drawBoxes(b, sheet, settings.layout, settings, t, includeIds.box);
   drawLegend(b, sheet, settings.layout, settings.legend, t);
@@ -816,7 +822,11 @@ function drawBoxSubLabel(b: SVGBuilder, bx: Box, layout: LayoutDirection, settin
 
 interface Pt { x: number; y: number; }
 
-function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Transform, includeIds = false) {
+function drawLines(
+  b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Transform,
+  includeIds = false,
+  pageInnerRect?: { x: number; y: number; width: number; height: number },
+) {
   const byId = new Map(sheet.boxes.map((bx) => [bx.id, bx]));
   const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
 
@@ -830,6 +840,14 @@ function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Tran
     const color = normalizeColor(l.style?.color, '#222');
     const strokeW = l.style?.strokeWidth ?? 1.5;
     const dashArray = shouldDash ? '6 4' : undefined;
+
+    // === 全形状を polyline 形式に正規化 ===
+    //   curve (Bezier) は pageInnerRect 指定時のみ polyline 化し、さもなくば Bezier のまま描画
+    //   elbow は常に polyline
+    //   straight は [start, end] の 2 点 polyline
+    let polyline: Pt[] = [];
+    let bezierPts: LinePathPt[] | null = null;
+    let elbowMid: Pt | null = null;
 
     if (effectiveShape === 'elbow' || effectiveShape === 'curve') {
       const resolved = resolveLineDirection(l, fromOrig, toOrig, layout);
@@ -847,62 +865,170 @@ function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Tran
         resolved.startMargin,
         resolved.endMargin,
       );
-
-      let midWX: number = 0, midWY: number = 0;
       if (effectiveShape === 'curve' && path.kind === 'curve') {
-        // 三次 Bezier を SVG path で直接描画
-        const [p0, c1, c2, p1] = path.points;
-        const d = `M ${fmt(t.toX(p0.x))},${fmt(t.toY(p0.y))} `
-          + `C ${fmt(t.toX(c1.x))},${fmt(t.toY(c1.y))} `
-          + `${fmt(t.toX(c2.x))},${fmt(t.toY(c2.y))} `
-          + `${fmt(t.toX(p1.x))},${fmt(t.toY(p1.y))}`;
-        (b as unknown as { parts: string[] }).parts.push(
-          `<path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(strokeW)}"` +
-          (dashArray ? ` stroke-dasharray="${dashArray}"` : '') +
-          ` />`,
-        );
-        // 矢印頭: 曲線末端の接線方向 = c2 → p1
-        drawArrowHead(b, t.toX(p1.x), t.toY(p1.y), t.toX(c2.x), t.toY(c2.y), strokeW, color);
-        // 中点: t=0.5
-        const mt = 0.5, mm = 0.5;
-        midWX = mm*mm*mm*p0.x + 3*mm*mm*mt*c1.x + 3*mm*mt*mt*c2.x + mt*mt*mt*p1.x;
-        midWY = mm*mm*mm*p0.y + 3*mm*mm*mt*c1.y + 3*mm*mt*mt*c2.y + mt*mt*mt*p1.y;
+        bezierPts = path.points;
+        polyline = sampleCurveToSegments(path, 24);
+      } else if (path.kind === 'elbow' && path.points.length >= 4) {
+        polyline = path.points;
+        elbowMid = { x: (path.points[1].x + path.points[2].x) / 2, y: (path.points[1].y + path.points[2].y) / 2 };
       } else {
-        // polyline (elbow)
-        const pts: LinePathPt[] = path.kind === 'curve' ? sampleCurveToSegments(path, 14) : path.points;
-        const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${fmt(t.toX(p.x))},${fmt(t.toY(p.y))}`).join(' ');
+        polyline = path.points;
+      }
+    } else {
+      const seg = computeLineSegment(l, byId, layout);
+      if (!seg) continue;
+      polyline = [{ x: seg.sx, y: seg.sy }, { x: seg.ex, y: seg.ey }];
+    }
+
+    // === クリップ分岐 ===
+    if (pageInnerRect) {
+      const pieces = clipPolylineToRect(polyline, pageInnerRect);
+      if (pieces.length === 0) continue;
+      for (const piece of pieces) {
+        if (piece.points.length < 2) continue;
+        const d = piece.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${fmt(t.toX(p.x))},${fmt(t.toY(p.y))}`).join(' ');
         (b as unknown as { parts: string[] }).parts.push(
           `<path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(strokeW)}"` +
           (dashArray ? ` stroke-dasharray="${dashArray}"` : '') +
           ` />`,
         );
-        const last = pts[pts.length - 1];
-        const prev = pts[pts.length - 2] ?? pts[0];
-        drawArrowHead(b, t.toX(last.x), t.toY(last.y), t.toX(prev.x), t.toY(prev.y), strokeW, color);
-        // 中点: elbow なら path.points[1]-[2] の中央、そうでなければ全体中央
-        if (path.kind === 'elbow' && path.points.length >= 4) {
-          midWX = (path.points[1].x + path.points[2].x) / 2;
-          midWY = (path.points[1].y + path.points[2].y) / 2;
-        } else {
-          midWX = (pts[0].x + pts[pts.length - 1].x) / 2;
-          midWY = (pts[0].y + pts[pts.length - 1].y) / 2;
+        if (piece.endsAtOriginalEnd) {
+          const last = piece.points[piece.points.length - 1];
+          const prev = piece.points[piece.points.length - 2];
+          drawArrowHead(b, t.toX(last.x), t.toY(last.y), t.toX(prev.x), t.toY(prev.y), strokeW, color);
+          if (includeIds) {
+            const midIdx = Math.floor(piece.points.length / 2);
+            drawLineIdBadge(b, l, t.toX(piece.points[midIdx].x), t.toY(piece.points[midIdx].y));
+          }
         }
       }
-      if (includeIds) drawLineIdBadge(b, l, t.toX(midWX), t.toY(midWY));
       continue;
     }
 
-    // straight
-    const seg = computeLineSegment(l, byId, layout);
-    if (!seg) continue;
-    b.line(t.toX(seg.sx), t.toY(seg.sy), t.toX(seg.ex), t.toY(seg.ey), {
-      stroke: color, strokeWidth: strokeW, strokeDasharray: dashArray,
-    });
-    drawArrowHead(b, t.toX(seg.ex), t.toY(seg.ey), t.toX(seg.sx), t.toY(seg.sy), strokeW, color);
-    if (includeIds) {
-      drawLineIdBadge(b, l, t.toX((seg.sx + seg.ex) / 2), t.toY((seg.sy + seg.ey) / 2));
+    // === クリップなし: 元の形状を最大限保持して出力 ===
+    if (bezierPts) {
+      const [p0, c1, c2, p1] = bezierPts;
+      const d = `M ${fmt(t.toX(p0.x))},${fmt(t.toY(p0.y))} `
+        + `C ${fmt(t.toX(c1.x))},${fmt(t.toY(c1.y))} `
+        + `${fmt(t.toX(c2.x))},${fmt(t.toY(c2.y))} `
+        + `${fmt(t.toX(p1.x))},${fmt(t.toY(p1.y))}`;
+      (b as unknown as { parts: string[] }).parts.push(
+        `<path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(strokeW)}"` +
+        (dashArray ? ` stroke-dasharray="${dashArray}"` : '') +
+        ` />`,
+      );
+      drawArrowHead(b, t.toX(p1.x), t.toY(p1.y), t.toX(c2.x), t.toY(c2.y), strokeW, color);
+      if (includeIds) {
+        // Bezier t=0.5
+        const mt = 0.5, mm = 0.5;
+        const midWX = mm*mm*mm*p0.x + 3*mm*mm*mt*c1.x + 3*mm*mt*mt*c2.x + mt*mt*mt*p1.x;
+        const midWY = mm*mm*mm*p0.y + 3*mm*mm*mt*c1.y + 3*mm*mt*mt*c2.y + mt*mt*mt*p1.y;
+        drawLineIdBadge(b, l, t.toX(midWX), t.toY(midWY));
+      }
+    } else if (polyline.length >= 2) {
+      const d = polyline.map((p, i) => `${i === 0 ? 'M' : 'L'} ${fmt(t.toX(p.x))},${fmt(t.toY(p.y))}`).join(' ');
+      (b as unknown as { parts: string[] }).parts.push(
+        `<path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(strokeW)}"` +
+        (dashArray ? ` stroke-dasharray="${dashArray}"` : '') +
+        ` />`,
+      );
+      const last = polyline[polyline.length - 1];
+      const prev = polyline[polyline.length - 2];
+      drawArrowHead(b, t.toX(last.x), t.toY(last.y), t.toX(prev.x), t.toY(prev.y), strokeW, color);
+      if (includeIds) {
+        const mid = elbowMid ?? { x: (polyline[0].x + last.x) / 2, y: (polyline[0].y + last.y) / 2 };
+        drawLineIdBadge(b, l, t.toX(mid.x), t.toY(mid.y));
+      }
     }
   }
+}
+
+// ----------------------------------------------------------------------------
+// Liang-Barsky polyline clipper
+// ----------------------------------------------------------------------------
+
+interface ClipSegResult { p0: Pt; p1: Pt; clippedStart: boolean; clippedEnd: boolean; }
+
+function clipSegmentLB(
+  p0: Pt, p1: Pt,
+  rect: { x: number; y: number; width: number; height: number },
+): ClipSegResult | null {
+  const xMin = rect.x, xMax = rect.x + rect.width;
+  const yMin = rect.y, yMax = rect.y + rect.height;
+  const dx = p1.x - p0.x, dy = p1.y - p0.y;
+  const pArr = [-dx, dx, -dy, dy];
+  const qArr = [p0.x - xMin, xMax - p0.x, p0.y - yMin, yMax - p0.y];
+  let tA = 0, tB = 1;
+  for (let i = 0; i < 4; i++) {
+    if (Math.abs(pArr[i]) < 1e-9) {
+      if (qArr[i] < 0) return null;
+      continue;
+    }
+    const r = qArr[i] / pArr[i];
+    if (pArr[i] < 0) {
+      if (r > tB) return null;
+      if (r > tA) tA = r;
+    } else {
+      if (r < tA) return null;
+      if (r < tB) tB = r;
+    }
+  }
+  return {
+    p0: { x: p0.x + tA * dx, y: p0.y + tA * dy },
+    p1: { x: p0.x + tB * dx, y: p0.y + tB * dy },
+    clippedStart: tA > 1e-6,
+    clippedEnd: tB < 1 - 1e-6,
+  };
+}
+
+/**
+ * polyline を rect に精密クリップして、可視区間の連続 polyline を複数返す。
+ * 線が rect を出入りすると複数 piece に分割される。
+ * endsAtOriginalEnd = true は piece の末端が元 polyline の末端と一致していることを示し、
+ * この piece にだけ矢印頭と ID バッジを描く。
+ */
+export function clipPolylineToRect(
+  pts: Pt[],
+  rect: { x: number; y: number; width: number; height: number },
+): Array<{ points: Pt[]; endsAtOriginalEnd: boolean }> {
+  const pieces: Array<{ points: Pt[]; endsAtOriginalEnd: boolean }> = [];
+  if (pts.length < 2) return pieces;
+  const eq = (a: Pt, b: Pt) => Math.abs(a.x - b.x) < 1e-4 && Math.abs(a.y - b.y) < 1e-4;
+  const origEnd = pts[pts.length - 1];
+
+  let buffer: Pt[] = [];
+  const flush = (endsAtOriginalEnd: boolean) => {
+    if (buffer.length >= 2) pieces.push({ points: buffer, endsAtOriginalEnd });
+    buffer = [];
+  };
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const clip = clipSegmentLB(pts[i], pts[i + 1], rect);
+    if (!clip) {
+      flush(false);
+      continue;
+    }
+    if (buffer.length === 0) {
+      buffer.push(clip.p0, clip.p1);
+    } else {
+      const last = buffer[buffer.length - 1];
+      if (eq(last, clip.p0)) {
+        buffer.push(clip.p1);
+      } else {
+        flush(false);
+        buffer = [clip.p0, clip.p1];
+      }
+    }
+    if (clip.clippedEnd) {
+      flush(false);
+    }
+  }
+  // 終端 flush: buffer 最後が元末端と一致していれば endsAtOriginalEnd = true
+  if (buffer.length > 0) {
+    const last = buffer[buffer.length - 1];
+    flush(eq(last, origEnd));
+  }
+  return pieces;
 }
 
 function drawLineIdBadge(b: SVGBuilder, l: Line, cx: number, cy: number) {
