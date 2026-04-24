@@ -393,34 +393,36 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         )}
         {renderNumInput('幅 (px)', commonWidth, (v) => updateBoxes(ids, { width: v }), 20, 1000)}
         {renderNumInput('高さ (px)', commonHeight, (v) => updateBoxes(ids, { height: v }), 20, 1000)}
-        <div className="prop-row">
-          <label>IDバッジ フォントサイズ</label>
-          <input
-            type="number"
-            min={6}
-            max={40}
-            value={getCommon(boxes, 'idFontSize') ?? 10}
-            placeholder={getCommon(boxes, 'idFontSize') === undefined ? '（混在）' : ''}
-            onChange={(e) => updateBoxes(ids, { idFontSize: Number(e.target.value) })}
-          />
-        </div>
-        <div className="prop-row">
-          <label>IDバッジ位置調整 X / Y</label>
-          <div style={{ display: 'flex', gap: 4 }}>
+        <CollapsibleSection title="IDバッジ" sectionKey="box-basic-id-badge" compact defaultOpen={false}>
+          <div className="prop-row">
+            <label>フォントサイズ</label>
             <input
               type="number"
-              value={getCommon(boxes, 'idOffsetX') ?? 0}
-              placeholder={getCommon(boxes, 'idOffsetX') === undefined ? '混在' : ''}
-              onChange={(e) => updateBoxes(ids, { idOffsetX: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              value={getCommon(boxes, 'idOffsetY') ?? 0}
-              placeholder={getCommon(boxes, 'idOffsetY') === undefined ? '混在' : ''}
-              onChange={(e) => updateBoxes(ids, { idOffsetY: Number(e.target.value) })}
+              min={6}
+              max={40}
+              value={getCommon(boxes, 'idFontSize') ?? 10}
+              placeholder={getCommon(boxes, 'idFontSize') === undefined ? '（混在）' : ''}
+              onChange={(e) => updateBoxes(ids, { idFontSize: Number(e.target.value) })}
             />
           </div>
-        </div>
+          <div className="prop-row">
+            <label>位置調整 X / Y</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                type="number"
+                value={getCommon(boxes, 'idOffsetX') ?? 0}
+                placeholder={getCommon(boxes, 'idOffsetX') === undefined ? '混在' : ''}
+                onChange={(e) => updateBoxes(ids, { idOffsetX: Number(e.target.value) })}
+              />
+              <input
+                type="number"
+                value={getCommon(boxes, 'idOffsetY') ?? 0}
+                placeholder={getCommon(boxes, 'idOffsetY') === undefined ? '混在' : ''}
+                onChange={(e) => updateBoxes(ids, { idOffsetY: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+        </CollapsibleSection>
       </>}
 
       {/* ========== ラベル ========== */}
@@ -784,26 +786,27 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             </>
           )}
         </div>
-        <h5 style={{ margin: '14px 0 4px', fontSize: '0.92em', color: '#555' }}>論文レポート用</h5>
-        {!isMulti && (
-          <div className="prop-row" style={{ alignItems: 'flex-start' }}>
-            <label>説明文</label>
-            <textarea
-              value={first.description ?? ''}
-              onChange={(e) => updateBoxes([first.id], { description: e.target.value })}
-              style={{ width: '100%', minHeight: 60, resize: 'vertical' }}
-              placeholder="この Box の意味・解釈（論文レポートに出力）"
+        <CollapsibleSection title="論文レポート用" sectionKey="box-autofit-paper-report" compact defaultOpen={false}>
+          {!isMulti && (
+            <div className="prop-row" style={{ alignItems: 'flex-start' }}>
+              <label>説明文</label>
+              <textarea
+                value={first.description ?? ''}
+                onChange={(e) => updateBoxes([first.id], { description: e.target.value })}
+                style={{ width: '100%', minHeight: 60, resize: 'vertical' }}
+                placeholder="この Box の意味・解釈（論文レポートに出力）"
+              />
+            </div>
+          )}
+          <div className="prop-row">
+            <label>説明不要（自明）</label>
+            <input
+              type="checkbox"
+              checked={getCommon(boxes, 'noDescriptionNeeded') === true}
+              onChange={(e) => updateBoxes(ids, { noDescriptionNeeded: e.target.checked })}
             />
           </div>
-        )}
-        <div className="prop-row">
-          <label>説明不要（自明）</label>
-          <input
-            type="checkbox"
-            checked={getCommon(boxes, 'noDescriptionNeeded') === true}
-            onChange={(e) => updateBoxes(ids, { noDescriptionNeeded: e.target.checked })}
-          />
-        </div>
+        </CollapsibleSection>
       </>}
 
       <div className="prop-row">
@@ -1117,6 +1120,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                     </div>
                   </div>
                 )}
+                <CollapsibleSection title="帯モード詳細" sectionKey="sdsg-basic-band-detail" compact defaultOpen={true}>
                 <div className="prop-row">
                   <label>帯内 Row 指定</label>
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -1195,12 +1199,13 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                     ? '幅=時間軸方向、高さ=アイテム軸方向。attached Box の幅を超える値を設定すれば、前後 Box を跨いだ帯内 SDSG も可能。'
                     : '幅=アイテム軸方向、高さ=時間軸方向。attached Box の高さを超える値を設定すれば、前後 Box を跨いだ帯内 SDSG も可能。'}
                 </p>
+                </CollapsibleSection>
               </>
             )}
 
             {/* attached モード固有の設定（attachedTo2 / anchorMode / betweenMode は上の共通 UI を使用） */}
             {(first.spaceMode == null || first.spaceMode === 'attached') && (
-              <>
+              <CollapsibleSection title="attached モード詳細" sectionKey="sdsg-basic-attached-detail" compact defaultOpen={true}>
                 <div className="prop-row">
                   <label>時間オフセット (px)</label>
                   <input
@@ -1236,7 +1241,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                     onChange={(e) => updateSDSG(first.id, { height: Number(e.target.value) })}
                   />
                 </div>
-              </>
+              </CollapsibleSection>
             )}
 
             <div className="prop-row">
