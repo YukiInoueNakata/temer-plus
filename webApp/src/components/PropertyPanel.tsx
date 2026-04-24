@@ -1149,21 +1149,32 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                   />
                 </div>
                 <div className="prop-row">
-                  <label>幅 (px)</label>
+                  <label>{isH ? '幅 (時間軸, px)' : '幅 (アイテム軸, px)'}</label>
                   <input
                     type="number"
                     value={first.spaceWidth ?? first.width ?? 70}
                     onChange={(e) => updateSDSG(first.id, { spaceWidth: Number(e.target.value) })}
+                    title={isH
+                      ? '時間軸方向の SDSG 幅。attached Box の幅に制約されないので、前後 Box を跨いで広げられる'
+                      : 'アイテム軸方向の SDSG 幅。row span が自動クランプする場合があります (shrinkToFitRow)'}
                   />
                 </div>
                 <div className="prop-row">
-                  <label>高さ (px)</label>
+                  <label>{isH ? '高さ (アイテム軸, px)' : '高さ (時間軸, px)'}</label>
                   <input
                     type="number"
                     value={first.spaceHeight ?? first.height ?? 40}
                     onChange={(e) => updateSDSG(first.id, { spaceHeight: Number(e.target.value) })}
+                    title={isH
+                      ? 'アイテム軸方向の SDSG 高さ。row span が自動クランプする場合があります (shrinkToFitRow)'
+                      : '時間軸方向の SDSG 高さ。attached Box の高さに制約されないので、前後 Box を跨いで広げられる'}
                   />
                 </div>
+                <p className="hint" style={{ margin: '0 0 6px', fontSize: '0.8em', color: '#666' }}>
+                  {isH
+                    ? '幅=時間軸方向、高さ=アイテム軸方向。attached Box の幅を超える値を設定すれば、前後 Box を跨いだ帯内 SDSG も可能。'
+                    : '幅=アイテム軸方向、高さ=時間軸方向。attached Box の高さを超える値を設定すれば、前後 Box を跨いだ帯内 SDSG も可能。'}
+                </p>
               </>
             )}
 
