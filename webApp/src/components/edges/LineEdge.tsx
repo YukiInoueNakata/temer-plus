@@ -64,6 +64,10 @@ export function LineEdge({
   // ドラッグ中のライブプレビュー（pointerup 時に store 反映）
   const [dragCP, setDragCP] = useState<{ cp1?: { x: number; y: number }; cp2?: { x: number; y: number } } | null>(null);
   const draggingHandleRef = useRef<null | 'cp1' | 'cp2'>(null);
+  // 曲線制御点
+  // L字 bend 比率ライブプレビュー
+  const [dragBend, setDragBend] = useState<number | null>(null);
+  const bendDraggingRef = useRef<boolean>(false);
 
   // angle モード / 自動入れ替えには from/to Box 座標が必要。
   // data.fromBoxId / toBoxId を view.sheet から解決
@@ -85,7 +89,7 @@ export function LineEdge({
     endOffsetTime: data?.endOffsetTime,
     startOffsetItem: data?.startOffsetItem,
     endOffsetItem: data?.endOffsetItem,
-    elbowBendRatio: data?.elbowBendRatio,
+    elbowBendRatio: dragBend !== null ? dragBend : data?.elbowBendRatio,
     curveIntensity: data?.curveIntensity,
     // ドラッグ中は cp ライブプレビュー、無ければ永続値
     controlPoints: dragCP && dragCP.cp1 && dragCP.cp2
@@ -120,6 +124,13 @@ export function LineEdge({
       && selected === true
       && path.kind === 'curve'
       && path.points.length === 4;
+    // L字 選択中のみ bend ハンドル描画
+    const showBendHandle =
+      effectiveShape === 'elbow'
+      && !view.isPreview
+      && selected === true
+      && path.kind === 'elbow'
+      && path.points.length === 4;
 
     const startDrag = (which: 'cp1' | 'cp2') => (e: React.PointerEvent) => {
       e.stopPropagation();
@@ -150,6 +161,46 @@ export function LineEdge({
       setDragCP((cur) => {
         if (!cur || !cur.cp1 || !cur.cp2) return null;
         if (updateLine) updateLine(id, { controlPoints: [cur.cp1, cur.cp2] });
+        return null;
+      });
+    };
+
+    // L字 bend ハンドル用
+    const startBendDrag = (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      bendDraggingRef.current = true;
+      const target = e.currentTarget as SVGCircleElement;
+      target.setPointerCapture(e.pointerId);
+    };
+    const onBendDragMove = (e: React.PointerEvent) => {
+      if (!bendDraggingRef.current) return;
+      const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      const snap = view.settings.snap;
+      const snapOn = view.view.snapEnabled && snap?.gridSnap && snap.gridPx > 0;
+      const snappedPos = snapOn
+        ? { x: Math.round(pos.x / snap.gridPx) * snap.gridPx, y: Math.round(pos.y / snap.gridPx) * snap.gridPx }
+        : pos;
+      const p0 = path.points[0];
+      const p3 = path.points[3];
+      let newRatio: number;
+      if (isH) {
+        const range = p3.x - p0.x;
+        newRatio = Math.abs(range) < 1e-3 ? 0.5 : (snappedPos.x - p0.x) / range;
+      } else {
+        const range = p3.y - p0.y;
+        newRatio = Math.abs(range) < 1e-3 ? 0.5 : (snappedPos.y - p0.y) / range;
+      }
+      newRatio = Math.max(0, Math.min(1, newRatio));
+      setDragBend(newRatio);
+    };
+    const endBendDrag = (e: React.PointerEvent) => {
+      if (!bendDraggingRef.current) return;
+      const target = e.currentTarget as SVGCircleElement;
+      try { target.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+      bendDraggingRef.current = false;
+      setDragBend((cur) => {
+        if (cur !== null && updateLine) updateLine(id, { elbowBendRatio: cur });
         return null;
       });
     };
@@ -192,6 +243,23 @@ export function LineEdge({
               onPointerCancel={endDrag}
             >
               <title>cp2 をドラッグで移動</title>
+            </circle>
+          </g>
+        )}
+        {showBendHandle && (
+          <g className="elbow-bend-handle" style={{ pointerEvents: 'all' }}>
+            <circle
+              cx={(path.points[1].x + path.points[2].x) / 2}
+              cy={(path.points[1].y + path.points[2].y) / 2}
+              r={6}
+              fill="#f39c12" stroke="#fff" strokeWidth={2}
+              style={{ cursor: isH ? 'ew-resize' : 'ns-resize' }}
+              onPointerDown={startBendDrag}
+              onPointerMove={onBendDragMove}
+              onPointerUp={endBendDrag}
+              onPointerCancel={endBendDrag}
+            >
+              <title>L字の折れ位置をドラッグで調整（{isH ? '左右' : '上下'}方向）</title>
             </circle>
           </g>
         )}

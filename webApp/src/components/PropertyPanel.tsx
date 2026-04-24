@@ -11,6 +11,7 @@ import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from
 import { RichTextToolbar } from './RichTextToolbar';
 import { LegendSettingsSection } from './SettingsDialog';
 import { ColorPicker } from './ColorPicker';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function PropertyPanel() {
   const visible = useTEMStore((s) => s.view.propertyPanelVisible);
@@ -713,6 +714,9 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
 // ============================================================================
 function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const updateSDSG = useTEMStore((s) => s.updateSDSG);
+  const updateSDSGs = useTEMStore((s) => s.updateSDSGs);
+  const matchSDSGsSize = useTEMStore((s) => s.matchSDSGsSize);
+  const matchSDSGsFontSize = useTEMStore((s) => s.matchSDSGsFontSize);
   const removeSDSG = useTEMStore((s) => s.removeSDSG);
   const setSDSGSpaceMode = useTEMStore((s) => s.setSDSGSpaceMode);
   const sdsgSpace = useTEMStore((s) => s.doc.settings.sdsgSpace);
@@ -720,7 +724,41 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const sheet = useActiveSheet();
   const isMulti = sdsgs.length > 1;
   const first = sdsgs[0];
+  const ids = sdsgs.map((s) => s.id);
   const [tab, setTab] = useState<PropTab>('basic');
+
+  // 複数選択対応用の共通値（ラベル / idLabel / subLabel タブで使用）
+  const commonFont = getCommonStyle(sdsgs as unknown as Box[], 'fontFamily');
+  const commonFS = getCommonStyle(sdsgs as unknown as Box[], 'fontSize');
+  const commonBold = getCommonStyle(sdsgs as unknown as Box[], 'bold');
+  const commonItalic = getCommonStyle(sdsgs as unknown as Box[], 'italic');
+  const commonUnderline = getCommonStyle(sdsgs as unknown as Box[], 'underline');
+  const commonTextColor = getCommonStyle(sdsgs as unknown as Box[], 'color');
+  const commonBg = getCommonStyle(sdsgs as unknown as Box[], 'backgroundColor');
+  const commonBorder = getCommonStyle(sdsgs as unknown as Box[], 'borderColor');
+  const commonTextAlign = getCommonStyle(sdsgs as unknown as Box[], 'textAlign');
+  const commonVAlign = getCommonStyle(sdsgs as unknown as Box[], 'verticalAlign');
+  const commonAscii = getCommon(sdsgs, 'asciiUpright');
+
+  const commonTLFontSize = getCommon(sdsgs, 'typeLabelFontSize');
+  const commonTLFontFamily = getCommon(sdsgs, 'typeLabelFontFamily');
+  const commonTLBold = getCommon(sdsgs, 'typeLabelBold');
+  const commonTLItalic = getCommon(sdsgs, 'typeLabelItalic');
+  const commonTLNumbered = getCommon(sdsgs, 'typeLabelNumbered');
+  const commonTLAscii = getCommon(sdsgs, 'typeLabelAsciiUpright');
+  const commonTLColor = getCommon(sdsgs, 'typeLabelColor');
+  const commonTLBg = getCommon(sdsgs, 'typeLabelBackgroundColor');
+  const commonTLBorderColor = getCommon(sdsgs, 'typeLabelBorderColor');
+  const commonTLBorderWidth = getCommon(sdsgs, 'typeLabelBorderWidth');
+
+  const commonSubFS = getCommon(sdsgs, 'subLabelFontSize');
+  const commonSubOffX = getCommon(sdsgs, 'subLabelOffsetX');
+  const commonSubOffY = getCommon(sdsgs, 'subLabelOffsetY');
+  const commonSubAscii = getCommon(sdsgs, 'subLabelAsciiUpright');
+  const commonSubColor = getCommon(sdsgs, 'subLabelColor');
+  const commonSubBg = getCommon(sdsgs, 'subLabelBackgroundColor');
+  const commonSubBorderColor = getCommon(sdsgs, 'subLabelBorderColor');
+  const commonSubBorderWidth = getCommon(sdsgs, 'subLabelBorderWidth');
   const isH = sdsgLayout === 'horizontal';
   const topBandLabel = isH ? '上部 (SD) に配置' : '右側 (SD) に配置';
   const bottomBandLabel = isH ? '下部 (SG) に配置' : '左側 (SG) に配置';
@@ -1034,293 +1072,338 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               </div>
             </div>
           </>}
-
-          {/* ========== ラベル ========== */}
-          {tab === 'label' && <>
-            <div className="prop-row">
-              <label>ラベル</label>
-              <input value={first.label} onChange={(e) => updateSDSG(first.id, { label: e.target.value })} />
-            </div>
-            <div className="prop-row">
-              <label>フォント</label>
-              <select
-                value={first.style?.fontFamily ?? ''}
-                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontFamily: e.target.value || undefined } })}
-              >
-                <option value="">（UI 既定）</option>
-                {FONT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="prop-row">
-              <label>フォントサイズ</label>
-              <input
-                type="number"
-                min={6}
-                max={40}
-                value={first.style?.fontSize ?? 11}
-                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, fontSize: Number(e.target.value) } })}
-              />
-            </div>
-            <div className="prop-row">
-              <label>装飾</label>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button className={first.style?.bold !== false ? 'style-btn active' : 'style-btn'}
-                  onClick={() => updateSDSG(first.id, { style: { ...first.style, bold: !(first.style?.bold !== false) } })}
-                  title="太字"><b>B</b></button>
-                <button className={first.style?.italic ? 'style-btn active' : 'style-btn'}
-                  onClick={() => updateSDSG(first.id, { style: { ...first.style, italic: !first.style?.italic } })}
-                  title="斜体"><i>I</i></button>
-                <button className={first.style?.underline ? 'style-btn active' : 'style-btn'}
-                  onClick={() => updateSDSG(first.id, { style: { ...first.style, underline: !first.style?.underline } })}
-                  title="下線"><u>U</u></button>
-              </div>
-            </div>
-            <div className="prop-row">
-              <label>文字色</label>
-              <ColorPicker
-                value={first.style?.color}
-                onChange={(c) => updateSDSG(first.id, { style: { ...first.style, color: c } })}
-                defaultLabel="既定 (#222)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>背景色</label>
-              <ColorPicker
-                value={first.style?.backgroundColor}
-                onChange={(c) => updateSDSG(first.id, { style: { ...first.style, backgroundColor: c } })}
-                allowNone
-                defaultLabel="既定 (白)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>枠線色</label>
-              <ColorPicker
-                value={first.style?.borderColor}
-                onChange={(c) => updateSDSG(first.id, { style: { ...first.style, borderColor: c } })}
-                allowNone
-                defaultLabel="既定 (#333)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>左右方向の揃え</label>
-              <select
-                value={first.style?.textAlign ?? 'center'}
-                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
-              >
-                <option value="left">左揃え</option>
-                <option value="center">中央</option>
-                <option value="right">右揃え</option>
-              </select>
-            </div>
-            <div className="prop-row">
-              <label>上下方向の揃え</label>
-              <select
-                value={first.style?.verticalAlign ?? 'middle'}
-                onChange={(e) => updateSDSG(first.id, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
-              >
-                <option value="top">上揃え</option>
-                <option value="middle">中央</option>
-                <option value="bottom">下揃え</option>
-              </select>
-            </div>
-            <div className="prop-row">
-              <label>ASCII縦向き（縦型レイアウト）</label>
-              <input
-                type="checkbox"
-                checked={first.asciiUpright ?? true}
-                onChange={(e) => updateSDSG(first.id, { asciiUpright: e.target.checked })}
-              />
-            </div>
-          </>}
-
-          {/* ========== タイプラベル（種別バッジ SD/SG） ========== */}
-          {tab === 'idLabel' && <>
-            <p className="hint" style={{ marginTop: 0 }}>
-              SD/SG 種別を表すバッジの装飾です。連番表記を ON にすると複数のとき自動で連番化（SD1, SD2, …）。
-            </p>
-            <div className="prop-row">
-              <label>連番表記</label>
-              <input
-                type="checkbox"
-                checked={first.typeLabelNumbered !== false}
-                onChange={(e) => updateSDSG(first.id, { typeLabelNumbered: e.target.checked ? undefined : false })}
-                title="OFF にすると SD / SG のみ表示（連番を付けない）"
-              />
-            </div>
-            <div className="prop-row">
-              <label>フォントサイズ</label>
-              <input
-                type="number"
-                min={6}
-                max={40}
-                value={first.typeLabelFontSize ?? 11}
-                onChange={(e) => updateSDSG(first.id, { typeLabelFontSize: Number(e.target.value) })}
-              />
-            </div>
-            <div className="prop-row">
-              <label>フォント</label>
-              <select
-                value={first.typeLabelFontFamily ?? ''}
-                onChange={(e) => updateSDSG(first.id, { typeLabelFontFamily: e.target.value || undefined })}
-              >
-                <option value="">（本文と同じ）</option>
-                {FONT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="prop-row">
-              <label>装飾</label>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button className={first.typeLabelBold !== false ? 'style-btn active' : 'style-btn'}
-                  onClick={() => updateSDSG(first.id, { typeLabelBold: !(first.typeLabelBold !== false) })}
-                  title="太字"><b>B</b></button>
-                <button className={first.typeLabelItalic ? 'style-btn active' : 'style-btn'}
-                  onClick={() => updateSDSG(first.id, { typeLabelItalic: !first.typeLabelItalic })}
-                  title="斜体"><i>I</i></button>
-              </div>
-            </div>
-            <div className="prop-row">
-              <label>ASCII縦向き（縦型レイアウト）</label>
-              <input
-                type="checkbox"
-                checked={first.typeLabelAsciiUpright ?? (first.asciiUpright ?? true)}
-                onChange={(e) => updateSDSG(first.id, { typeLabelAsciiUpright: e.target.checked })}
-              />
-            </div>
-            <div className="prop-row">
-              <label>文字色</label>
-              <ColorPicker
-                value={first.typeLabelColor}
-                onChange={(c) => updateSDSG(first.id, { typeLabelColor: c })}
-                defaultLabel="既定 (#222)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>背景色</label>
-              <ColorPicker
-                value={first.typeLabelBackgroundColor}
-                onChange={(c) => updateSDSG(first.id, { typeLabelBackgroundColor: c })}
-                allowNone
-                defaultLabel="既定 (透明)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>枠線色</label>
-              <ColorPicker
-                value={first.typeLabelBorderColor}
-                onChange={(c) => updateSDSG(first.id, { typeLabelBorderColor: c })}
-                allowNone
-                defaultLabel="既定 (枠なし)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>枠線太さ (px)</label>
-              <input
-                type="number"
-                min={0}
-                max={5}
-                step={0.5}
-                value={first.typeLabelBorderWidth ?? 0}
-                onChange={(e) => updateSDSG(first.id, { typeLabelBorderWidth: Number(e.target.value) })}
-                title="0 = 枠線なし"
-              />
-            </div>
-          </>}
-
-          {/* ========== サブラベル ========== */}
-          {tab === 'subLabel' && <>
-            <div className="prop-row">
-              <label>サブラベル</label>
-              <input
-                type="text"
-                value={first.subLabel ?? ''}
-                onChange={(e) => updateSDSG(first.id, { subLabel: e.target.value })}
-              />
-            </div>
-            <div className="prop-row">
-              <label>フォントサイズ</label>
-              <input
-                type="number"
-                min={6}
-                max={40}
-                value={first.subLabelFontSize ?? 10}
-                onChange={(e) => updateSDSG(first.id, { subLabelFontSize: Number(e.target.value) })}
-              />
-            </div>
-            <div className="prop-row">
-              <label>位置 X / Y</label>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <input
-                  type="number"
-                  value={first.subLabelOffsetX ?? 0}
-                  onChange={(e) => updateSDSG(first.id, { subLabelOffsetX: Number(e.target.value) })}
-                />
-                <input
-                  type="number"
-                  value={first.subLabelOffsetY ?? 0}
-                  onChange={(e) => updateSDSG(first.id, { subLabelOffsetY: Number(e.target.value) })}
-                />
-              </div>
-            </div>
-            <div className="prop-row">
-              <label>ASCII縦向き（縦型レイアウト）</label>
-              <input
-                type="checkbox"
-                checked={first.subLabelAsciiUpright ?? (first.asciiUpright ?? true)}
-                onChange={(e) => updateSDSG(first.id, { subLabelAsciiUpright: e.target.checked })}
-              />
-            </div>
-            <div className="prop-row">
-              <label>文字色</label>
-              <ColorPicker
-                value={first.subLabelColor}
-                onChange={(c) => updateSDSG(first.id, { subLabelColor: c })}
-                defaultLabel="既定 (#555)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>背景色</label>
-              <ColorPicker
-                value={first.subLabelBackgroundColor}
-                onChange={(c) => updateSDSG(first.id, { subLabelBackgroundColor: c })}
-                allowNone
-                defaultLabel="既定 (白半透明)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>枠線色</label>
-              <ColorPicker
-                value={first.subLabelBorderColor}
-                onChange={(c) => updateSDSG(first.id, { subLabelBorderColor: c })}
-                allowNone
-                defaultLabel="既定 (枠なし)"
-              />
-            </div>
-            <div className="prop-row">
-              <label>枠線太さ (px)</label>
-              <input
-                type="number"
-                min={0}
-                max={5}
-                step={0.5}
-                value={first.subLabelBorderWidth ?? 0}
-                onChange={(e) => updateSDSG(first.id, { subLabelBorderWidth: Number(e.target.value) })}
-                title="0 = 枠線なし"
-              />
-            </div>
-          </>}
-
-          {/* ========== 自動調整 ========== */}
-          {tab === 'autoFit' && <>
-            <p className="hint" style={{ marginTop: 0, color: '#888' }}>
-              SD/SG の自動調整は今後実装予定です。
-            </p>
-          </>}
         </>
       )}
+
+      {/* ========== ラベル ========== (複数選択対応) */}
+      {tab === 'label' && (<>
+        {!isMulti && (
+          <div className="prop-row">
+            <label>ラベル</label>
+            <input value={first.label} onChange={(e) => updateSDSG(first.id, { label: e.target.value })} />
+          </div>
+        )}
+        <div className="prop-row">
+          <label>フォント</label>
+          <select
+            value={commonFont ?? ''}
+            onChange={(e) => updateSDSGs(ids, { style: { fontFamily: e.target.value || undefined } })}
+          >
+            {commonFont === undefined && <option value="">（混在）</option>}
+            <option value="">（UI 既定）</option>
+            {FONT_OPTIONS.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={40}
+            value={commonFS ?? 11}
+            placeholder={commonFS === undefined ? '（混在）' : ''}
+            onChange={(e) => updateSDSGs(ids, { style: { fontSize: Number(e.target.value) } })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>装飾</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className={commonBold !== false ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateSDSGs(ids, { style: { bold: !(commonBold !== false) } })}
+              title="太字"><b>B</b></button>
+            <button className={commonItalic ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateSDSGs(ids, { style: { italic: !commonItalic } })}
+              title="斜体"><i>I</i></button>
+            <button className={commonUnderline ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateSDSGs(ids, { style: { underline: !commonUnderline } })}
+              title="下線"><u>U</u></button>
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>文字色</label>
+          <ColorPicker
+            value={commonTextColor}
+            onChange={(c) => updateSDSGs(ids, { style: { color: c } })}
+            defaultLabel="既定 (#222)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>背景色</label>
+          <ColorPicker
+            value={commonBg}
+            onChange={(c) => updateSDSGs(ids, { style: { backgroundColor: c } })}
+            allowNone
+            defaultLabel="既定 (白)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線色</label>
+          <ColorPicker
+            value={commonBorder}
+            onChange={(c) => updateSDSGs(ids, { style: { borderColor: c } })}
+            allowNone
+            defaultLabel="既定 (#333)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>左右方向の揃え</label>
+          <select
+            value={commonTextAlign ?? 'center'}
+            onChange={(e) => updateSDSGs(ids, { style: { textAlign: e.target.value as TextAlign } })}
+          >
+            {commonTextAlign === undefined && <option value="">（混在）</option>}
+            <option value="left">左揃え</option>
+            <option value="center">中央</option>
+            <option value="right">右揃え</option>
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>上下方向の揃え</label>
+          <select
+            value={commonVAlign ?? 'middle'}
+            onChange={(e) => updateSDSGs(ids, { style: { verticalAlign: e.target.value as VerticalAlign } })}
+          >
+            {commonVAlign === undefined && <option value="">（混在）</option>}
+            <option value="top">上揃え</option>
+            <option value="middle">中央</option>
+            <option value="bottom">下揃え</option>
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>ASCII縦向き（縦型レイアウト）</label>
+          <input
+            type="checkbox"
+            checked={commonAscii ?? true}
+            ref={(el) => { if (el) el.indeterminate = commonAscii === undefined; }}
+            onChange={(e) => updateSDSGs(ids, { asciiUpright: e.target.checked })}
+          />
+        </div>
+      </>)}
+
+      {/* ========== タイプラベル（種別バッジ SD/SG） ========== (複数選択対応) */}
+      {tab === 'idLabel' && (<>
+        <p className="hint" style={{ marginTop: 0 }}>
+          SD/SG 種別を表すバッジの装飾です。連番表記を ON にすると複数のとき自動で連番化（SD1, SD2, …）。
+        </p>
+        <div className="prop-row">
+          <label>連番表記</label>
+          <input
+            type="checkbox"
+            checked={commonTLNumbered !== false}
+            ref={(el) => { if (el) el.indeterminate = commonTLNumbered === undefined; }}
+            onChange={(e) => updateSDSGs(ids, { typeLabelNumbered: e.target.checked ? undefined : false })}
+            title="OFF にすると SD / SG のみ表示（連番を付けない）"
+          />
+        </div>
+        <div className="prop-row">
+          <label>フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={40}
+            value={commonTLFontSize ?? 11}
+            placeholder={commonTLFontSize === undefined ? '（混在）' : ''}
+            onChange={(e) => updateSDSGs(ids, { typeLabelFontSize: Number(e.target.value) })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>フォント</label>
+          <select
+            value={commonTLFontFamily ?? ''}
+            onChange={(e) => updateSDSGs(ids, { typeLabelFontFamily: e.target.value || undefined })}
+          >
+            {commonTLFontFamily === undefined && <option value="">（混在）</option>}
+            <option value="">（本文と同じ）</option>
+            {FONT_OPTIONS.map((f) => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>装飾</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className={commonTLBold !== false ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateSDSGs(ids, { typeLabelBold: !(commonTLBold !== false) })}
+              title="太字"><b>B</b></button>
+            <button className={commonTLItalic ? 'style-btn active' : 'style-btn'}
+              onClick={() => updateSDSGs(ids, { typeLabelItalic: !commonTLItalic })}
+              title="斜体"><i>I</i></button>
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>ASCII縦向き（縦型レイアウト）</label>
+          <input
+            type="checkbox"
+            checked={commonTLAscii ?? (commonAscii ?? true)}
+            ref={(el) => { if (el) el.indeterminate = commonTLAscii === undefined; }}
+            onChange={(e) => updateSDSGs(ids, { typeLabelAsciiUpright: e.target.checked })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>文字色</label>
+          <ColorPicker
+            value={commonTLColor}
+            onChange={(c) => updateSDSGs(ids, { typeLabelColor: c })}
+            defaultLabel="既定 (#222)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>背景色</label>
+          <ColorPicker
+            value={commonTLBg}
+            onChange={(c) => updateSDSGs(ids, { typeLabelBackgroundColor: c })}
+            allowNone
+            defaultLabel="既定 (透明)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線色</label>
+          <ColorPicker
+            value={commonTLBorderColor}
+            onChange={(c) => updateSDSGs(ids, { typeLabelBorderColor: c })}
+            allowNone
+            defaultLabel="既定 (枠なし)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線太さ (px)</label>
+          <input
+            type="number"
+            min={0}
+            max={5}
+            step={0.5}
+            value={commonTLBorderWidth ?? 0}
+            placeholder={commonTLBorderWidth === undefined ? '（混在）' : ''}
+            onChange={(e) => updateSDSGs(ids, { typeLabelBorderWidth: Number(e.target.value) })}
+            title="0 = 枠線なし"
+          />
+        </div>
+      </>)}
+
+      {/* ========== サブラベル ========== (複数選択対応) */}
+      {tab === 'subLabel' && (<>
+        {!isMulti && (
+          <div className="prop-row">
+            <label>サブラベル</label>
+            <input
+              type="text"
+              value={first.subLabel ?? ''}
+              onChange={(e) => updateSDSG(first.id, { subLabel: e.target.value })}
+            />
+          </div>
+        )}
+        {isMulti && (
+          <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
+            ラベル本文は単一選択時のみ編集できます（現在 {sdsgs.length} 個選択中）。
+          </p>
+        )}
+        <div className="prop-row">
+          <label>フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={40}
+            value={commonSubFS ?? 10}
+            placeholder={commonSubFS === undefined ? '（混在）' : ''}
+            onChange={(e) => updateSDSGs(ids, { subLabelFontSize: Number(e.target.value) })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>位置 X / Y</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="number"
+              value={commonSubOffX ?? 0}
+              placeholder={commonSubOffX === undefined ? '混在' : ''}
+              onChange={(e) => updateSDSGs(ids, { subLabelOffsetX: Number(e.target.value) })}
+            />
+            <input
+              type="number"
+              value={commonSubOffY ?? 0}
+              placeholder={commonSubOffY === undefined ? '混在' : ''}
+              onChange={(e) => updateSDSGs(ids, { subLabelOffsetY: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>ASCII縦向き（縦型レイアウト）</label>
+          <input
+            type="checkbox"
+            checked={commonSubAscii ?? (commonAscii ?? true)}
+            ref={(el) => { if (el) el.indeterminate = commonSubAscii === undefined; }}
+            onChange={(e) => updateSDSGs(ids, { subLabelAsciiUpright: e.target.checked })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>文字色</label>
+          <ColorPicker
+            value={commonSubColor}
+            onChange={(c) => updateSDSGs(ids, { subLabelColor: c })}
+            defaultLabel="既定 (#555)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>背景色</label>
+          <ColorPicker
+            value={commonSubBg}
+            onChange={(c) => updateSDSGs(ids, { subLabelBackgroundColor: c })}
+            allowNone
+            defaultLabel="既定 (白半透明)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線色</label>
+          <ColorPicker
+            value={commonSubBorderColor}
+            onChange={(c) => updateSDSGs(ids, { subLabelBorderColor: c })}
+            allowNone
+            defaultLabel="既定 (枠なし)"
+          />
+        </div>
+        <div className="prop-row">
+          <label>枠線太さ (px)</label>
+          <input
+            type="number"
+            min={0}
+            max={5}
+            step={0.5}
+            value={commonSubBorderWidth ?? 0}
+            placeholder={commonSubBorderWidth === undefined ? '（混在）' : ''}
+            onChange={(e) => updateSDSGs(ids, { subLabelBorderWidth: Number(e.target.value) })}
+            title="0 = 枠線なし"
+          />
+        </div>
+      </>)}
+
+      {/* ========== 自動調整 ========== (複数選択バッチ操作) */}
+      {tab === 'autoFit' && (<>
+        {!isMulti && (
+          <p className="hint" style={{ marginTop: 0, color: '#888' }}>
+            複数の SD/SG を選択すると「幅揃え」「高さ揃え」「サイズ揃え」「文字サイズ揃え」のバッチ操作が行えます。
+          </p>
+        )}
+        {isMulti && (
+          <>
+            <p className="hint" style={{ marginTop: 0 }}>
+              選択した {sdsgs.length} 個の SD/SG に対するバッチ操作。基準は先頭（選択順の最初）の値。
+              band モードは spaceWidth/spaceHeight、attached は width/height に反映されます。
+            </p>
+            <div className="prop-row" style={{ flexWrap: 'wrap', gap: 4, justifyContent: 'flex-start' }}>
+              <button className="ribbon-btn-small"
+                onClick={() => matchSDSGsSize(ids, 'width')}>幅揃え</button>
+              <button className="ribbon-btn-small"
+                onClick={() => matchSDSGsSize(ids, 'height')}>高さ揃え</button>
+              <button className="ribbon-btn-small"
+                onClick={() => matchSDSGsSize(ids, 'both')}>サイズ揃え</button>
+              <button className="ribbon-btn-small"
+                onClick={() => matchSDSGsFontSize(ids)}>文字サイズ揃え</button>
+            </div>
+          </>
+        )}
+      </>)}
+
       <div className="prop-row">
         <button className="danger-btn" onClick={() => sdsgs.forEach((s) => removeSDSG(s.id))}>削除</button>
       </div>
@@ -1338,7 +1421,6 @@ function LineProperties({ lines }: { lines: Line[] }) {
   const ids = lines.map((l) => l.id);
 
   const commonType = lines.every((l) => l.type === first.type) ? first.type : undefined;
-  const commonMode = lines.every((l) => l.connectionMode === first.connectionMode) ? first.connectionMode : undefined;
   const commonShape = lines.every((l) => l.shape === first.shape) ? first.shape : undefined;
   const commonStartMargin = getCommon(lines, 'startMargin');
   const commonEndMargin = getCommon(lines, 'endMargin');
@@ -1362,15 +1444,6 @@ function LineProperties({ lines }: { lines: Line[] }) {
           {commonType === undefined && <option value="">（混在）</option>}
           <option value="RLine">実線（実現径路）</option>
           <option value="XLine">点線（未実現径路）</option>
-        </select>
-      </div>
-
-      <div className="prop-row">
-        <label>接続</label>
-        <select value={commonMode ?? ''} onChange={(e) => updateLines(ids, { connectionMode: e.target.value as 'center-to-center' | 'horizontal' })}>
-          {commonMode === undefined && <option value="">（混在）</option>}
-          <option value="center-to-center">中点→中点</option>
-          <option value="horizontal">水平接続</option>
         </select>
       </div>
 
@@ -1475,104 +1548,102 @@ function LineProperties({ lines }: { lines: Line[] }) {
         );
       })()}
 
-      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>
-        角度モード
-      </h5>
-      <div className="prop-row">
-        <label>角度モード</label>
-        <input
-          type="checkbox"
-          checked={!!commonAngleMode}
-          ref={(el) => { if (el) el.indeterminate = commonAngleMode === undefined; }}
-          disabled={commonShape === 'elbow' || commonShape === 'curve'}
-          onChange={(e) => updateLines(ids, { angleMode: e.target.checked })}
-        />
-      </div>
-      {(commonShape === 'elbow' || commonShape === 'curve') && (
-        <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
-          L字 / 曲線形状中は角度モードは無効です。
-        </p>
-      )}
-      <div className="prop-row">
-        <label>角度 (°)</label>
-        <input
-          type="number"
-          min={-85}
-          max={85}
-          step={1}
-          value={commonAngleDeg ?? 0}
-          placeholder={commonAngleDeg === undefined ? '（混在）' : ''}
-          disabled={!allAngleOn || commonShape === 'elbow' || commonShape === 'curve'}
-          onChange={(e) => {
-            const v = Math.max(-85, Math.min(85, Number(e.target.value) || 0));
-            updateLines(ids, { angleDeg: v });
-          }}
-          title="-85〜85°。時間軸方向 0° を基準、正で視覚的に上（横型）/右（縦型）に傾く"
-        />
-      </div>
+      <CollapsibleSection title="角度モード" sectionKey="line-angle" compact>
+        <div className="prop-row">
+          <label>角度モード</label>
+          <input
+            type="checkbox"
+            checked={!!commonAngleMode}
+            ref={(el) => { if (el) el.indeterminate = commonAngleMode === undefined; }}
+            disabled={commonShape === 'elbow' || commonShape === 'curve'}
+            onChange={(e) => updateLines(ids, { angleMode: e.target.checked })}
+          />
+        </div>
+        {(commonShape === 'elbow' || commonShape === 'curve') && (
+          <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
+            L字 / 曲線形状中は角度モードは無効です。
+          </p>
+        )}
+        <div className="prop-row">
+          <label>角度 (°)</label>
+          <input
+            type="number"
+            min={-85}
+            max={85}
+            step={1}
+            value={commonAngleDeg ?? 0}
+            placeholder={commonAngleDeg === undefined ? '（混在）' : ''}
+            disabled={!allAngleOn || commonShape === 'elbow' || commonShape === 'curve'}
+            onChange={(e) => {
+              const v = Math.max(-85, Math.min(85, Number(e.target.value) || 0));
+              updateLines(ids, { angleDeg: v });
+            }}
+            title="-85〜85°。時間軸方向 0° を基準、正で視覚的に上（横型）/右（縦型）に傾く"
+          />
+        </div>
+      </CollapsibleSection>
 
-      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>
-        始点・終点オフセット
-      </h5>
-      {allAngleOn && (
-        <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
-          角度モード中はオフセットで端点を調整。マージン（方向沿い）は無効。
-        </p>
-      )}
-      <div className="prop-row">
-        <label>始点 Time / Item (px)</label>
-        <div style={{ display: 'flex', gap: 4 }}>
+      <CollapsibleSection title="始点・終点オフセット" sectionKey="line-offset" compact>
+        {allAngleOn && (
+          <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
+            角度モード中はオフセットで端点を調整。マージン（方向沿い）は無効。
+          </p>
+        )}
+        <div className="prop-row">
+          <label>始点 Time / Item (px)</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="number"
+              value={commonStartOffTime ?? 0}
+              placeholder={commonStartOffTime === undefined ? '混在' : ''}
+              onChange={(e) => updateLines(ids, { startOffsetTime: Number(e.target.value) })}
+            />
+            <input
+              type="number"
+              value={commonStartOffItem ?? 0}
+              placeholder={commonStartOffItem === undefined ? '混在' : ''}
+              onChange={(e) => updateLines(ids, { startOffsetItem: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>終点 Time / Item (px)</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="number"
+              value={commonEndOffTime ?? 0}
+              placeholder={commonEndOffTime === undefined ? '混在' : ''}
+              onChange={(e) => updateLines(ids, { endOffsetTime: Number(e.target.value) })}
+            />
+            <input
+              type="number"
+              value={commonEndOffItem ?? 0}
+              placeholder={commonEndOffItem === undefined ? '混在' : ''}
+              onChange={(e) => updateLines(ids, { endOffsetItem: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+        <div className="prop-row">
+          <label>始点マージン (方向沿い px)</label>
           <input
             type="number"
-            value={commonStartOffTime ?? 0}
-            placeholder={commonStartOffTime === undefined ? '混在' : ''}
-            onChange={(e) => updateLines(ids, { startOffsetTime: Number(e.target.value) })}
-          />
-          <input
-            type="number"
-            value={commonStartOffItem ?? 0}
-            placeholder={commonStartOffItem === undefined ? '混在' : ''}
-            onChange={(e) => updateLines(ids, { startOffsetItem: Number(e.target.value) })}
+            value={commonStartMargin ?? 0}
+            placeholder={commonStartMargin === undefined ? '（混在）' : ''}
+            disabled={allAngleOn}
+            onChange={(e) => updateLines(ids, { startMargin: Number(e.target.value) })}
           />
         </div>
-      </div>
-      <div className="prop-row">
-        <label>終点 Time / Item (px)</label>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="prop-row">
+          <label>終点マージン (方向沿い px)</label>
           <input
             type="number"
-            value={commonEndOffTime ?? 0}
-            placeholder={commonEndOffTime === undefined ? '混在' : ''}
-            onChange={(e) => updateLines(ids, { endOffsetTime: Number(e.target.value) })}
-          />
-          <input
-            type="number"
-            value={commonEndOffItem ?? 0}
-            placeholder={commonEndOffItem === undefined ? '混在' : ''}
-            onChange={(e) => updateLines(ids, { endOffsetItem: Number(e.target.value) })}
+            value={commonEndMargin ?? 0}
+            placeholder={commonEndMargin === undefined ? '（混在）' : ''}
+            disabled={allAngleOn}
+            onChange={(e) => updateLines(ids, { endMargin: Number(e.target.value) })}
           />
         </div>
-      </div>
-      <div className="prop-row">
-        <label>始点マージン (方向沿い px)</label>
-        <input
-          type="number"
-          value={commonStartMargin ?? 0}
-          placeholder={commonStartMargin === undefined ? '（混在）' : ''}
-          disabled={allAngleOn}
-          onChange={(e) => updateLines(ids, { startMargin: Number(e.target.value) })}
-        />
-      </div>
-      <div className="prop-row">
-        <label>終点マージン (方向沿い px)</label>
-        <input
-          type="number"
-          value={commonEndMargin ?? 0}
-          placeholder={commonEndMargin === undefined ? '（混在）' : ''}
-          disabled={allAngleOn}
-          onChange={(e) => updateLines(ids, { endMargin: Number(e.target.value) })}
-        />
-      </div>
+      </CollapsibleSection>
 
       {!isMulti && (
         <>

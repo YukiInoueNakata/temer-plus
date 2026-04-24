@@ -111,6 +111,9 @@ interface Actions {
   // SDSG operations
   addSDSG: (partial: Partial<SDSG> & { type: 'SD' | 'SG'; attachedTo: string }) => string;
   updateSDSG: (id: string, patch: Partial<SDSG>) => void;
+  updateSDSGs: (ids: string[], patch: Partial<SDSG>) => void;
+  matchSDSGsSize: (ids: string[], mode: 'width' | 'height' | 'both', basis?: 'first' | 'max' | 'min') => void;
+  matchSDSGsFontSize: (ids: string[], basis?: 'first' | 'max' | 'min') => void;
   // SDSG の配置モード切替（band-top/band-bottom/attached）+ offset リセット
   setSDSGSpaceMode: (ids: string[], mode: 'attached' | 'band-top' | 'band-bottom') => void;
   // 全 SD/SG を種別別に帯配置へ一括適用
@@ -941,6 +944,85 @@ export const useTEMStore = create<Store>()(
           doc: mutateActiveSheet(state.doc, (sheet) => {
             const idx = sheet.sdsg.findIndex((s) => s.id === id);
             if (idx >= 0) Object.assign(sheet.sdsg[idx], patch);
+          }),
+          dirty: true,
+        }));
+      },
+      updateSDSGs: (ids, patch) => {
+        const set_ = new Set(ids);
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            sheet.sdsg.forEach((s) => {
+              if (!set_.has(s.id)) return;
+              // style 系の patch は既存 style とマージ
+              if (patch.style) {
+                s.style = { ...(s.style ?? {}), ...patch.style };
+              }
+              // それ以外は通常 assign。style を 2 重代入しないため style を除く
+              const { style: _, ...rest } = patch;
+              Object.assign(s, rest);
+            });
+          }),
+          dirty: true,
+        }));
+      },
+      matchSDSGsSize: (ids, mode, basis = 'first') => {
+        if (ids.length < 2) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const targets = sheet.sdsg.filter((s) => ids.includes(s.id));
+            if (targets.length < 2) return;
+            const ordered = ids
+              .map((id) => targets.find((s) => s.id === id))
+              .filter((s): s is typeof targets[number] => !!s);
+            // band モード時は spaceWidth/spaceHeight、attached 時は width/height を基準に
+            const getW = (s: SDSG) =>
+              (s.spaceMode === 'band-top' || s.spaceMode === 'band-bottom')
+                ? (s.spaceWidth ?? s.width ?? 70)
+                : (s.width ?? 70);
+            const getH = (s: SDSG) =>
+              (s.spaceMode === 'band-top' || s.spaceMode === 'band-bottom')
+                ? (s.spaceHeight ?? s.height ?? 40)
+                : (s.height ?? 40);
+            const widths = ordered.map(getW);
+            const heights = ordered.map(getH);
+            const targetW = basis === 'max' ? Math.max(...widths)
+              : basis === 'min' ? Math.min(...widths)
+              : widths[0];
+            const targetH = basis === 'max' ? Math.max(...heights)
+              : basis === 'min' ? Math.min(...heights)
+              : heights[0];
+            ordered.forEach((s) => {
+              const isBand = s.spaceMode === 'band-top' || s.spaceMode === 'band-bottom';
+              if (mode === 'width' || mode === 'both') {
+                if (isBand) s.spaceWidth = targetW;
+                else s.width = targetW;
+              }
+              if (mode === 'height' || mode === 'both') {
+                if (isBand) s.spaceHeight = targetH;
+                else s.height = targetH;
+              }
+            });
+          }),
+          dirty: true,
+        }));
+      },
+      matchSDSGsFontSize: (ids, basis = 'first') => {
+        if (ids.length < 2) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            const targets = sheet.sdsg.filter((s) => ids.includes(s.id));
+            if (targets.length < 2) return;
+            const ordered = ids
+              .map((id) => targets.find((s) => s.id === id))
+              .filter((s): s is typeof targets[number] => !!s);
+            const sizes = ordered.map((s) => s.style?.fontSize ?? 11);
+            const targetSize = basis === 'max' ? Math.max(...sizes)
+              : basis === 'min' ? Math.min(...sizes)
+              : sizes[0];
+            ordered.forEach((s) => {
+              s.style = { ...(s.style ?? {}), fontSize: targetSize };
+            });
           }),
           dirty: true,
         }));
