@@ -111,6 +111,8 @@ function CanvasInner({
   const dragging = useRef(false);
   // 整列ガイド（world 座標）
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
+  // band モード SDSG をドラッグ中のプレビュー情報 (row 境界表示用)
+  const [bandDragInfo, setBandDragInfo] = useState<{ sdsgId: string; bandKey: 'top' | 'bottom' } | null>(null);
   const rf = useReactFlow();
   const rfWidth = useReactFlowStore((s) => s.width);
   const rfHeight = useReactFlowStore((s) => s.height);
@@ -788,6 +790,13 @@ function CanvasInner({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
+            onNodeDragStart={(_e, node) => {
+              const sg = sheet?.sdsg.find((s) => s.id === node.id);
+              if (sg && (sg.spaceMode === 'band-top' || sg.spaceMode === 'band-bottom')) {
+                setBandDragInfo({ sdsgId: sg.id, bandKey: sg.spaceMode === 'band-top' ? 'top' : 'bottom' });
+              }
+            }}
+            onNodeDragStop={() => setBandDragInfo(null)}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}
@@ -812,7 +821,7 @@ function CanvasInner({
             <TimeArrowOverlay onOpenSettings={onOpenTimeArrowSettings} />
             <PeriodLabelsOverlay onOpenSettings={onOpenPeriodSettings} />
             <LegendOverlay onOpenSettings={onOpenLegendSettings} />
-            <SDSGBandOverlay />
+            <SDSGBandOverlay dragInfo={bandDragInfo} />
             <SmartGuidesOverlay guides={guides} />
             <CustomControls />
           </ReactFlow>
@@ -1432,7 +1441,7 @@ function LeftRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
 // ============================================================================
 // SDSGBandOverlay - SD/SG 帯の範囲を点線で可視化（編集時のみ、出力には含めない）
 // ============================================================================
-function SDSGBandOverlay() {
+function SDSGBandOverlay({ dragInfo }: { dragInfo?: { sdsgId: string; bandKey: 'top' | 'bottom' } | null }) {
   const view = useTEMView();
   const sheet = view.sheet;
   const settings = view.settings;
@@ -1444,6 +1453,50 @@ function SDSGBandOverlay() {
   if (isPreview || !sheet || !settings.sdsgSpace?.enabled) return null;
   const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
   const isH = layout === 'horizontal';
+
+  // row 境界線オーバーレイ（ドラッグ中のみ表示）
+  const renderRowGuides = (
+    bk: 'top' | 'bottom',
+    band: NonNullable<ReturnType<typeof computeSDSGBandLayout>['topBand']>,
+  ) => {
+    if (!dragInfo || dragInfo.bandKey !== bk) return null;
+    // row 数再計算: 対象 band の SDSG から
+    const entries = sheet.sdsg
+      .filter((s) => (s.spaceMode === 'band-top' && bk === 'top') || (s.spaceMode === 'band-bottom' && bk === 'bottom'))
+      .map((s) => {
+        const a = sheet.boxes.find((b) => b.id === s.attachedTo);
+        const centerT = a ? (isH ? a.x + a.width / 2 : a.y + a.height / 2) : 0;
+        const taxSize = isH ? (s.spaceWidth ?? s.width ?? 70) : (s.spaceHeight ?? s.height ?? 40);
+        return { id: s.id, timeStart: centerT - taxSize / 2, timeEnd: centerT + taxSize / 2, rowOverride: s.spaceRowOverride };
+      });
+    const rowMap = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(entries) : new Map<string, number>();
+    const totalRows = Math.max(1, ...Array.from(rowMap.values()).map((v) => v + 1));
+    const rowSpan = band.axisSpan / totalRows;
+    const dir = Math.sign(band.end - band.start) || (bk === 'top' ? -1 : 1);
+    const guides: React.ReactNode[] = [];
+    const color = bk === 'top' ? '#7e57c2' : '#388e3c';
+    for (let r = 1; r < totalRows; r++) {
+      const pos = band.start + dir * (r * rowSpan);
+      if (isH) {
+        const y = pos * zoom + panY;
+        guides.push(
+          <div key={`rg-${bk}-${r}`} style={{
+            position: 'absolute', left: 0, right: 0, top: y, height: 0,
+            borderTop: `1px dashed ${color}`, pointerEvents: 'none', zIndex: 1, opacity: 0.7,
+          }} />,
+        );
+      } else {
+        const x = pos * zoom + panX;
+        guides.push(
+          <div key={`rg-${bk}-${r}`} style={{
+            position: 'absolute', top: 0, bottom: 0, left: x, width: 0,
+            borderLeft: `1px dashed ${color}`, pointerEvents: 'none', zIndex: 1, opacity: 0.7,
+          }} />,
+        );
+      }
+    }
+    return <>{guides}</>;
+  };
 
   // 各 band に現在割り当てられている SDSG の数を集計
   // （SDSG が存在しない帯はオーバーレイを表示しない：空の帯は出さないポリシー）
@@ -1522,6 +1575,8 @@ function SDSGBandOverlay() {
         renderBand(bandLayout.topBand, isH ? '上部 (SD)' : '右側 (SD)', settings.sdsgSpace.bands.top, '#9b59b6')}
       {bottomHasSDSG && bandLayout.bottomBand && settings.sdsgSpace?.bands.bottom.showBorder &&
         renderBand(bandLayout.bottomBand, isH ? '下部 (SG)' : '左側 (SG)', settings.sdsgSpace.bands.bottom, '#27ae60')}
+      {bandLayout.topBand && renderRowGuides('top', bandLayout.topBand)}
+      {bandLayout.bottomBand && renderRowGuides('bottom', bandLayout.bottomBand)}
     </>
   );
 }
