@@ -326,8 +326,6 @@ class SVGBuilder {
   ): void {
     const padX = opts.paddingX ?? 2;
     const padY = opts.paddingY ?? 2;
-    const innerH = Math.max(0.1, h - padY * 2);
-    void padX;
 
     // 背景・枠
     if ((opts.bgFill && opts.bgFill !== 'transparent') || (opts.bgStroke && (opts.bgStrokeWidth ?? 0) > 0)) {
@@ -357,35 +355,74 @@ class SVGBuilder {
     if (opts.italic) styleParts.push('font-style:italic');
     if (opts.underline) styleParts.push('text-decoration:underline');
     if (opts.fontFamily) styleParts.push(`font-family:${escapeAttr(opts.fontFamily)}`);
-    if (isVert) {
-      styleParts.push('writing-mode:vertical-rl');
-      styleParts.push(`text-orientation:${opts.asciiUpright === false ? 'mixed' : 'upright'}`);
-    }
     const style = styleParts.length > 0 ? ` style="${styleParts.join(';')}"` : '';
 
     const color = opts.fill ?? opts.color ?? '#222';
 
     if (isVert) {
-      // 縦書き: 列が右から左へ。x はブロック右端、y は行の上端。
-      // text-anchor (垂直方向の整列) は 'start'/'middle'/'end' として機能
-      const cx = alignH === 'left'
-        ? x + padX + opts.fontSize / 2
-        : alignH === 'right'
-          ? x + w - padX - opts.fontSize / 2
-          : x + w / 2;
-      // 縦書き時の行開始位置 (writing-mode: vertical-rl では y が上→下へ進行)
-      let startY: number;
+      // 縦書き (portable 方式): writing-mode CSS は editor 非対応があるため、
+      // 各文字を <tspan x y> で個別配置する。列は右から左へ、行内は上から下へ。
+      // 既定は全文字 upright（縦積み）。asciiUpright=false の場合は ASCII 連続を
+      // 90°回転 <text transform=rotate> として書き出し、右に倒して読む形にする。
+      // 各行 (元テキストの \n 区切り) = 1 列。
+      const charAdvance = opts.fontSize * 1.05;
+      // 各行 (=列) の文字数最大値（縦の長さ推定に使用）
+      const maxChars = Math.max(1, ...lines.map((l) => Array.from(l).length));
+      const colBlockLen = charAdvance * maxChars;
+      const colGap = opts.fontSize * 0.25;
+      const totalColsW = lines.length * (opts.fontSize + colGap);
+
+      // 列の x 軸開始（右から左へ）
+      let rightColX: number;
+      if (alignH === 'left') rightColX = x + padX + totalColsW - opts.fontSize / 2;
+      else if (alignH === 'right') rightColX = x + w - padX - opts.fontSize / 2;
+      else rightColX = x + w / 2 + totalColsW / 2 - opts.fontSize / 2;
+
+      // 列の y 軸開始
+      let topY: number;
       switch (alignV) {
-        case 'top': startY = y + padY; break;
-        case 'bottom': startY = y + h - padY - Math.min(innerH, opts.fontSize * maxLineLen(lines)); break;
+        case 'top': topY = y + padY; break;
+        case 'bottom': topY = y + h - padY - colBlockLen; break;
         case 'middle':
-        default: startY = y + h / 2 - Math.min(innerH, opts.fontSize * maxLineLen(lines)) / 2;
+        default: topY = y + h / 2 - colBlockLen / 2;
       }
-      lines.forEach((ln, i) => {
-        const lx = cx - i * lineHeight;
-        this.parts.push(
-          `<text x="${fmt(lx)}" y="${fmt(startY)}" fill="${escapeAttr(color)}" font-size="${fmt(opts.fontSize)}" text-anchor="${anchor}"${style}>${escapeText(ln)}</text>`,
-        );
+      const asciiMixed = opts.asciiUpright === false;
+
+      lines.forEach((ln, li) => {
+        const colX = rightColX - li * (opts.fontSize + colGap);
+        const chars = Array.from(ln);
+        // asciiMixed: 連続 ASCII を 1 グループにし、rotate 変換で横倒し
+        //   各グループは占有セル数 = ceil(ASCII 長 / 2) 程度で短縮表示（粗い近似: 1 セル/char）
+        let i = 0;
+        let cellIdx = 0;
+        while (i < chars.length) {
+          const ch = chars[i];
+          const isAscii = ch.charCodeAt(0) < 0x80 && /[\x21-\x7E]/.test(ch);
+          if (asciiMixed && isAscii) {
+            // ASCII 連続を吸い上げ
+            let j = i;
+            while (j < chars.length && chars[j].charCodeAt(0) < 0x80 && /[\x21-\x7E]/.test(chars[j])) j++;
+            const run = chars.slice(i, j).join('');
+            const cy = topY + cellIdx * charAdvance + opts.fontSize * 0.8;
+            // 90° 回転。回転後、読み方向が top→bottom となる
+            this.parts.push(
+              `<text x="${fmt(colX)}" y="${fmt(cy)}" fill="${escapeAttr(color)}" font-size="${fmt(opts.fontSize)}" text-anchor="start" transform="rotate(90 ${fmt(colX)} ${fmt(cy)})"${style}>${escapeText(run)}</text>`,
+            );
+            // ASCII run は run.length 文字分のセルを使うと見た目が崩れるので、
+            // 視覚的 advance を文字数 * 0.5 程度に圧縮（英文は縦幅が短い）
+            const usedCells = Math.max(1, Math.ceil(run.length * 0.5));
+            cellIdx += usedCells;
+            i = j;
+            continue;
+          }
+          // CJK / その他は 1 セル上のまま配置
+          const cy = topY + cellIdx * charAdvance + opts.fontSize * 0.85;
+          this.parts.push(
+            `<text x="${fmt(colX)}" y="${fmt(cy)}" fill="${escapeAttr(color)}" font-size="${fmt(opts.fontSize)}" text-anchor="middle"${style}>${escapeText(ch)}</text>`,
+          );
+          cellIdx++;
+          i++;
+        }
       });
       return;
     }
@@ -500,10 +537,6 @@ function estimateTextWidth(text: string, fontSize: number): number {
     w += code < 128 ? fontSize * 0.55 : fontSize;
   }
   return w;
-}
-
-function maxLineLen(lines: string[]): number {
-  return lines.reduce((a, l) => Math.max(a, l.length), 0);
 }
 
 function fmt(n: number): string {
