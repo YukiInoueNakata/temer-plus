@@ -101,6 +101,14 @@ export function computeLinePath(
   }
 
   if (shape === 'curve') {
+    // controlPoints が 2 点揃っていれば手動制御点を優先
+    const cps = line.controlPoints;
+    if (cps && cps.length >= 2) {
+      return {
+        kind: 'curve',
+        points: [p0, { x: cps[0].x, y: cps[0].y }, { x: cps[1].x, y: cps[1].y }, p3],
+      };
+    }
     const intensity = clamp01(line.curveIntensity ?? 0.5);
     const isH = layout === 'horizontal';
     if (isH) {

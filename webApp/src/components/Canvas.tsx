@@ -512,6 +512,7 @@ function CanvasInner({
               shape: l.shape,
               elbowBendRatio: l.elbowBendRatio,
               curveIntensity: l.curveIntensity,
+              controlPoints: l.controlPoints,
               connectionMode: l.connectionMode,
               fromBoxId: l.from,
               toBoxId: l.to,

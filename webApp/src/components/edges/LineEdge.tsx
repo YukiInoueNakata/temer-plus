@@ -11,7 +11,8 @@
 //   fromBox / toBox : 実レイアウトで使う Box 座標（swap 判定と angle モード用）
 // ============================================================================
 
-import { BaseEdge, getStraightPath, type EdgeProps } from 'reactflow';
+import { useRef, useState } from 'react';
+import { BaseEdge, getStraightPath, useReactFlow, type EdgeProps } from 'reactflow';
 import { useTEMView } from '../../context/TEMViewContext';
 import type { Line, LineShape } from '../../types';
 import {
@@ -38,6 +39,7 @@ export interface LineEdgeData {
   shape?: LineShape;
   elbowBendRatio?: number;
   curveIntensity?: number;
+  controlPoints?: { x: number; y: number }[];
   connectionMode?: 'center-to-center' | 'horizontal';   // legacy
   fromBoxId?: string;
   toBoxId?: string;
@@ -52,10 +54,16 @@ export function LineEdge({
   data,
   markerEnd,
   style,
+  selected,
 }: EdgeProps<LineEdgeData>) {
   const view = useTEMView();
   const layout = view.settings.layout;
   const isH = layout === 'horizontal';
+  const rf = useReactFlow();
+  const updateLine = view.updateLine;
+  // ドラッグ中のライブプレビュー（pointerup 時に store 反映）
+  const [dragCP, setDragCP] = useState<{ cp1?: { x: number; y: number }; cp2?: { x: number; y: number } } | null>(null);
+  const draggingHandleRef = useRef<null | 'cp1' | 'cp2'>(null);
 
   // angle モード / 自動入れ替えには from/to Box 座標が必要。
   // data.fromBoxId / toBoxId を view.sheet から解決
@@ -79,6 +87,10 @@ export function LineEdge({
     endOffsetItem: data?.endOffsetItem,
     elbowBendRatio: data?.elbowBendRatio,
     curveIntensity: data?.curveIntensity,
+    // ドラッグ中は cp ライブプレビュー、無ければ永続値
+    controlPoints: dragCP && dragCP.cp1 && dragCP.cp2
+      ? [dragCP.cp1, dragCP.cp2]
+      : data?.controlPoints,
   };
 
   const effectiveShape = resolveEffectiveShape(line);
@@ -100,7 +112,91 @@ export function LineEdge({
       resolved.startMargin,
       resolved.endMargin,
     );
-    return <BaseEdge id={id} path={toSvgPath(path)} markerEnd={markerEnd} style={style} />;
+
+    // curve 選択中のみ制御点ハンドル描画
+    const showHandles =
+      effectiveShape === 'curve'
+      && !view.isPreview
+      && selected === true
+      && path.kind === 'curve'
+      && path.points.length === 4;
+
+    const startDrag = (which: 'cp1' | 'cp2') => (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      draggingHandleRef.current = which;
+      const target = e.currentTarget as SVGCircleElement;
+      target.setPointerCapture(e.pointerId);
+    };
+    const onDragMove = (e: React.PointerEvent) => {
+      if (!draggingHandleRef.current) return;
+      const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      // スナップ適用（グリッドスナップがオンかつ canvas 側も snapEnabled のときのみ）
+      const snap = view.settings.snap;
+      const snapOn = view.view.snapEnabled && snap?.gridSnap && snap.gridPx > 0;
+      const snappedPos = snapOn
+        ? { x: Math.round(pos.x / snap.gridPx) * snap.gridPx, y: Math.round(pos.y / snap.gridPx) * snap.gridPx }
+        : pos;
+      setDragCP((cur) => ({
+        cp1: draggingHandleRef.current === 'cp1' ? snappedPos : (cur?.cp1 ?? path.points[1]),
+        cp2: draggingHandleRef.current === 'cp2' ? snappedPos : (cur?.cp2 ?? path.points[2]),
+      }));
+    };
+    const endDrag = (e: React.PointerEvent) => {
+      if (!draggingHandleRef.current) return;
+      const target = e.currentTarget as SVGCircleElement;
+      try { target.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+      draggingHandleRef.current = null;
+      setDragCP((cur) => {
+        if (!cur || !cur.cp1 || !cur.cp2) return null;
+        if (updateLine) updateLine(id, { controlPoints: [cur.cp1, cur.cp2] });
+        return null;
+      });
+    };
+
+    return (
+      <>
+        <BaseEdge id={id} path={toSvgPath(path)} markerEnd={markerEnd} style={style} />
+        {showHandles && (
+          <g className="curve-control-handles" style={{ pointerEvents: 'all' }}>
+            {/* 補助線: p0↔cp1, p3↔cp2 */}
+            <line
+              x1={path.points[0].x} y1={path.points[0].y}
+              x2={path.points[1].x} y2={path.points[1].y}
+              stroke="#2684ff" strokeDasharray="3,3" strokeWidth={1} pointerEvents="none"
+            />
+            <line
+              x1={path.points[3].x} y1={path.points[3].y}
+              x2={path.points[2].x} y2={path.points[2].y}
+              stroke="#2684ff" strokeDasharray="3,3" strokeWidth={1} pointerEvents="none"
+            />
+            {/* ハンドル */}
+            <circle
+              cx={path.points[1].x} cy={path.points[1].y} r={6}
+              fill="#2684ff" stroke="#fff" strokeWidth={2}
+              style={{ cursor: 'grab' }}
+              onPointerDown={startDrag('cp1')}
+              onPointerMove={onDragMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              <title>cp1 をドラッグで移動</title>
+            </circle>
+            <circle
+              cx={path.points[2].x} cy={path.points[2].y} r={6}
+              fill="#2684ff" stroke="#fff" strokeWidth={2}
+              style={{ cursor: 'grab' }}
+              onPointerDown={startDrag('cp2')}
+              onPointerMove={onDragMove}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              <title>cp2 をドラッグで移動</title>
+            </circle>
+          </g>
+        )}
+      </>
+    );
   }
 
   let sx: number;

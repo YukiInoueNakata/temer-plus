@@ -1405,22 +1405,43 @@ function LineProperties({ lines }: { lines: Line[] }) {
         </div>
       )}
       {commonShape === 'curve' && (
-        <div className="prop-row">
-          <label>曲率 (0〜1)</label>
-          <input
-            type="number"
-            min={0}
-            max={1}
-            step={0.05}
-            value={getCommon(lines, 'curveIntensity') ?? 0.5}
-            placeholder={getCommon(lines, 'curveIntensity') === undefined ? '（混在）' : ''}
-            onChange={(e) => {
-              const v = Math.max(0, Math.min(1, Number(e.target.value) || 0));
-              updateLines(ids, { curveIntensity: v });
-            }}
-            title="0=ほぼ直線、0.5=標準、1=大きく膨らむ"
-          />
-        </div>
+        <>
+          <div className="prop-row">
+            <label>曲率 (0〜1)</label>
+            <input
+              type="number"
+              min={0}
+              max={1}
+              step={0.05}
+              value={getCommon(lines, 'curveIntensity') ?? 0.5}
+              placeholder={getCommon(lines, 'curveIntensity') === undefined ? '（混在）' : ''}
+              disabled={lines.some((l) => l.controlPoints && l.controlPoints.length >= 2)}
+              onChange={(e) => {
+                const v = Math.max(0, Math.min(1, Number(e.target.value) || 0));
+                updateLines(ids, { curveIntensity: v });
+              }}
+              title="0=ほぼ直線、0.5=標準、1=大きく膨らむ。制御点を手動設定中は無効"
+            />
+          </div>
+          <div className="prop-row">
+            <label>制御点</label>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82em', color: '#666' }}>
+                {lines.some((l) => l.controlPoints && l.controlPoints.length >= 2)
+                  ? '手動設定中（Canvas のハンドルでドラッグ編集可）'
+                  : '自動（曲率から算出）'}
+              </span>
+              <button
+                className="ribbon-btn-small"
+                onClick={() => updateLines(ids, { controlPoints: undefined })}
+                disabled={!lines.some((l) => l.controlPoints && l.controlPoints.length >= 2)}
+                title="制御点の手動設定を解除して曲率計算に戻す"
+              >
+                自動に戻す
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {(() => {
