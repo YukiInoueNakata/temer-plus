@@ -1018,6 +1018,18 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                 ) : null}
               </div>
             )}
+            {first.anchorMode === 'between' && (
+              <div className="prop-row">
+                <label>幅の定義</label>
+                <select
+                  value={first.betweenMode ?? 'edge-to-edge'}
+                  onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
+                >
+                  <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
+                  <option value="center-to-center">Box 中心から Box 中心まで</option>
+                </select>
+              </div>
+            )}
 
             {/* 配置方式 */}
             <div className="prop-row">
@@ -1056,6 +1068,14 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                   <div className="prop-row" style={{ padding: 6, background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4 }}>
                     <span style={{ fontSize: '0.85em', color: '#856404' }}>
                       ⚠ SD/SG 配置機能が OFF です。band モード変更時に自動で ON になります。
+                    </span>
+                  </div>
+                )}
+                {first.anchorMode === 'between' && (
+                  <div className="prop-row" style={{ padding: 6, background: '#e3f2fd', border: '1px solid #2196f3', borderRadius: 4 }}>
+                    <span style={{ fontSize: '0.82em', color: '#0d47a1' }}>
+                      ℹ between + band 組合せ: 時間軸方向の幅は 2 Box 間のスパンで自動計算されます (spaceWidth/spaceHeight の時間軸値は無視)。
+                      row と spaceInsetItem で アイテム軸配置を制御できます。
                     </span>
                   </div>
                 )}
@@ -1178,23 +1198,9 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               </>
             )}
 
-            {/* attached モード固有の設定（attachedTo2 / anchorMode は上の共通 UI を使用） */}
+            {/* attached モード固有の設定（attachedTo2 / anchorMode / betweenMode は上の共通 UI を使用） */}
             {(first.spaceMode == null || first.spaceMode === 'attached') && (
               <>
-                {first.anchorMode === 'between' && (
-                  <>
-                    <div className="prop-row">
-                      <label>幅の定義</label>
-                      <select
-                        value={first.betweenMode ?? 'edge-to-edge'}
-                        onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
-                      >
-                        <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
-                        <option value="center-to-center">Box 中心から Box 中心まで</option>
-                      </select>
-                    </div>
-                  </>
-                )}
                 <div className="prop-row">
                   <label>時間オフセット (px)</label>
                   <input
