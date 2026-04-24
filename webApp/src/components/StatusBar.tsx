@@ -14,7 +14,7 @@ export function StatusBar() {
     selection.boxIds.length +
     selection.lineIds.length +
     selection.sdsgIds.length +
-    selection.annotationIds.length;
+    selection.noteIds.length;
 
   return (
     <div className="status-bar">

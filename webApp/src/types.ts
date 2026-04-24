@@ -225,7 +225,8 @@ export interface SDSG {
   asciiUpright?: boolean;
 }
 
-export interface Annotation {
+// TEM 図に置ける注釈ノート（吹き出し / メモ）。Box type='annotation'（潜在経験）とは別物
+export interface Note {
   id: string;
   x: number;
   y: number;
@@ -272,7 +273,7 @@ export interface Sheet {
   boxes: Box[];
   lines: Line[];
   sdsg: SDSG[];
-  annotations: Annotation[];
+  notes: Note[];
   comments: Comment[];
   periodLabels: PeriodLabel[];
 }
@@ -628,7 +629,7 @@ export interface Selection {
   boxIds: string[];
   lineIds: string[];
   sdsgIds: string[];
-  annotationIds: string[];
+  noteIds: string[];
   legendSelected?: boolean;  // 凡例がシングル選択されている
 }
 

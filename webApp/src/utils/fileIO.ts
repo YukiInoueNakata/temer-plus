@@ -123,6 +123,14 @@ function validateAndParse(text: string): TEMDocument {
   if (data.version && data.version !== '0.3') {
     console.warn(`Version mismatch: file=${data.version}, app=0.3. 可能な範囲で読み込みます。`);
   }
+  // Legacy 互換: Sheet.annotations → Sheet.notes（未実装だったが型だけ存在）
+  for (const sh of data.sheets) {
+    if (sh && Array.isArray(sh.annotations) && !sh.notes) {
+      sh.notes = sh.annotations;
+      delete sh.annotations;
+    }
+    if (sh && !Array.isArray(sh.notes)) sh.notes = [];
+  }
   return data as TEMDocument;
 }
 

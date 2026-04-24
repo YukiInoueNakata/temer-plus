@@ -49,6 +49,18 @@ interface UIState {
   fitMode: FitMode | null;
 }
 
+export interface PasteAtOptions {
+  /** 挿入モード:
+   *   - 'offset' (既定): 元座標 +20px
+   *   - 'midpoint': 前後 Box の Time 軸中間に均等配置（Box のみ対応、SDSG は offset にフォールバック）
+   */
+  mode?: 'offset' | 'midpoint';
+  /** midpoint モード時、前側の参照 Box ID（DataSheet の並び順が時系列と一致しないとき明示指定） */
+  prevBoxId?: string;
+  /** midpoint モード時、後側の参照 Box ID */
+  nextBoxId?: string;
+}
+
 interface Actions {
   // Document-level
   loadDocument: (doc: TEMDocument) => void;
@@ -136,7 +148,7 @@ interface Actions {
   // Cross-sheet clipboard (simple in-memory for now)
   copyToClipboard: () => void;
   pasteFromClipboard: (targetSheetId?: string) => void;
-  pasteFromClipboardAt: (kind: 'box' | 'sdsg', index: number) => void;
+  pasteFromClipboardAt: (kind: 'box' | 'sdsg', index: number, options?: PasteAtOptions) => void;
   getClipboardInfo: () => { boxCount: number; lineCount: number; sdsgCount: number };
 
   // Z-order
@@ -146,8 +158,8 @@ interface Actions {
   sendBackward: (id: string) => void;
 
   // Selection
-  selectSingle: (type: 'box' | 'line' | 'sdsg' | 'annotation', id: string) => void;
-  toggleSelect: (type: 'box' | 'line' | 'sdsg' | 'annotation', id: string) => void;
+  selectSingle: (type: 'box' | 'line' | 'sdsg' | 'note', id: string) => void;
+  toggleSelect: (type: 'box' | 'line' | 'sdsg' | 'note', id: string) => void;
   setSelection: (boxIds: string[], lineIds?: string[], sdsgIds?: string[], opts?: { legendSelected?: boolean }) => void;
   selectLegend: () => void;
   clearSelection: () => void;
@@ -263,7 +275,7 @@ export const useTEMStore = create<Store>()(
       // Initial state
       doc: createSampleDocument(),
       view: DEFAULT_VIEW_STATE,
-      selection: { sheetId: '', boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] },
+      selection: { sheetId: '', boxIds: [], lineIds: [], sdsgIds: [], noteIds: [] },
       fileHandle: null,
       dirty: false,
       fitCounter: 0,
@@ -276,7 +288,7 @@ export const useTEMStore = create<Store>()(
         set({
           doc: hydrated,
           dirty: false,
-          selection: { sheetId: hydrated.activeSheetId, boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] },
+          selection: { sheetId: hydrated.activeSheetId, boxIds: [], lineIds: [], sdsgIds: [], noteIds: [] },
         });
       },
       importSheetsFromDocument: (src) => {
@@ -346,7 +358,7 @@ export const useTEMStore = create<Store>()(
         set((state) =>
           produce(state, (draft) => {
             draft.doc.activeSheetId = sheetId;
-            draft.selection = { sheetId, boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [] };
+            draft.selection = { sheetId, boxIds: [], lineIds: [], sdsgIds: [], noteIds: [] };
           })
         );
       },
@@ -416,7 +428,7 @@ export const useTEMStore = create<Store>()(
               sh.boxes.push({ ...defaults, ...partial, id });
             }),
             // 挿入した Box を選択状態にする（キャンバスでも反映）
-            selection: { ...s.selection, boxIds: [id], lineIds: [], sdsgIds: [], annotationIds: [] },
+            selection: { ...s.selection, boxIds: [id], lineIds: [], sdsgIds: [], noteIds: [] },
             dirty: true,
           };
         });
@@ -932,7 +944,7 @@ export const useTEMStore = create<Store>()(
             boxIds: [],
             lineIds: [],
             sdsgIds: [id],
-            annotationIds: [],
+            noteIds: [],
             legendSelected: false,
           },
           dirty: true,
@@ -1206,20 +1218,75 @@ export const useTEMStore = create<Store>()(
         });
       },
       // 指定位置挿入: index は「N 番目の前に挿入」（length で末尾後）
-      pasteFromClipboardAt: (kind, index) => {
+      pasteFromClipboardAt: (kind, index, options) => {
         if (!clipboard) return;
+        const mode = options?.mode ?? 'offset';
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {
             if (kind === 'box') {
+              const isH = state.doc.settings.layout === 'horizontal';
               const idMap = new Map<string, string>();
               const newBoxes = clipboard!.boxes.map((b) => {
                 const newId = genBoxIdByType(b.type, [...sheet.boxes.map((x) => x.id), ...idMap.values()]);
                 idMap.set(b.id, newId);
-                return { ...b, id: newId, x: b.x + 20, y: b.y + 20 };
+                return { ...b, id: newId };
               });
+
+              // midpoint モード: 前後 Box の Time 軸中間に均等配置
+              if (mode === 'midpoint' && newBoxes.length > 0) {
+                const prev = options?.prevBoxId ? sheet.boxes.find((b) => b.id === options.prevBoxId) : undefined;
+                const next = options?.nextBoxId ? sheet.boxes.find((b) => b.id === options.nextBoxId) : undefined;
+                if (prev && next) {
+                  // Time 軸方向の区間を N+1 等分して N 個の Box を配置
+                  const n = newBoxes.length;
+                  if (isH) {
+                    const startT = prev.x + prev.width;
+                    const endT = next.x;
+                    const range = endT - startT;
+                    newBoxes.forEach((nb, j) => {
+                      const t = (j + 1) / (n + 1);
+                      // Box 中心を配置点にする: nb.x = lerp_center - width/2
+                      const centerX = startT + range * t;
+                      nb.x = centerX - nb.width / 2;
+                      // Item 軸（y）は前後の平均で配置（プロトタイプとして）
+                      nb.y = (prev.y + next.y) / 2;
+                    });
+                  } else {
+                    const startT = prev.y + prev.height;
+                    const endT = next.y;
+                    const range = endT - startT;
+                    newBoxes.forEach((nb, j) => {
+                      const t = (j + 1) / (n + 1);
+                      const centerY = startT + range * t;
+                      nb.y = centerY - nb.height / 2;
+                      nb.x = (prev.x + next.x) / 2;
+                    });
+                  }
+                } else if (prev) {
+                  // 末尾側挿入: prev の直後に並べる
+                  newBoxes.forEach((nb, j) => {
+                    if (isH) { nb.x = prev.x + prev.width + 20 + j * (nb.width + 10); nb.y = prev.y; }
+                    else     { nb.y = prev.y + prev.height + 20 + j * (nb.height + 10); nb.x = prev.x; }
+                  });
+                } else if (next) {
+                  // 先頭側挿入: next の直前に並べる
+                  newBoxes.forEach((nb, j) => {
+                    if (isH) { nb.x = next.x - 20 - (newBoxes.length - j) * (nb.width + 10); nb.y = next.y; }
+                    else     { nb.y = next.y - 20 - (newBoxes.length - j) * (nb.height + 10); nb.x = next.x; }
+                  });
+                } else {
+                  // 参照なし: 従来通り +20 オフセット（フォールバック）
+                  newBoxes.forEach((nb, j) => { const src = clipboard!.boxes[j]; nb.x = src.x + 20; nb.y = src.y + 20; });
+                }
+              } else {
+                // offset モード（既定）: 元座標 +20px
+                newBoxes.forEach((nb, j) => { const src = clipboard!.boxes[j]; nb.x = src.x + 20; nb.y = src.y + 20; });
+              }
+
               const safeIndex = Math.max(0, Math.min(index, sheet.boxes.length));
               sheet.boxes.splice(safeIndex, 0, ...newBoxes);
             } else {
+              // SDSG は midpoint に対応しない（座標は attachedTo に追従するため無意味）
               const newSDSGs = clipboard!.sdsg.map((s) => {
                 const newId = genSDSGId();
                 return { ...s, id: newId };
@@ -1301,13 +1368,13 @@ export const useTEMStore = create<Store>()(
             boxIds: type === 'box' ? [id] : [],
             lineIds: type === 'line' ? [id] : [],
             sdsgIds: type === 'sdsg' ? [id] : [],
-            annotationIds: type === 'annotation' ? [id] : [],
+            noteIds: type === 'note' ? [id] : [],
           },
         }));
       },
       toggleSelect: (type, id) => {
         set((state) => {
-          const key = `${type}Ids` as 'boxIds' | 'lineIds' | 'sdsgIds' | 'annotationIds';
+          const key = `${type}Ids` as 'boxIds' | 'lineIds' | 'sdsgIds' | 'noteIds';
           const ids = state.selection[key];
           const newIds = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
           return {
@@ -1326,7 +1393,7 @@ export const useTEMStore = create<Store>()(
             boxIds,
             lineIds,
             sdsgIds,
-            annotationIds: [],
+            noteIds: [],
             legendSelected: opts?.legendSelected ?? false,
           },
         }));
@@ -1338,7 +1405,7 @@ export const useTEMStore = create<Store>()(
             boxIds: [],
             lineIds: [],
             sdsgIds: [],
-            annotationIds: [],
+            noteIds: [],
             legendSelected: true,
           },
         }));
@@ -1347,7 +1414,7 @@ export const useTEMStore = create<Store>()(
         set((state) => ({
           selection: {
             sheetId: state.doc.activeSheetId,
-            boxIds: [], lineIds: [], sdsgIds: [], annotationIds: [],
+            boxIds: [], lineIds: [], sdsgIds: [], noteIds: [],
           },
         }));
       },
@@ -1361,7 +1428,7 @@ export const useTEMStore = create<Store>()(
               boxIds: sheet.boxes.map((b) => b.id),
               lineIds: sheet.lines.map((l) => l.id),
               sdsgIds: sheet.sdsg.map((s) => s.id),
-              annotationIds: sheet.annotations.map((a) => a.id),
+              noteIds: sheet.notes.map((a) => a.id),
             },
           };
         });
@@ -1579,7 +1646,7 @@ export const useTEMStore = create<Store>()(
         // 挿入された Box 群を選択状態にする
         if (insertedRef.ids.length > 0) {
           set((s) => ({
-            selection: { ...s.selection, boxIds: insertedRef.ids, lineIds: [], sdsgIds: [], annotationIds: [] },
+            selection: { ...s.selection, boxIds: insertedRef.ids, lineIds: [], sdsgIds: [], noteIds: [] },
           }));
         }
       },

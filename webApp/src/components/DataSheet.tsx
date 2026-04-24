@@ -149,6 +149,13 @@ function BoxTable() {
   const pasteAtStore = useTEMStore((s) => s.pasteFromClipboardAt);
   const getClipboardInfo = useTEMStore((s) => s.getClipboardInfo);
   const clipboardBoxCount = getClipboardInfo().boxCount;
+  const [pasteMode, setPasteMode] = useState<'offset' | 'midpoint'>(
+    () => (localStorage.getItem('temer:paste-mode') as 'offset' | 'midpoint') ?? 'offset',
+  );
+  const updatePasteMode = (m: 'offset' | 'midpoint') => {
+    setPasteMode(m);
+    try { localStorage.setItem('temer:paste-mode', m); } catch { /* noop */ }
+  };
   const [sortField, setSortField] = useState<SortField>('timeLevel');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState('');
@@ -277,6 +284,18 @@ function BoxTable() {
             選択 {selectedBoxIds.length}個
           </span>
         )}
+        <label style={{ marginLeft: 'auto', fontSize: '0.78em', color: '#666', display: 'flex', alignItems: 'center', gap: 4 }}>
+          貼付モード:
+          <select
+            value={pasteMode}
+            onChange={(e) => updatePasteMode(e.target.value as 'offset' | 'midpoint')}
+            style={{ fontSize: '0.88em' }}
+            title="クリップボード挿入時の座標決定方式"
+          >
+            <option value="offset">+20 オフセット</option>
+            <option value="midpoint">中間配置（前後 Box の中間 Time）</option>
+          </select>
+        </label>
       </div>
       <div style={{ overflow: 'auto' }}>
         <table className="data-table resizable">
@@ -304,7 +323,11 @@ function BoxTable() {
               index={0}
               disabled={clipboardBoxCount === 0}
               pasteCount={clipboardBoxCount}
-              onPaste={() => pasteAtStore('box', 0)}
+              onPaste={() => pasteAtStore('box', 0, {
+                mode: pasteMode,
+                prevBoxId: undefined,
+                nextBoxId: sortedBoxes[0]?.id,
+              })}
               colSpan={7}
             />
             {sortedBoxes.map((b, idx) => (
@@ -376,10 +399,16 @@ function BoxTable() {
                       onClick={() => {
                         if (!sheet) return;
                         const sheetIdx = sheet.boxes.findIndex((x) => x.id === b.id);
-                        if (sheetIdx >= 0) pasteAtStore('box', sheetIdx + 1);
+                        if (sheetIdx >= 0) {
+                          pasteAtStore('box', sheetIdx + 1, {
+                            mode: pasteMode,
+                            prevBoxId: b.id,
+                            nextBoxId: sortedBoxes[idx + 1]?.id,
+                          });
+                        }
                       }}
                       disabled={clipboardBoxCount === 0}
-                      title={clipboardBoxCount > 0 ? `この下にクリップボードを挿入（${clipboardBoxCount} 行）` : 'クリップボード空'}
+                      title={clipboardBoxCount > 0 ? `この下にクリップボードを挿入（${clipboardBoxCount} 行、モード: ${pasteMode === 'midpoint' ? '中間配置' : '+20オフセット'}）` : 'クリップボード空'}
                       style={{ opacity: clipboardBoxCount > 0 ? 1 : 0.35 }}
                     >⬇</button>
                     <button className="row-btn danger" onClick={() => removeBoxes([b.id])} title="削除">×</button>
@@ -408,7 +437,11 @@ function BoxTable() {
               index={sheet?.boxes.length ?? 0}
               disabled={clipboardBoxCount === 0}
               pasteCount={clipboardBoxCount}
-              onPaste={() => pasteAtStore('box', sheet?.boxes.length ?? 0)}
+              onPaste={() => pasteAtStore('box', sheet?.boxes.length ?? 0, {
+                mode: pasteMode,
+                prevBoxId: sortedBoxes[sortedBoxes.length - 1]?.id,
+                nextBoxId: undefined,
+              })}
               colSpan={7}
             />
           </tbody>

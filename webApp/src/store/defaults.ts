@@ -250,7 +250,7 @@ export function createEmptySheet(name: string, order: number): Sheet {
     boxes: [],
     lines: [],
     sdsg: [],
-    annotations: [],
+    notes: [],
     comments: [],
     periodLabels: [],
   };
