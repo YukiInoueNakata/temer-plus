@@ -313,6 +313,9 @@ function Inner({
           typeLabelBorderColor: sg.typeLabelBorderColor,
           typeLabelBorderWidth: sg.typeLabelBorderWidth,
           asciiUpright: sg.asciiUpright,
+          idOffsetX: sg.idOffsetX,
+          idOffsetY: sg.idOffsetY,
+          idFontSize: sg.idFontSize,
         },
         style: { width: w, height: h, zIndex: sg.zIndex ?? 0 },
       };
@@ -347,6 +350,9 @@ function Inner({
           connectionMode: l.connectionMode,
           fromBoxId: l.from,
           toBoxId: l.to,
+          idOffsetX: l.idOffsetX,
+          idOffsetY: l.idOffsetY,
+          idFontSize: l.idFontSize,
         } : undefined,
         style: {
           stroke: l.style?.color ?? '#222',

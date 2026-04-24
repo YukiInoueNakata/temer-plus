@@ -328,6 +328,9 @@ function CanvasInner({
               subLabelBorderWidth: sg.subLabelBorderWidth,
               typeLabelText: computeSDSGDisplay(sheet.sdsg, sg, sheet.boxes, layout),
               asciiUpright: sg.asciiUpright,
+              idOffsetX: sg.idOffsetX,
+              idOffsetY: sg.idOffsetY,
+              idFontSize: sg.idFontSize,
             } as SDSGNodeData,
             style: { width: pos.width, height: pos.height, zIndex: sg.zIndex ?? 0 },
             draggable: true,
@@ -516,6 +519,9 @@ function CanvasInner({
               connectionMode: l.connectionMode,
               fromBoxId: l.from,
               toBoxId: l.to,
+              idOffsetX: l.idOffsetX,
+              idOffsetY: l.idOffsetY,
+              idFontSize: l.idFontSize,
             }
           : undefined,
         style: {
