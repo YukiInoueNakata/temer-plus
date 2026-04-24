@@ -159,6 +159,10 @@ export interface Line {
   // 曲線（curve）形状の曲率（0..1、既定 0.5、0=ほぼ直線、1=大きく膨らむ）
   //   三次 Bezier の制御点距離 = 時間軸差 * curveIntensity
   curveIntensity?: number;
+  // IDバッジ（Line中点に表示）
+  idOffsetX?: number;                  // デフォルト 0
+  idOffsetY?: number;                  // デフォルト 0
+  idFontSize?: number;                 // デフォルト 9
 }
 
 export interface SDSG {
@@ -223,6 +227,10 @@ export interface SDSG {
   subLabelBorderWidth?: number;
   // 縦書き英数向き（本体テキスト用）
   asciiUpright?: boolean;
+  // IDバッジ（SDSG上部に表示、Box と同形式）
+  idOffsetX?: number;                  // デフォルト 0
+  idOffsetY?: number;                  // デフォルト 0
+  idFontSize?: number;                 // デフォルト 9
 }
 
 // TEM 図に置ける注釈ノート（吹き出し / メモ）。Box type='annotation'（潜在経験）とは別物
@@ -647,6 +655,8 @@ export interface ViewState {
   showLegend: boolean;
   showComments: boolean;
   showBoxIds: boolean;                 // Box上のIDバッジ表示切替
+  showSDSGIds: boolean;                // SDSG上のIDバッジ表示切替
+  showLineIds: boolean;                // Line上のIDバッジ表示切替（中点に表示）
   showTopRuler: boolean;               // 上部ルーラー（Time or Item）表示切替
   showLeftRuler: boolean;              // 左部ルーラー（Item or Time）表示切替
   dataSheetVisible: boolean;

@@ -43,6 +43,9 @@ export interface LineEdgeData {
   connectionMode?: 'center-to-center' | 'horizontal';   // legacy
   fromBoxId?: string;
   toBoxId?: string;
+  idOffsetX?: number;
+  idOffsetY?: number;
+  idFontSize?: number;
 }
 
 export function LineEdge({
@@ -205,9 +208,33 @@ export function LineEdge({
       });
     };
 
+    // 中点: elbow は 2 番目のセグメント中点、curve は 4 点 Bezier の t=0.5 を近似
+    const midOfPath = (() => {
+      if (path.kind === 'curve' && path.points.length === 4) {
+        const [p0, c1, c2, p3] = path.points;
+        const t = 0.5;
+        const mt = 1 - t;
+        return {
+          x: mt * mt * mt * p0.x + 3 * mt * mt * t * c1.x + 3 * mt * t * t * c2.x + t * t * t * p3.x,
+          y: mt * mt * mt * p0.y + 3 * mt * mt * t * c1.y + 3 * mt * t * t * c2.y + t * t * t * p3.y,
+        };
+      }
+      if (path.kind === 'elbow' && path.points.length >= 4) {
+        return {
+          x: (path.points[1].x + path.points[2].x) / 2,
+          y: (path.points[1].y + path.points[2].y) / 2,
+        };
+      }
+      const p0 = path.points[0];
+      const p1 = path.points[path.points.length - 1];
+      return { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+    })();
     return (
       <>
         <BaseEdge id={id} path={toSvgPath(path)} markerEnd={markerEnd} style={style} />
+        {view.view.showLineIds && renderLineIdBadge({
+          id, midX: midOfPath.x, midY: midOfPath.y, data,
+        })}
         {showHandles && (
           <g className="curve-control-handles" style={{ pointerEvents: 'all' }}>
             {/* 補助線: p0↔cp1, p3↔cp2 */}
@@ -357,5 +384,54 @@ export function LineEdge({
     targetY: ty,
   });
 
-  return <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />;
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      {view.view.showLineIds && renderLineIdBadge({
+        id, midX: (sx + tx) / 2, midY: (sy + ty) / 2, data,
+      })}
+    </>
+  );
+}
+
+function renderLineIdBadge(args: {
+  id: string;
+  midX: number;
+  midY: number;
+  data?: LineEdgeData;
+}) {
+  const offX = args.data?.idOffsetX ?? 0;
+  const offY = args.data?.idOffsetY ?? -12;
+  const fs = args.data?.idFontSize ?? 9;
+  const disp = args.id.length > 14 ? args.id.slice(0, 14) + '…' : args.id;
+  const cx = args.midX + offX;
+  const cy = args.midY + offY;
+  const padX = 3;
+  const padY = 1;
+  const textW = disp.length * fs * 0.6 + padX * 2;
+  const textH = fs + padY * 2;
+  return (
+    <g pointerEvents="none">
+      <rect
+        x={cx - textW / 2}
+        y={cy - textH / 2}
+        width={textW}
+        height={textH}
+        fill="#fff"
+        stroke="none"
+        rx={2}
+      />
+      <text
+        x={cx}
+        y={cy}
+        fontSize={fs}
+        fill="#666"
+        textAnchor="middle"
+        dominantBaseline="central"
+        style={{ fontFamily: 'monospace' }}
+      >
+        {disp}
+      </text>
+    </g>
+  );
 }

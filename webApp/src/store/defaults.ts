@@ -176,6 +176,8 @@ export const DEFAULT_VIEW_STATE: ViewState = {
   showLegend: true,
   showComments: true,
   showBoxIds: true,
+  showSDSGIds: true,
+  showLineIds: false,
   showTopRuler: true,
   showLeftRuler: true,
   dataSheetVisible: false,

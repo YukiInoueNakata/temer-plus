@@ -70,6 +70,8 @@ export interface PPTXExportOptions {
   pageSplitMode?: 'overlap' | 'duplicate';
   /** duplicate モード時に続マーカーを描画（既定 true） */
   showContinuationMarkers?: boolean;
+  /** ID バッジを含めるか（Box / SDSG / Line 個別） */
+  includeIds?: { box: boolean; sdsg: boolean; line: boolean };
   onProgress?: ProgressCallback;
   signal?: AbortSignal;
 }
@@ -111,6 +113,7 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   const pages = opts.pages && opts.pages.length > 1 ? opts.pages : null;
   const mode: 'overlap' | 'duplicate' = opts.pageSplitMode ?? 'overlap';
   const showMarkers = opts.showContinuationMarkers !== false;
+  const includeIds = opts.includeIds ?? { box: false, sdsg: false, line: false };
 
   if (!pages) {
     // 単一スライド（従来動作）
@@ -122,6 +125,7 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
     drawSDSGs(pres, slide, opts.sheet, layout, opts.settings, t);
     drawBoxes(pres, slide, opts.sheet, layout, opts.settings, t);
     drawLegend(pres, slide, opts.sheet, layout, opts.settings.legend, t);
+    drawIdBadges(slide, opts.sheet, layout, t, includeIds);
     await pres.writeFile({ fileName: filename });
     return;
   }
@@ -147,8 +151,84 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
     drawBoxes(pres, slide, pageSheet, layout, opts.settings, t);
     // 凡例は全スライドに表示（SPEC）
     drawLegend(pres, slide, pageSheet, layout, opts.settings.legend, t);
+    drawIdBadges(slide, pageSheet, layout, t, includeIds);
   }
   await pres.writeFile({ fileName: filename });
+}
+
+// ----------------------------------------------------------------------------
+// ID badge (Box / SDSG / Line 共通、エクスポート設定で有効な場合のみ)
+// ----------------------------------------------------------------------------
+
+function drawIdBadges(
+  slide: PptxGenJS.Slide,
+  sheet: Sheet,
+  layout: LayoutDirection,
+  t: Transform,
+  include: { box: boolean; sdsg: boolean; line: boolean },
+) {
+  const trunc = (s: string) => s.length > 14 ? s.slice(0, 14) + '…' : s;
+  const makeBadge = (text: string, wx: number, wy: number, fs: number) => {
+    const w = Math.max(32, text.length * fs * 0.62 + 6);
+    const h = fs + 4;
+    slide.addText(text, {
+      x: t.toX(wx), y: t.toY(wy),
+      w: t.toLen(w), h: t.toLen(h),
+      fontSize: Math.max(6, fs * Math.max(0.4, t.scale)),
+      color: '666666',
+      fontFace: 'Consolas',
+      fill: { color: 'FFFFFF' },
+      align: 'left', valign: 'middle',
+      margin: 1,
+    });
+  };
+
+  if (include.box) {
+    for (const bx of sheet.boxes) {
+      const offX = bx.idOffsetX ?? 0;
+      const offY = bx.idOffsetY ?? 0;
+      const fs = bx.idFontSize ?? 9;
+      makeBadge(trunc(bx.id), bx.x + 4 + offX, bx.y - fs - 2 + offY, fs);
+    }
+  }
+  if (include.sdsg) {
+    // SDSG の位置は drawSDSGs で計算された wx/wy と同一の定義が必要だが、
+    // 簡略化として sg の attachedTo Box 中心から spaceMode に応じた bbox を再計算せず、
+    // 各 SDSG の attached Box 直上にバッジを置く
+    for (const sg of sheet.sdsg) {
+      const attBox = sheet.boxes.find((b) => b.id === sg.attachedTo);
+      if (!attBox) continue;
+      const w = sg.spaceWidth ?? sg.width ?? 70;
+      const h = sg.spaceHeight ?? sg.height ?? 40;
+      const isH = layout === 'horizontal';
+      // 近似: attached 中心 + time/itemOffset
+      const cx = attBox.x + attBox.width / 2 + (isH ? (sg.timeOffset ?? 0) : (sg.itemOffset ?? 0));
+      const cy = attBox.y + attBox.height / 2 + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
+      const wx = cx - w / 2;
+      const wy = cy - h / 2;
+      const offX = sg.idOffsetX ?? 0;
+      const offY = sg.idOffsetY ?? 0;
+      const fs = sg.idFontSize ?? 9;
+      makeBadge(trunc(sg.id), wx + 4 + offX, wy - fs - 2 + offY, fs);
+    }
+  }
+  if (include.line) {
+    const byId = new Map(sheet.boxes.map((b) => [b.id, b]));
+    for (const l of sheet.lines) {
+      const fb = byId.get(l.from);
+      const tb = byId.get(l.to);
+      if (!fb || !tb) continue;
+      const mx = (fb.x + fb.width / 2 + tb.x + tb.width / 2) / 2;
+      const my = (fb.y + fb.height / 2 + tb.y + tb.height / 2) / 2;
+      const offX = l.idOffsetX ?? 0;
+      const offY = l.idOffsetY ?? -12;
+      const fs = l.idFontSize ?? 9;
+      const text = trunc(l.id);
+      const w = Math.max(32, text.length * fs * 0.62 + 6);
+      // 中央揃え配置のため wx を中央合わせ
+      makeBadge(text, mx - w / 2 + offX, my - fs / 2 + offY, fs);
+    }
+  }
 }
 
 /**

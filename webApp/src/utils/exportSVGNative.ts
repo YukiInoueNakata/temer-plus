@@ -63,6 +63,8 @@ export interface SVGNativeExportOptions {
   offset?: number;              // 既定 0.1
   pages?: PageBounds[];         // N ページ分割
   background?: 'white' | 'transparent';
+  /** ID バッジを含めるか（Box / SDSG / Line 個別） */
+  includeIds?: { box: boolean; sdsg: boolean; line: boolean };
   onProgress?: ProgressCallback;
   signal?: AbortSignal;
 }
@@ -106,9 +108,11 @@ function buildSVGDocuments(opts: SVGNativeExportOptions): string[] {
 
   const pages = opts.pages && opts.pages.length > 1 ? opts.pages : null;
 
+  const includeIds = opts.includeIds ?? { box: false, sdsg: false, line: false };
+
   if (!pages) {
     const t = buildTransform(bbox, paperW, paperH, scale, offsetRatio);
-    const svg = renderPage(opts.sheet, opts.settings, t, paperW, paperH, opts.background);
+    const svg = renderPage(opts.sheet, opts.settings, t, paperW, paperH, opts.background, includeIds);
     return [svg];
   }
 
@@ -121,7 +125,7 @@ function buildSVGDocuments(opts: SVGNativeExportOptions): string[] {
     const pageBbox = { x: page.innerX, y: page.innerY, width: page.innerWidth, height: page.innerHeight };
     const t = buildTransform(pageBbox, paperW, paperH, false, 0);
     const pageSheet = filterSheetForPage(opts.sheet, page, layout);
-    const svg = renderPage(pageSheet, opts.settings, t, paperW, paperH, opts.background);
+    const svg = renderPage(pageSheet, opts.settings, t, paperW, paperH, opts.background, includeIds);
     docs.push(svg);
   }
   return docs;
@@ -134,6 +138,7 @@ function renderPage(
   paperW: number,
   paperH: number,
   background: 'white' | 'transparent' = 'white',
+  includeIds: { box: boolean; sdsg: boolean; line: boolean } = { box: false, sdsg: false, line: false },
 ): string {
   const b = new SVGBuilder(paperW, paperH);
   if (background !== 'transparent') {
@@ -141,9 +146,9 @@ function renderPage(
   }
   drawTimeArrow(b, sheet, settings.layout, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
   drawPeriodLabels(b, sheet, settings.layout, settings.periodLabels, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
-  drawLines(b, sheet, settings.layout, t);
-  drawSDSGs(b, sheet, settings.layout, settings, t);
-  drawBoxes(b, sheet, settings.layout, settings, t);
+  drawLines(b, sheet, settings.layout, t, includeIds.line);
+  drawSDSGs(b, sheet, settings.layout, settings, t, includeIds.sdsg);
+  drawBoxes(b, sheet, settings.layout, settings, t, includeIds.box);
   drawLegend(b, sheet, settings.layout, settings.legend, t);
   return b.build();
 }
@@ -606,10 +611,26 @@ function drawArrowHead(
 // Box
 // ----------------------------------------------------------------------------
 
-function drawBoxes(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, settings: ProjectSettings, t: Transform) {
+function drawBoxes(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, settings: ProjectSettings, t: Transform, includeIds = false) {
   for (const bx of sheet.boxes) {
     renderBox(b, bx, layout, settings, sheet, t);
+    if (includeIds) drawBoxIdBadge(b, bx, t);
   }
+}
+
+function drawBoxIdBadge(b: SVGBuilder, bx: Box, t: Transform) {
+  const offX = bx.idOffsetX ?? 0;
+  const offY = bx.idOffsetY ?? 0;
+  const fs = bx.idFontSize ?? 9;
+  const id = bx.id.length > 14 ? bx.id.slice(0, 14) + '…' : bx.id;
+  const cx = t.toX(bx.x + 8 + offX);
+  const cy = t.toY(bx.y - 2 + offY);
+  const w = id.length * fs * 0.62 + 6;
+  const h = fs + 2;
+  b.rect(cx - 3, cy - h / 2, w, h, { fill: '#ffffff', stroke: 'none' });
+  (b as unknown as { parts: string[] }).parts.push(
+    `<text x="${fmt(cx)}" y="${fmt(cy + fs * 0.35)}" fill="#666" font-size="${fmt(fs)}" text-anchor="start" style="font-family:monospace">${escapeText(id)}</text>`,
+  );
 }
 
 function renderBox(
@@ -795,7 +816,7 @@ function drawBoxSubLabel(b: SVGBuilder, bx: Box, layout: LayoutDirection, settin
 
 interface Pt { x: number; y: number; }
 
-function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Transform) {
+function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Transform, includeIds = false) {
   const byId = new Map(sheet.boxes.map((bx) => [bx.id, bx]));
   const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
 
@@ -827,6 +848,7 @@ function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Tran
         resolved.endMargin,
       );
 
+      let midWX: number = 0, midWY: number = 0;
       if (effectiveShape === 'curve' && path.kind === 'curve') {
         // 三次 Bezier を SVG path で直接描画
         const [p0, c1, c2, p1] = path.points;
@@ -841,6 +863,10 @@ function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Tran
         );
         // 矢印頭: 曲線末端の接線方向 = c2 → p1
         drawArrowHead(b, t.toX(p1.x), t.toY(p1.y), t.toX(c2.x), t.toY(c2.y), strokeW, color);
+        // 中点: t=0.5
+        const mt = 0.5, mm = 0.5;
+        midWX = mm*mm*mm*p0.x + 3*mm*mm*mt*c1.x + 3*mm*mt*mt*c2.x + mt*mt*mt*p1.x;
+        midWY = mm*mm*mm*p0.y + 3*mm*mm*mt*c1.y + 3*mm*mt*mt*c2.y + mt*mt*mt*p1.y;
       } else {
         // polyline (elbow)
         const pts: LinePathPt[] = path.kind === 'curve' ? sampleCurveToSegments(path, 14) : path.points;
@@ -853,7 +879,16 @@ function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Tran
         const last = pts[pts.length - 1];
         const prev = pts[pts.length - 2] ?? pts[0];
         drawArrowHead(b, t.toX(last.x), t.toY(last.y), t.toX(prev.x), t.toY(prev.y), strokeW, color);
+        // 中点: elbow なら path.points[1]-[2] の中央、そうでなければ全体中央
+        if (path.kind === 'elbow' && path.points.length >= 4) {
+          midWX = (path.points[1].x + path.points[2].x) / 2;
+          midWY = (path.points[1].y + path.points[2].y) / 2;
+        } else {
+          midWX = (pts[0].x + pts[pts.length - 1].x) / 2;
+          midWY = (pts[0].y + pts[pts.length - 1].y) / 2;
+        }
       }
+      if (includeIds) drawLineIdBadge(b, l, t.toX(midWX), t.toY(midWY));
       continue;
     }
 
@@ -864,7 +899,25 @@ function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Tran
       stroke: color, strokeWidth: strokeW, strokeDasharray: dashArray,
     });
     drawArrowHead(b, t.toX(seg.ex), t.toY(seg.ey), t.toX(seg.sx), t.toY(seg.sy), strokeW, color);
+    if (includeIds) {
+      drawLineIdBadge(b, l, t.toX((seg.sx + seg.ex) / 2), t.toY((seg.sy + seg.ey) / 2));
+    }
   }
+}
+
+function drawLineIdBadge(b: SVGBuilder, l: Line, cx: number, cy: number) {
+  const offX = l.idOffsetX ?? 0;
+  const offY = l.idOffsetY ?? -12;
+  const fs = l.idFontSize ?? 9;
+  const id = l.id.length > 14 ? l.id.slice(0, 14) + '…' : l.id;
+  const w = id.length * fs * 0.6 + 6;
+  const h = fs + 2;
+  const x = cx + offX;
+  const y = cy + offY;
+  b.rect(x - w / 2, y - h / 2, w, h, { fill: '#ffffff', stroke: 'none', rx: 2, ry: 2 });
+  (b as unknown as { parts: string[] }).parts.push(
+    `<text x="${fmt(x)}" y="${fmt(y + fs * 0.35)}" fill="#666" font-size="${fmt(fs)}" text-anchor="middle" style="font-family:monospace">${escapeText(id)}</text>`,
+  );
 }
 
 function computeLineSegment(
@@ -929,6 +982,7 @@ function computeLineSegment(
 
 function drawSDSGs(
   b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, settings: ProjectSettings, t: Transform,
+  includeIds = false,
 ) {
   const isH = layout === 'horizontal';
 
@@ -1079,7 +1133,23 @@ function drawSDSGs(
 
     drawSDSGTypeLabel(b, sg, wx, wy, w, h, isH, settings, t);
     drawSDSGSubLabel(b, sg, wx, wy, w, h, isH, t);
+    if (includeIds) drawSDSGIdBadge(b, sg, wx, wy, t);
   }
+}
+
+function drawSDSGIdBadge(b: SVGBuilder, sg: SDSG, wx: number, wy: number, t: Transform) {
+  const offX = sg.idOffsetX ?? 0;
+  const offY = sg.idOffsetY ?? 0;
+  const fs = sg.idFontSize ?? 9;
+  const id = sg.id.length > 14 ? sg.id.slice(0, 14) + '…' : sg.id;
+  const cx = t.toX(wx + 8 + offX);
+  const cy = t.toY(wy - 2 + offY);
+  const w = id.length * fs * 0.62 + 6;
+  const h = fs + 2;
+  b.rect(cx - 3, cy - h / 2, w, h, { fill: '#ffffff', stroke: 'none' });
+  (b as unknown as { parts: string[] }).parts.push(
+    `<text x="${fmt(cx)}" y="${fmt(cy + fs * 0.35)}" fill="#666" font-size="${fmt(fs)}" text-anchor="start" style="font-family:monospace">${escapeText(id)}</text>`,
+  );
 }
 
 /**

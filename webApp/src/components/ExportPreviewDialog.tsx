@@ -16,6 +16,7 @@ import {
 } from '../utils/exportTransform';
 import { getPaperPx, getPaperSizeOptionsForLayout, type PaperSizeKey } from '../utils/paperSizes';
 import { ExportPreviewCanvas } from './ExportPreviewCanvas';
+import { CollapsibleSection } from './CollapsibleSection';
 import type { ExportOptions } from '../utils/exportImage';
 import { computePageBounds } from '../utils/pageSplit';
 
@@ -52,6 +53,9 @@ export function ExportPreviewDialog({
   const [background, setBackground] = useState<'white' | 'transparent'>('white');
   const [includeGrid, setIncludeGrid] = useState(false);
   const [includePaperGuides, setIncludePaperGuides] = useState(false);
+  const [includeIds, setIncludeIds] = useState<{ any: boolean; box: boolean; sdsg: boolean; line: boolean }>(
+    { any: false, box: false, sdsg: false, line: false },
+  );
   const [pdfMargin, setPdfMargin] = useState(0.3);
 
   // 印刷モードタブ: 'single' = 単一印刷 / 'multi' = 複数印刷
@@ -206,6 +210,7 @@ export function ExportPreviewDialog({
           offset: 0,
           pages: multi ?? undefined,
           background,
+          includeIds: { box: includeIds.box, sdsg: includeIds.sdsg, line: includeIds.line },
           onProgress: onProg,
           signal: ac.signal,
         });
@@ -236,6 +241,7 @@ export function ExportPreviewDialog({
           pages: multi ?? undefined,
           pageSplitMode: xf.pageSplitMode,
           showContinuationMarkers: xf.showContinuationMarkers,
+          includeIds: { box: includeIds.box, sdsg: includeIds.sdsg, line: includeIds.line },
           onProgress: onProg,
           signal: ac.signal,
         });
@@ -406,8 +412,7 @@ export function ExportPreviewDialog({
               >複数印刷（分割）</button>
             </div>
 
-            <section className="settings-section">
-              <h4>用紙とフィット</h4>
+            <CollapsibleSection title="用紙とフィット" sectionKey="export-paper-fit" defaultOpen={true}>
               <div className="setting-row">
                 <label>用紙サイズ</label>
                 <select
@@ -466,11 +471,10 @@ export function ExportPreviewDialog({
                   style={{ width: 80 }}
                 />
               </div>
-            </section>
+            </CollapsibleSection>
 
             {exportMode === 'multi' && (
-              <section className="settings-section">
-                <h4>ページ分割（長辺方向）</h4>
+              <CollapsibleSection title="ページ分割（長辺方向）" sectionKey="export-page-split" defaultOpen={true}>
                 <p className="hint" style={{ marginTop: 0 }}>
                   {doc.settings.layout === 'horizontal'
                     ? '横型レイアウト: x 軸方向（横）に N 分割して出力'
@@ -547,11 +551,10 @@ export function ExportPreviewDialog({
                     disabled={previewPageIndex >= xf.pageCount - 1}
                   >▶</button>
                 </div>
-              </section>
+              </CollapsibleSection>
             )}
 
-            <section className="settings-section">
-              <h4>微調整</h4>
+            <CollapsibleSection title="微調整" sectionKey="export-fine-tune" defaultOpen={false}>
               <div className="setting-row">
                 <label>位置 X (px)</label>
                 <input
@@ -715,10 +718,9 @@ export function ExportPreviewDialog({
                   リセット
                 </button>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            <section className="settings-section">
-              <h4>出力設定</h4>
+            <CollapsibleSection title="出力設定" sectionKey="export-output" defaultOpen={true}>
               <div className="setting-row">
                 <label>背景</label>
                 <select
@@ -745,6 +747,43 @@ export function ExportPreviewDialog({
                   onChange={(e) => setIncludePaperGuides(e.target.checked)}
                 />
               </div>
+              <div className="setting-row">
+                <label>ID バッジを含める</label>
+                <input
+                  type="checkbox"
+                  checked={includeIds.any}
+                  ref={(el) => { if (el) el.indeterminate = includeIds.any && !(includeIds.box && includeIds.sdsg && includeIds.line); }}
+                  onChange={(e) => {
+                    const v = e.target.checked;
+                    setIncludeIds({ any: v, box: v, sdsg: v, line: v });
+                  }}
+                />
+              </div>
+              {includeIds.any && (
+                <div style={{ marginLeft: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <label style={{ fontSize: '0.85em' }}>
+                    <input
+                      type="checkbox"
+                      checked={includeIds.box}
+                      onChange={(e) => setIncludeIds((p) => ({ ...p, box: e.target.checked, any: e.target.checked || p.sdsg || p.line }))}
+                    /> Box ID
+                  </label>
+                  <label style={{ fontSize: '0.85em' }}>
+                    <input
+                      type="checkbox"
+                      checked={includeIds.sdsg}
+                      onChange={(e) => setIncludeIds((p) => ({ ...p, sdsg: e.target.checked, any: p.box || e.target.checked || p.line }))}
+                    /> SDSG ID
+                  </label>
+                  <label style={{ fontSize: '0.85em' }}>
+                    <input
+                      type="checkbox"
+                      checked={includeIds.line}
+                      onChange={(e) => setIncludeIds((p) => ({ ...p, line: e.target.checked, any: p.box || p.sdsg || e.target.checked }))}
+                    /> Line ID
+                  </label>
+                </div>
+              )}
               {format === 'pdf' && (
                 <div className="setting-row">
                   <label>PDF マージン (inch)</label>
@@ -760,7 +799,7 @@ export function ExportPreviewDialog({
                 </div>
               )}
               <p className="hint">背景・グリッド・用紙枠は PPTX では無視されます</p>
-            </section>
+            </CollapsibleSection>
           </div>
 
           {/* 右: プレビュー */}
@@ -778,6 +817,7 @@ export function ExportPreviewDialog({
                 background={background}
                 pageBounds={exportMode === 'multi' ? pageBounds : undefined}
                 highlightPageIndex={exportMode === 'multi' && xf.pageCount > 1 ? previewPageIndex : undefined}
+                includeIds={{ box: includeIds.box, sdsg: includeIds.sdsg, line: includeIds.line }}
                 onPanZoomChange={(delta) => {
                   // パン → offsetX/Y、ズーム → fitMode=manual + globalScale に反映
                   setXf((cur) => {

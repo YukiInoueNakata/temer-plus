@@ -20,7 +20,7 @@ export interface SDSGNodeData extends Pick<
   'subLabelColor' | 'subLabelBackgroundColor' | 'subLabelBorderColor' | 'subLabelBorderWidth' |
   'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' | 'typeLabelAsciiUpright' |
   'typeLabelColor' | 'typeLabelBackgroundColor' | 'typeLabelBorderColor' | 'typeLabelBorderWidth' |
-  'asciiUpright'
+  'asciiUpright' | 'idOffsetX' | 'idOffsetY' | 'idFontSize'
 > {
   id: string;
   // 配置モード（resize 時に width/height か spaceWidth/spaceHeight を更新するか判定）
@@ -368,6 +368,26 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
       {subLabelText && (
         <div style={subLabelStyle}>
           {renderVerticalAwareText(subLabelText, isVerticalLayout && subAsciiUpright)}
+        </div>
+      )}
+      {view.view.showSDSGIds && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -2 + (data.idOffsetY ?? 0),
+            left: 4 + (data.idOffsetX ?? 0),
+            fontSize: data.idFontSize ?? 9,
+            background: '#fff',
+            padding: '0 3px',
+            color: '#666',
+            lineHeight: '10px',
+            fontFamily: 'monospace',
+            pointerEvents: 'none',
+            transform: 'translateY(-50%)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {nodeId.length > 14 ? nodeId.slice(0, 14) + '…' : nodeId}
         </div>
       )}
     </div>

@@ -58,6 +58,8 @@ export interface ExportPreviewCanvasProps {
    */
   onPanZoomChange?: (delta: { panDeltaWorldX: number; panDeltaWorldY: number; zoomRatio: number }) => void;
   style?: React.CSSProperties;
+  /** エクスポート時に ID バッジを含めるか（プレビューでも表示） */
+  includeIds?: { box: boolean; sdsg: boolean; line: boolean };
 }
 
 export function ExportPreviewCanvas(props: ExportPreviewCanvasProps) {
@@ -81,6 +83,7 @@ function Inner({
   highlightPageIndex,
   onPanZoomChange,
   style,
+  includeIds,
 }: ExportPreviewCanvasProps) {
   const sheet = doc.sheets.find((s) => s.id === doc.activeSheetId) ?? doc.sheets[0] ?? null;
 
@@ -97,7 +100,9 @@ function Inner({
       showPaperGuides: showPaperGuide,
       showLegend: true,
       showComments: false,
-      showBoxIds: false,            // プレビューではID非表示（ノイズ低減）
+      showBoxIds: !!includeIds?.box,
+      showSDSGIds: !!includeIds?.sdsg,
+      showLineIds: !!includeIds?.line,
       showTopRuler: false,
       showLeftRuler: false,
       dataSheetVisible: false,
@@ -114,7 +119,7 @@ function Inner({
     updateLine: () => {},
     isPreview: true,
     editLocked: true,
-  }), [sheet, doc.settings, showGrid, showPaperGuide]);
+  }), [sheet, doc.settings, showGrid, showPaperGuide, includeIds?.box, includeIds?.sdsg, includeIds?.line]);
 
   // nodes/edges を自前で組み立て
   const { nodes, edges } = useMemo(() => {
