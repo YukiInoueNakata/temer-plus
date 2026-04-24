@@ -1,0 +1,1556 @@
+// ============================================================================
+// SVG 完全ベクター出力
+// - html-to-image のラスタ埋め込みに依存せず、Box/Line/SDSG/TimeArrow/
+//   PeriodLabels/Legend を native SVG (<rect>/<text>/<path>/<polygon>) として emit
+// - Illustrator / Inkscape で各要素を選択・編集可能
+// - 単一ページおよび N ページ分割 (ZIP) を提供
+// ============================================================================
+
+import JSZip from 'jszip';
+import type {
+  Box,
+  Line,
+  Sheet,
+  SDSG,
+  ProjectSettings,
+  LayoutDirection,
+  LegendSettings,
+  PeriodLabelSettings,
+  TimeArrowSettings,
+  SDSGSpaceSettings,
+  TypeLabelVisibilityMap,
+} from '../types';
+import { computeTimeArrow } from './timeArrow';
+import { computePeriodLabels } from './periodLabels';
+import {
+  computeSDSGBandLayout,
+  sdsgBandKey,
+  computeBandRowAssignments,
+  computeSDSGBandPosition,
+} from './sdsgSpaceLayout';
+import { computeLegendItems, type LegendItem } from './legend';
+import { computeContentBounds } from './fitBounds';
+import { BOX_RENDER_SPECS } from '../store/defaults';
+import { computeBoxDisplay } from './typeDisplay';
+import { getPaperPx, type PaperSizeKey } from './paperSizes';
+import type { PageBounds } from './pageSplit';
+import { rectIntersectsPage } from './pageSplit';
+import {
+  resolveLineDirection,
+  computeAngleEndpoints,
+  clampAngleDeg,
+} from './lineDirection';
+import { resolveBoxVisuals } from './boxPreset';
+import {
+  computeLinePath,
+  applyLinePathMargins,
+  resolveEffectiveShape,
+  sampleCurveToSegments,
+  type Pt as LinePathPt,
+} from './linePath';
+import { checkAborted, type ProgressCallback } from './exportProgress';
+
+// ----------------------------------------------------------------------------
+// Public API
+// ----------------------------------------------------------------------------
+
+export interface SVGNativeExportOptions {
+  filename?: string;
+  sheet: Sheet;
+  settings: ProjectSettings;
+  paperSize?: PaperSizeKey;
+  scale?: boolean;              // 既定 true
+  offset?: number;              // 既定 0.1
+  pages?: PageBounds[];         // N ページ分割
+  background?: 'white' | 'transparent';
+  onProgress?: ProgressCallback;
+  signal?: AbortSignal;
+}
+
+export async function exportToSVGNative(opts: SVGNativeExportOptions): Promise<void> {
+  if (!opts || !opts.sheet || !opts.settings) {
+    throw new Error('exportToSVGNative: options.sheet と options.settings が必須です');
+  }
+  const filename = opts.filename ?? 'TEMer.svg';
+  const svgs = buildSVGDocuments(opts);
+
+  if (svgs.length === 1) {
+    downloadBlob(new Blob([svgs[0]], { type: 'image/svg+xml' }), filename);
+    return;
+  }
+
+  // 複数ページ → ZIP
+  const baseName = filename.replace(/\.svg$/i, '');
+  const zip = new JSZip();
+  const padLen = String(svgs.length).length;
+  for (let i = 0; i < svgs.length; i++) {
+    const pageNum = String(i + 1).padStart(padLen, '0');
+    zip.file(`${baseName}_page${pageNum}.svg`, svgs[i]);
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(blob, `${baseName}_pages.zip`);
+}
+
+function buildSVGDocuments(opts: SVGNativeExportOptions): string[] {
+  const scale = opts.scale ?? true;
+  const offsetRatio = opts.offset ?? 0.1;
+  const layout = opts.settings.layout;
+  const isH = layout === 'horizontal';
+  const paperKey: PaperSizeKey = opts.paperSize ?? (isH ? 'A4-landscape' : 'A4-portrait');
+  const paper = getPaperPx(paperKey);
+  const paperW = paper.width;
+  const paperH = paper.height;
+
+  const bbox = computeContentBounds(opts.sheet, layout, opts.settings)
+    ?? { x: 0, y: 0, width: paperW, height: paperH };
+
+  const pages = opts.pages && opts.pages.length > 1 ? opts.pages : null;
+
+  if (!pages) {
+    const t = buildTransform(bbox, paperW, paperH, scale, offsetRatio);
+    const svg = renderPage(opts.sheet, opts.settings, t, paperW, paperH, opts.background);
+    return [svg];
+  }
+
+  const docs: string[] = [];
+  const total = pages.length;
+  for (let i = 0; i < pages.length; i++) {
+    checkAborted(opts.signal);
+    opts.onProgress?.({ current: i + 1, total, label: `SVG ページ ${i + 1} / ${total}` });
+    const page = pages[i];
+    const pageBbox = { x: page.innerX, y: page.innerY, width: page.innerWidth, height: page.innerHeight };
+    const t = buildTransform(pageBbox, paperW, paperH, false, 0);
+    const pageSheet = filterSheetForPage(opts.sheet, page, layout);
+    const svg = renderPage(pageSheet, opts.settings, t, paperW, paperH, opts.background);
+    docs.push(svg);
+  }
+  return docs;
+}
+
+function renderPage(
+  sheet: Sheet,
+  settings: ProjectSettings,
+  t: Transform,
+  paperW: number,
+  paperH: number,
+  background: 'white' | 'transparent' = 'white',
+): string {
+  const b = new SVGBuilder(paperW, paperH);
+  if (background !== 'transparent') {
+    b.rect(0, 0, paperW, paperH, { fill: '#ffffff', stroke: 'none' });
+  }
+  drawTimeArrow(b, sheet, settings.layout, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
+  drawPeriodLabels(b, sheet, settings.layout, settings.periodLabels, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
+  drawLines(b, sheet, settings.layout, t);
+  drawSDSGs(b, sheet, settings.layout, settings, t);
+  drawBoxes(b, sheet, settings.layout, settings, t);
+  drawLegend(b, sheet, settings.layout, settings.legend, t);
+  return b.build();
+}
+
+function filterSheetForPage(sheet: Sheet, page: PageBounds, layout: LayoutDirection): Sheet {
+  const visibleBoxes = sheet.boxes.filter((bx) =>
+    rectIntersectsPage({ x: bx.x, y: bx.y, width: bx.width, height: bx.height }, page),
+  );
+  const visibleBoxIds = new Set(visibleBoxes.map((bx) => bx.id));
+  const visibleSDSGs = sheet.sdsg.filter((sg) => visibleBoxIds.has(sg.attachedTo));
+  const visibleLines = sheet.lines.filter((l) => visibleBoxIds.has(l.from) && visibleBoxIds.has(l.to));
+  const LEVEL = 100;
+  const tStart = layout === 'horizontal' ? page.innerX / LEVEL : page.innerY / LEVEL;
+  const tEnd = layout === 'horizontal'
+    ? (page.innerX + page.innerWidth) / LEVEL
+    : (page.innerY + page.innerHeight) / LEVEL;
+  const visiblePeriodLabels = sheet.periodLabels.filter((p) => p.position >= tStart && p.position <= tEnd);
+  return {
+    ...sheet,
+    boxes: visibleBoxes,
+    sdsg: visibleSDSGs,
+    lines: visibleLines,
+    periodLabels: visiblePeriodLabels,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// Transform (world px → svg px)
+// ----------------------------------------------------------------------------
+
+interface Transform {
+  toX: (wx: number) => number;
+  toY: (wy: number) => number;
+  toLen: (p: number) => number;
+  scale: number;
+}
+
+function buildTransform(
+  bbox: { x: number; y: number; width: number; height: number },
+  paperW: number,
+  paperH: number,
+  scale: boolean,
+  offsetRatio: number,
+): Transform {
+  let sc = 1;
+  let offX = 0;
+  let offY = 0;
+  if (scale) {
+    const cw = bbox.width * (1 + offsetRatio * 2);
+    const ch = bbox.height * (1 + offsetRatio * 2);
+    sc = Math.min(paperW / Math.max(1, cw), paperH / Math.max(1, ch));
+    const drawnW = bbox.width * sc;
+    const drawnH = bbox.height * sc;
+    offX = (paperW - drawnW) / 2 - bbox.x * sc;
+    offY = (paperH - drawnH) / 2 - bbox.y * sc;
+  } else {
+    sc = 1;
+    offX = (paperW - bbox.width) / 2 - bbox.x;
+    offY = (paperH - bbox.height) / 2 - bbox.y;
+  }
+  return {
+    toX: (wx) => wx * sc + offX,
+    toY: (wy) => wy * sc + offY,
+    toLen: (p) => p * sc,
+    scale: sc,
+  };
+}
+
+function fontSizeScaled(base: number, t: Transform): number {
+  return Math.max(6, base * Math.max(0.4, t.scale));
+}
+
+// ----------------------------------------------------------------------------
+// SVGBuilder
+// ----------------------------------------------------------------------------
+
+class SVGBuilder {
+  private parts: string[] = [];
+  constructor(private width: number, private height: number) {}
+
+  private attr(name: string, value: string | number | undefined): string {
+    if (value === undefined || value === '') return '';
+    return ` ${name}="${escapeAttr(String(value))}"`;
+  }
+
+  rect(x: number, y: number, w: number, h: number, opts: {
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    strokeDasharray?: string;
+    rx?: number;
+    ry?: number;
+  }): void {
+    this.parts.push(
+      `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(w)}" height="${fmt(h)}"` +
+      this.attr('rx', opts.rx !== undefined ? fmt(opts.rx) : undefined) +
+      this.attr('ry', opts.ry !== undefined ? fmt(opts.ry) : undefined) +
+      this.attr('fill', opts.fill ?? 'none') +
+      this.attr('stroke', opts.stroke ?? 'none') +
+      this.attr('stroke-width', opts.strokeWidth !== undefined ? fmt(opts.strokeWidth) : undefined) +
+      this.attr('stroke-dasharray', opts.strokeDasharray) +
+      ` />`,
+    );
+  }
+
+  ellipse(cx: number, cy: number, rx: number, ry: number, opts: {
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    strokeDasharray?: string;
+  }): void {
+    this.parts.push(
+      `<ellipse cx="${fmt(cx)}" cy="${fmt(cy)}" rx="${fmt(rx)}" ry="${fmt(ry)}"` +
+      this.attr('fill', opts.fill ?? 'none') +
+      this.attr('stroke', opts.stroke ?? 'none') +
+      this.attr('stroke-width', opts.strokeWidth !== undefined ? fmt(opts.strokeWidth) : undefined) +
+      this.attr('stroke-dasharray', opts.strokeDasharray) +
+      ` />`,
+    );
+  }
+
+  line(x1: number, y1: number, x2: number, y2: number, opts: {
+    stroke?: string;
+    strokeWidth?: number;
+    strokeDasharray?: string;
+  }): void {
+    this.parts.push(
+      `<line x1="${fmt(x1)}" y1="${fmt(y1)}" x2="${fmt(x2)}" y2="${fmt(y2)}"` +
+      this.attr('stroke', opts.stroke ?? '#222') +
+      this.attr('stroke-width', opts.strokeWidth !== undefined ? fmt(opts.strokeWidth) : undefined) +
+      this.attr('stroke-dasharray', opts.strokeDasharray) +
+      ` />`,
+    );
+  }
+
+  polygon(points: Array<{ x: number; y: number }>, opts: {
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+  }): void {
+    const p = points.map((pt) => `${fmt(pt.x)},${fmt(pt.y)}`).join(' ');
+    this.parts.push(
+      `<polygon points="${p}"` +
+      this.attr('fill', opts.fill ?? 'none') +
+      this.attr('stroke', opts.stroke ?? 'none') +
+      this.attr('stroke-width', opts.strokeWidth !== undefined ? fmt(opts.strokeWidth) : undefined) +
+      ` />`,
+    );
+  }
+
+  /**
+   * 矩形領域内に単純テキストを配置。
+   * alignH/alignV で text-anchor と baseline-shift 的な y 補正を行う。
+   */
+  text(
+    x: number, y: number, w: number, h: number,
+    text: string,
+    opts: {
+      fontSize: number;
+      fontFamily?: string;
+      color?: string;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      alignH?: 'left' | 'center' | 'right';
+      alignV?: 'top' | 'middle' | 'bottom';
+      writingMode?: 'horizontal' | 'vertical';  // 'vertical' で CJK 縦書き
+      asciiUpright?: boolean;                     // 縦書き時の ASCII 向き
+      fill?: string;
+      stroke?: string;
+      strokeWidth?: number;
+      // 背景塗りと枠
+      bgFill?: string;                            // undefined | 'transparent' で描画しない
+      bgStroke?: string;
+      bgStrokeWidth?: number;
+      // 余白
+      paddingX?: number;
+      paddingY?: number;
+    },
+  ): void {
+    const padX = opts.paddingX ?? 2;
+    const padY = opts.paddingY ?? 2;
+    const innerH = Math.max(0.1, h - padY * 2);
+    void padX;
+
+    // 背景・枠
+    if ((opts.bgFill && opts.bgFill !== 'transparent') || (opts.bgStroke && (opts.bgStrokeWidth ?? 0) > 0)) {
+      this.rect(x, y, w, h, {
+        fill: opts.bgFill && opts.bgFill !== 'transparent' ? opts.bgFill : 'none',
+        stroke: (opts.bgStrokeWidth ?? 0) > 0 ? (opts.bgStroke ?? '#999') : 'none',
+        strokeWidth: opts.bgStrokeWidth,
+      });
+    }
+
+    if (!text) return;
+
+    const lines = String(text).split(/\r?\n/);
+    const alignH = opts.alignH ?? 'center';
+    const alignV = opts.alignV ?? 'middle';
+    const isVert = opts.writingMode === 'vertical';
+
+    // 行高（経験的）
+    const lineHeight = opts.fontSize * 1.25;
+    const blockLen = lineHeight * lines.length;
+
+    // テキストアンカー
+    const anchor = alignH === 'left' ? 'start' : alignH === 'right' ? 'end' : 'middle';
+
+    const styleParts: string[] = [];
+    if (opts.bold) styleParts.push('font-weight:bold');
+    if (opts.italic) styleParts.push('font-style:italic');
+    if (opts.underline) styleParts.push('text-decoration:underline');
+    if (opts.fontFamily) styleParts.push(`font-family:${escapeAttr(opts.fontFamily)}`);
+    if (isVert) {
+      styleParts.push('writing-mode:vertical-rl');
+      styleParts.push(`text-orientation:${opts.asciiUpright === false ? 'mixed' : 'upright'}`);
+    }
+    const style = styleParts.length > 0 ? ` style="${styleParts.join(';')}"` : '';
+
+    const color = opts.fill ?? opts.color ?? '#222';
+
+    if (isVert) {
+      // 縦書き: 列が右から左へ。x はブロック右端、y は行の上端。
+      // text-anchor (垂直方向の整列) は 'start'/'middle'/'end' として機能
+      const cx = alignH === 'left'
+        ? x + padX + opts.fontSize / 2
+        : alignH === 'right'
+          ? x + w - padX - opts.fontSize / 2
+          : x + w / 2;
+      // 縦書き時の行開始位置 (writing-mode: vertical-rl では y が上→下へ進行)
+      let startY: number;
+      switch (alignV) {
+        case 'top': startY = y + padY; break;
+        case 'bottom': startY = y + h - padY - Math.min(innerH, opts.fontSize * maxLineLen(lines)); break;
+        case 'middle':
+        default: startY = y + h / 2 - Math.min(innerH, opts.fontSize * maxLineLen(lines)) / 2;
+      }
+      lines.forEach((ln, i) => {
+        const lx = cx - i * lineHeight;
+        this.parts.push(
+          `<text x="${fmt(lx)}" y="${fmt(startY)}" fill="${escapeAttr(color)}" font-size="${fmt(opts.fontSize)}" text-anchor="${anchor}"${style}>${escapeText(ln)}</text>`,
+        );
+      });
+      return;
+    }
+
+    // 横書き: baseline は dominant-baseline='middle' で中央、各行の y を計算
+    let topY: number;
+    switch (alignV) {
+      case 'top': topY = y + padY + opts.fontSize; break;
+      case 'bottom': topY = y + h - padY - blockLen + opts.fontSize; break;
+      case 'middle':
+      default: topY = y + h / 2 - blockLen / 2 + opts.fontSize;
+    }
+    // text-anchor 基準 X
+    const tx = alignH === 'left'
+      ? x + padX
+      : alignH === 'right'
+        ? x + w - padX
+        : x + w / 2;
+    lines.forEach((ln, i) => {
+      const ly = topY + i * lineHeight - opts.fontSize * 0.25; // baseline 補正
+      this.parts.push(
+        `<text x="${fmt(tx)}" y="${fmt(ly)}" fill="${escapeAttr(color)}" font-size="${fmt(opts.fontSize)}" text-anchor="${anchor}"${style}>${escapeText(ln)}</text>`,
+      );
+    });
+  }
+
+  group(transform: string, inner: () => void): void {
+    this.parts.push(`<g transform="${escapeAttr(transform)}">`);
+    inner();
+    this.parts.push(`</g>`);
+  }
+
+  /** リッチテキスト (bold/通常 混在) を 1 行で描画。Legend 説明文表示に使用 */
+  richText(
+    x: number, y: number, w: number, h: number,
+    runs: Array<{ text: string; bold?: boolean; fontSize: number; color?: string }>,
+    opts: {
+      alignH?: 'left' | 'center' | 'right';
+      alignV?: 'top' | 'middle' | 'bottom';
+      fontFamily?: string;
+    },
+  ): void {
+    if (runs.length === 0) return;
+    const alignH = opts.alignH ?? 'left';
+    const alignV = opts.alignV ?? 'middle';
+    // 複数行テキスト (改行を含む) は単純化: 1 行目 = first run 改行前、2 行目 = first run 改行後 + rest
+    // Legend description の用途: [{text: 'label', bold:true, fs}, {text: '\ndesc', fs*0.85}]
+    // → 2 行レイアウト想定
+    const lineBlocks: Array<Array<{ text: string; bold?: boolean; fontSize: number; color?: string }>> = [];
+    let current: typeof lineBlocks[number] = [];
+    for (const r of runs) {
+      const parts = r.text.split(/\r?\n/);
+      parts.forEach((p, i) => {
+        if (i > 0) {
+          lineBlocks.push(current);
+          current = [];
+        }
+        if (p.length > 0) current.push({ ...r, text: p });
+      });
+    }
+    if (current.length > 0) lineBlocks.push(current);
+    if (lineBlocks.length === 0) return;
+
+    const fontSizes = lineBlocks.map((ln) => Math.max(...ln.map((r) => r.fontSize), 1));
+    const lineHeights = fontSizes.map((fs) => fs * 1.25);
+    const blockLen = lineHeights.reduce((a, b) => a + b, 0);
+
+    let topY: number;
+    switch (alignV) {
+      case 'top': topY = y + 2 + fontSizes[0]; break;
+      case 'bottom': topY = y + h - blockLen + fontSizes[0]; break;
+      case 'middle':
+      default: topY = y + h / 2 - blockLen / 2 + fontSizes[0];
+    }
+
+    const style = opts.fontFamily ? ` style="font-family:${escapeAttr(opts.fontFamily)}"` : '';
+    const startX = alignH === 'right' ? x + w - 2 : alignH === 'center' ? x + w / 2 : x + 2;
+
+    lineBlocks.forEach((line, i) => {
+      const ly = topY + lineHeights.slice(0, i).reduce((a, b) => a + b, 0) - fontSizes[i] * 0.25;
+      const totalTextWidth = line.reduce((a, r) => a + estimateTextWidth(r.text, r.fontSize), 0);
+      let cursorX: number;
+      if (alignH === 'center') cursorX = startX - totalTextWidth / 2;
+      else if (alignH === 'right') cursorX = startX - totalTextWidth;
+      else cursorX = startX;
+      line.forEach((r) => {
+        const boldAttr = r.bold ? ` font-weight="bold"` : '';
+        this.parts.push(
+          `<text x="${fmt(cursorX)}" y="${fmt(ly)}" fill="${escapeAttr(r.color ?? '#222')}" font-size="${fmt(r.fontSize)}" text-anchor="start"${boldAttr}${style}>${escapeText(r.text)}</text>`,
+        );
+        cursorX += estimateTextWidth(r.text, r.fontSize);
+      });
+    });
+  }
+
+  build(): string {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n`
+      + `<svg xmlns="http://www.w3.org/2000/svg" `
+      + `viewBox="0 0 ${fmt(this.width)} ${fmt(this.height)}" `
+      + `width="${fmt(this.width)}" height="${fmt(this.height)}" `
+      + `font-family="sans-serif">\n`
+      + this.parts.join('\n')
+      + `\n</svg>\n`;
+  }
+}
+
+function estimateTextWidth(text: string, fontSize: number): number {
+  // 極めて粗い推定 (CJK:1em, ASCII:0.5em)。richText の折り返しに使用
+  let w = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    w += code < 128 ? fontSize * 0.55 : fontSize;
+  }
+  return w;
+}
+
+function maxLineLen(lines: string[]): number {
+  return lines.reduce((a, l) => Math.max(a, l.length), 0);
+}
+
+function fmt(n: number): string {
+  if (!Number.isFinite(n)) return '0';
+  return Number(n.toFixed(3)).toString();
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escapeText(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function normalizeColor(c: string | undefined, fallback: string): string {
+  if (!c) return fallback;
+  return c;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = url;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ----------------------------------------------------------------------------
+// 矢印頭部 (polygon) 補助
+// ----------------------------------------------------------------------------
+
+function drawArrowHead(
+  b: SVGBuilder,
+  tipX: number, tipY: number,
+  fromX: number, fromY: number,
+  strokeWidth: number,
+  color: string,
+): void {
+  const dx = tipX - fromX;
+  const dy = tipY - fromY;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+  const headLen = Math.max(5, strokeWidth * 4);
+  const headWidth = Math.max(3, strokeWidth * 2.5);
+  const baseX = tipX - ux * headLen;
+  const baseY = tipY - uy * headLen;
+  const leftX = baseX + px * headWidth;
+  const leftY = baseY + py * headWidth;
+  const rightX = baseX - px * headWidth;
+  const rightY = baseY - py * headWidth;
+  b.polygon(
+    [
+      { x: tipX, y: tipY },
+      { x: leftX, y: leftY },
+      { x: rightX, y: rightY },
+    ],
+    { fill: color, stroke: 'none' },
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Box
+// ----------------------------------------------------------------------------
+
+function drawBoxes(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, settings: ProjectSettings, t: Transform) {
+  for (const bx of sheet.boxes) {
+    renderBox(b, bx, layout, settings, sheet, t);
+  }
+}
+
+function renderBox(
+  b: SVGBuilder,
+  bx: Box,
+  layout: LayoutDirection,
+  settings: ProjectSettings,
+  sheet: Sheet,
+  t: Transform,
+) {
+  const x = t.toX(bx.x);
+  const y = t.toY(bx.y);
+  const w = t.toLen(bx.width);
+  const h = t.toLen(bx.height);
+  const visuals = resolveBoxVisuals(bx, settings);
+  const borderColor = normalizeColor(visuals.borderColor, '#222');
+  const fill = normalizeColor(visuals.backgroundColor, '#ffffff');
+  const isEllipse = visuals.shape === 'ellipse';
+
+  const drawShape = (sx: number, sy: number, sw: number, sh: number, strokeW: number, dash: string | undefined, fillC: string) => {
+    if (isEllipse) {
+      b.ellipse(sx + sw / 2, sy + sh / 2, sw / 2, sh / 2, {
+        fill: fillC, stroke: borderColor, strokeWidth: strokeW, strokeDasharray: dash,
+      });
+    } else {
+      b.rect(sx, sy, sw, sh, {
+        fill: fillC, stroke: borderColor, strokeWidth: strokeW, strokeDasharray: dash,
+      });
+    }
+  };
+
+  switch (bx.type) {
+    case 'EFP':
+    case '2nd-EFP': {
+      drawShape(x, y, w, h, 1, undefined, fill);
+      const ins = Math.max(1.5, 0.025 * Math.min(w, h));
+      drawShape(x + ins, y + ins, Math.max(0.5, w - ins * 2), Math.max(0.5, h - ins * 2), 1, undefined, 'none');
+      break;
+    }
+    case 'OPP':
+      drawShape(x, y, w, h, 3, undefined, fill);
+      break;
+    case 'P-EFP':
+    case 'P-2nd-EFP': {
+      drawShape(x, y, w, h, 1.5, '5 3', fill);
+      const inset = Math.max(1.5, 0.03 * Math.min(w, h));
+      drawShape(x + inset, y + inset, Math.max(0.5, w - inset * 2), Math.max(0.5, h - inset * 2), 1.5, '5 3', 'none');
+      break;
+    }
+    case 'annotation':
+      drawShape(x, y, w, h, 1, '2 2', fill);
+      break;
+    case 'BFP':
+      drawShape(x, y, w, h, 2, undefined, fill);
+      break;
+    default:
+      drawShape(x, y, w, h, 1.5, undefined, fill);
+  }
+
+  // 本文テキスト
+  const isTextVertical = bx.textOrientation === 'vertical';
+  b.text(x, y, w, h, bx.label, {
+    fontSize: fontSizeScaled(visuals.fontSize ?? settings.defaultFontSize, t),
+    fontFamily: visuals.fontFamily,
+    color: normalizeColor(visuals.color, '#222'),
+    bold: visuals.bold,
+    italic: visuals.italic,
+    underline: bx.style?.underline,
+    alignH: (bx.style?.textAlign ?? 'center') as 'left' | 'center' | 'right',
+    alignV: (bx.style?.verticalAlign ?? 'middle') as 'top' | 'middle' | 'bottom',
+    writingMode: isTextVertical ? 'vertical' : 'horizontal',
+    asciiUpright: bx.asciiUpright,
+  });
+
+  drawBoxTypeLabel(b, bx, layout, settings, sheet, t);
+  drawBoxSubLabel(b, bx, layout, settings, t);
+}
+
+function drawBoxTypeLabel(
+  b: SVGBuilder, bx: Box, layout: LayoutDirection, settings: ProjectSettings, sheet: Sheet, t: Transform,
+) {
+  if (bx.type === 'normal' || bx.type === 'annotation') return;
+  const vis = settings.typeLabelVisibility;
+  if (vis && (vis as Record<string, boolean | undefined>)[bx.type] === false) return;
+  const typeText = computeBoxDisplay(sheet.boxes, bx, layout);
+  if (!typeText) return;
+
+  const isH = layout === 'horizontal';
+  const baseFS = bx.typeLabelFontSize ?? 11;
+  const fs = fontSizeScaled(baseFS, t);
+  const bold = bx.typeLabelBold !== false;
+  const italic = !!bx.typeLabelItalic;
+  const fontFace = bx.typeLabelFontFamily;
+  const visuals = resolveBoxVisuals(bx, settings);
+  const textColor = normalizeColor(visuals.typeLabelColor, '#222');
+  const bgFill = visuals.typeLabelBackgroundColor && visuals.typeLabelBackgroundColor !== 'transparent'
+    ? visuals.typeLabelBackgroundColor : undefined;
+  const borderW = visuals.typeLabelBorderWidth ?? 0;
+  const borderColor = visuals.typeLabelBorderColor;
+
+  if (isH) {
+    const wpx = Math.max(60, bx.width);
+    const hpx = Math.max(14, baseFS * 1.8);
+    b.text(
+      t.toX(bx.x + bx.width / 2 - wpx / 2),
+      t.toY(bx.y - hpx - 4),
+      t.toLen(wpx), t.toLen(hpx),
+      typeText,
+      {
+        fontSize: fs, bold, italic, fontFamily: fontFace, color: textColor,
+        alignH: 'center', alignV: 'bottom',
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  } else {
+    const wpx = Math.max(14, baseFS * 1.8);
+    const hpx = Math.max(60, bx.height);
+    b.text(
+      t.toX(bx.x - wpx - 4),
+      t.toY(bx.y + bx.height / 2 - hpx / 2),
+      t.toLen(wpx), t.toLen(hpx),
+      typeText,
+      {
+        fontSize: fs, bold, italic, fontFamily: fontFace, color: textColor,
+        alignH: 'center', alignV: 'middle',
+        writingMode: 'vertical', asciiUpright: bx.typeLabelAsciiUpright ?? bx.asciiUpright,
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  }
+}
+
+function drawBoxSubLabel(b: SVGBuilder, bx: Box, layout: LayoutDirection, settings: ProjectSettings, t: Transform) {
+  const text = bx.subLabel ?? bx.participantId;
+  if (!text) return;
+  const isH = layout === 'horizontal';
+  const baseFS = bx.subLabelFontSize ?? 10;
+  const fs = fontSizeScaled(baseFS, t);
+  const offX = bx.subLabelOffsetX ?? 0;
+  const offY = bx.subLabelOffsetY ?? 0;
+  const visuals = resolveBoxVisuals(bx, settings);
+  const textColor = normalizeColor(visuals.subLabelColor, '#555');
+  const bgFill = visuals.subLabelBackgroundColor && visuals.subLabelBackgroundColor !== 'transparent'
+    ? visuals.subLabelBackgroundColor : undefined;
+  const borderW = visuals.subLabelBorderWidth ?? 0;
+  const borderColor = visuals.subLabelBorderColor;
+
+  if (isH) {
+    const wpx = Math.max(80, bx.width);
+    const hpx = Math.max(14, baseFS * 1.6);
+    b.text(
+      t.toX(bx.x + bx.width / 2 - wpx / 2 + offX),
+      t.toY(bx.y + bx.height + 6 + offY),
+      t.toLen(wpx), t.toLen(hpx),
+      text,
+      {
+        fontSize: fs, color: textColor,
+        alignH: 'center', alignV: 'top',
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  } else {
+    const wpx = Math.max(14, baseFS * 1.6);
+    const hpx = Math.max(80, bx.height);
+    b.text(
+      t.toX(bx.x + bx.width + 6 + offX),
+      t.toY(bx.y + bx.height / 2 - hpx / 2 + offY),
+      t.toLen(wpx), t.toLen(hpx),
+      text,
+      {
+        fontSize: fs, color: textColor,
+        alignH: 'center', alignV: 'middle',
+        writingMode: 'vertical', asciiUpright: bx.subLabelAsciiUpright ?? bx.asciiUpright,
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Line
+// ----------------------------------------------------------------------------
+
+interface Pt { x: number; y: number; }
+
+function drawLines(b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, t: Transform) {
+  const byId = new Map(sheet.boxes.map((bx) => [bx.id, bx]));
+  const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
+
+  for (const l of sheet.lines) {
+    const fromOrig = byId.get(l.from);
+    const toOrig = byId.get(l.to);
+    if (!fromOrig || !toOrig) continue;
+    const connectsDashed = dashedEndpoints.has(fromOrig.type) || dashedEndpoints.has(toOrig.type);
+    const shouldDash = l.type === 'XLine' || connectsDashed;
+    const effectiveShape = resolveEffectiveShape(l);
+    const color = normalizeColor(l.style?.color, '#222');
+    const strokeW = l.style?.strokeWidth ?? 1.5;
+    const dashArray = shouldDash ? '6 4' : undefined;
+
+    if (effectiveShape === 'elbow' || effectiveShape === 'curve') {
+      const resolved = resolveLineDirection(l, fromOrig, toOrig, layout);
+      const resolvedLine: Line = {
+        ...l,
+        startMargin: resolved.startMargin,
+        endMargin: resolved.endMargin,
+        startOffsetTime: resolved.startOffsetTime,
+        endOffsetTime: resolved.endOffsetTime,
+        startOffsetItem: resolved.startOffsetItem,
+        endOffsetItem: resolved.endOffsetItem,
+      };
+      const path = applyLinePathMargins(
+        computeLinePath(resolvedLine, resolved.from, resolved.to, layout),
+        resolved.startMargin,
+        resolved.endMargin,
+      );
+
+      if (effectiveShape === 'curve' && path.kind === 'curve') {
+        // 三次 Bezier を SVG path で直接描画
+        const [p0, c1, c2, p1] = path.points;
+        const d = `M ${fmt(t.toX(p0.x))},${fmt(t.toY(p0.y))} `
+          + `C ${fmt(t.toX(c1.x))},${fmt(t.toY(c1.y))} `
+          + `${fmt(t.toX(c2.x))},${fmt(t.toY(c2.y))} `
+          + `${fmt(t.toX(p1.x))},${fmt(t.toY(p1.y))}`;
+        (b as unknown as { parts: string[] }).parts.push(
+          `<path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(strokeW)}"` +
+          (dashArray ? ` stroke-dasharray="${dashArray}"` : '') +
+          ` />`,
+        );
+        // 矢印頭: 曲線末端の接線方向 = c2 → p1
+        drawArrowHead(b, t.toX(p1.x), t.toY(p1.y), t.toX(c2.x), t.toY(c2.y), strokeW, color);
+      } else {
+        // polyline (elbow)
+        const pts: LinePathPt[] = path.kind === 'curve' ? sampleCurveToSegments(path, 14) : path.points;
+        const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${fmt(t.toX(p.x))},${fmt(t.toY(p.y))}`).join(' ');
+        (b as unknown as { parts: string[] }).parts.push(
+          `<path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(strokeW)}"` +
+          (dashArray ? ` stroke-dasharray="${dashArray}"` : '') +
+          ` />`,
+        );
+        const last = pts[pts.length - 1];
+        const prev = pts[pts.length - 2] ?? pts[0];
+        drawArrowHead(b, t.toX(last.x), t.toY(last.y), t.toX(prev.x), t.toY(prev.y), strokeW, color);
+      }
+      continue;
+    }
+
+    // straight
+    const seg = computeLineSegment(l, byId, layout);
+    if (!seg) continue;
+    b.line(t.toX(seg.sx), t.toY(seg.sy), t.toX(seg.ex), t.toY(seg.ey), {
+      stroke: color, strokeWidth: strokeW, strokeDasharray: dashArray,
+    });
+    drawArrowHead(b, t.toX(seg.ex), t.toY(seg.ey), t.toX(seg.sx), t.toY(seg.sy), strokeW, color);
+  }
+}
+
+function computeLineSegment(
+  l: Line, byId: Map<string, Box>, layout: LayoutDirection,
+): { sx: number; sy: number; ex: number; ey: number } | null {
+  const fromOrig = byId.get(l.from);
+  const toOrig = byId.get(l.to);
+  if (!fromOrig || !toOrig) return null;
+  const isH = layout === 'horizontal';
+  const resolved = resolveLineDirection(l, fromOrig, toOrig, layout);
+  const from = resolved.from;
+  const to = resolved.to;
+
+  if (l.angleMode) {
+    const ep = computeAngleEndpoints(from, to, clampAngleDeg(l.angleDeg), layout);
+    const sOffT = resolved.startOffsetTime;
+    const eOffT = resolved.endOffsetTime;
+    const sOffI = resolved.startOffsetItem;
+    const eOffI = resolved.endOffsetItem;
+    const sDx = isH ? sOffT : sOffI;
+    const sDy = isH ? -sOffI : sOffT;
+    const eDx = isH ? eOffT : eOffI;
+    const eDy = isH ? -eOffI : eOffT;
+    return {
+      sx: ep.sx + sDx, sy: ep.sy + sDy,
+      ex: ep.ex + eDx, ey: ep.ey + eDy,
+    };
+  }
+
+  const x1 = isH ? from.x + from.width : from.x + from.width / 2;
+  const y1 = isH ? from.y + from.height / 2 : from.y + from.height;
+  const x2 = isH ? to.x : to.x + to.width / 2;
+  const y2 = isH ? to.y + to.height / 2 : to.y;
+  const sOffT = resolved.startOffsetTime;
+  const eOffT = resolved.endOffsetTime;
+  const sOffI = resolved.startOffsetItem;
+  const eOffI = resolved.endOffsetItem;
+  const sDx = isH ? sOffT : sOffI;
+  const sDy = isH ? -sOffI : sOffT;
+  const eDx = isH ? eOffT : eOffI;
+  const eDy = isH ? -eOffI : eOffT;
+  const sx0 = x1 + sDx;
+  const sy0 = y1 + sDy;
+  const tx0 = x2 + eDx;
+  const ty0 = y2 + eDy;
+  const dxs = tx0 - sx0;
+  const dys = ty0 - sy0;
+  const len = Math.sqrt(dxs * dxs + dys * dys) || 1;
+  const ux = dxs / len;
+  const uy = dys / len;
+  return {
+    sx: sx0 + ux * resolved.startMargin,
+    sy: sy0 + uy * resolved.startMargin,
+    ex: tx0 - ux * resolved.endMargin,
+    ey: ty0 - uy * resolved.endMargin,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// SDSG: 右向き矢印 polygon を回転で配置
+// ----------------------------------------------------------------------------
+
+function drawSDSGs(
+  b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, settings: ProjectSettings, t: Transform,
+) {
+  const isH = layout === 'horizontal';
+
+  // band モード事前計算（PPTX と同ロジック）
+  const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
+  sheet.sdsg.forEach((sg) => {
+    const bk = sdsgBandKey(sg);
+    if (!bk) return;
+    let tS: number, tE: number;
+    if (sg.anchorMode === 'between' && sg.attachedTo2) {
+      const a = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
+      const bx2 = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+      if (!a || !bx2) return;
+      const mode = sg.betweenMode ?? 'edge-to-edge';
+      const aT = isH ? a.x : a.y; const bT = isH ? bx2.x : bx2.y;
+      const aSize = isH ? a.width : a.height; const bSize = isH ? bx2.width : bx2.height;
+      const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
+      const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
+      if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
+      else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
+    } else {
+      const attached = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
+      if (!attached) return;
+      const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
+      const w0 = sg.spaceWidth ?? sg.width ?? 70;
+      tS = centerT - w0 / 2; tE = centerT + w0 / 2;
+    }
+    bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE, rowOverride: sg.spaceRowOverride });
+  });
+  const topRows = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(bandEntries.top) : new Map<string, number>();
+  const bottomRows = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(bandEntries.bottom) : new Map<string, number>();
+  const topTotal = Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1));
+  const bottomTotal = Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1));
+  const bandLayout = computeSDSGBandLayout(sheet, layout, settings, { top: topTotal, bottom: bottomTotal });
+
+  for (const sg of sheet.sdsg) {
+    let wx: number, wy: number, w: number, h: number;
+
+    const bk = sdsgBandKey(sg);
+    const bandEnabled = settings.sdsgSpace?.enabled;
+    const band = bandEnabled && (bk === 'top' ? bandLayout.topBand : bk === 'bottom' ? bandLayout.bottomBand : undefined);
+    let flipDirection = false;
+    if (bk && band) {
+      const entry = bandEntries[bk].find((e) => e.id === sg.id);
+      if (!entry) continue;
+      const rowMap = bk === 'top' ? topRows : bottomRows;
+      const totalRows = bk === 'top' ? topTotal : bottomTotal;
+      const rowIdx = rowMap.get(sg.id) ?? 0;
+      const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
+      const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
+      const bandSettings = bk === 'top' ? settings.sdsgSpace?.bands.top : settings.sdsgSpace?.bands.bottom;
+      const pos = computeSDSGBandPosition(band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk,
+        { shrinkToFitRow: bandSettings?.shrinkToFitRow !== false });
+      wx = pos.x; wy = pos.y; w = pos.width; h = pos.height;
+      const autoFlip = settings.sdsgSpace?.autoFlipDirectionInBand ?? false;
+      flipDirection = autoFlip && ((bk === 'top' && sg.type === 'SG') || (bk === 'bottom' && sg.type === 'SD'));
+    } else if (sg.anchorMode === 'between' && sg.attachedTo2) {
+      const boxA = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
+      const boxB = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
+      if (!boxA || !boxB) continue;
+      const mode = sg.betweenMode ?? 'edge-to-edge';
+      let startPos: number, endPos: number;
+      if (isH) {
+        const leftBox = boxA.x <= boxB.x ? boxA : boxB;
+        const rightBox = boxA.x <= boxB.x ? boxB : boxA;
+        if (mode === 'edge-to-edge') { startPos = leftBox.x + leftBox.width; endPos = rightBox.x; }
+        else { startPos = leftBox.x + leftBox.width / 2; endPos = rightBox.x + rightBox.width / 2; }
+      } else {
+        const topBox = boxA.y <= boxB.y ? boxA : boxB;
+        const botBox = boxA.y <= boxB.y ? boxB : boxA;
+        if (mode === 'edge-to-edge') { startPos = topBox.y + topBox.height; endPos = botBox.y; }
+        else { startPos = topBox.y + topBox.height / 2; endPos = botBox.y + botBox.height / 2; }
+      }
+      const timeCenter = (startPos + endPos) / 2;
+      const timeSpan = Math.max(10, Math.abs(endPos - startPos));
+      const itemA = isH ? boxA.y + boxA.height / 2 : boxA.x + boxA.width / 2;
+      const itemB = isH ? boxB.y + boxB.height / 2 : boxB.x + boxB.width / 2;
+      const itemCenter = (itemA + itemB) / 2;
+      w = isH ? timeSpan : (sg.width ?? 70);
+      h = isH ? (sg.height ?? 40) : timeSpan;
+      const anchorX = isH ? timeCenter : itemCenter;
+      const anchorY = isH ? itemCenter : timeCenter;
+      wx = anchorX - w / 2 + (isH ? (sg.timeOffset ?? 0) : (sg.itemOffset ?? 0));
+      wy = anchorY - h / 2 + (isH ? (sg.itemOffset ?? 0) : (sg.timeOffset ?? 0));
+    } else {
+      let anchorX = 0, anchorY = 0;
+      const attBox = sheet.boxes.find((bx) => bx.id === sg.attachedTo);
+      if (attBox) {
+        anchorX = attBox.x + attBox.width / 2;
+        anchorY = attBox.y + attBox.height / 2;
+      } else {
+        const attLine = sheet.lines.find((l) => l.id === sg.attachedTo);
+        if (attLine) {
+          const fb = sheet.boxes.find((bx) => bx.id === attLine.from);
+          const tb = sheet.boxes.find((bx) => bx.id === attLine.to);
+          if (fb && tb) {
+            anchorX = (fb.x + fb.width / 2 + tb.x + tb.width / 2) / 2;
+            anchorY = (fb.y + fb.height / 2 + tb.y + tb.height / 2) / 2;
+          } else { continue; }
+        } else { continue; }
+      }
+      const timeOff = sg.timeOffset ?? 0;
+      const itemOff = sg.itemOffset ?? 0;
+      w = sg.width ?? 70;
+      h = sg.height ?? 40;
+      wx = anchorX - w / 2 + (isH ? timeOff : itemOff);
+      wy = anchorY - h / 2 + (isH ? itemOff : timeOff);
+    }
+
+    const effectiveType = flipDirection ? (sg.type === 'SD' ? 'SG' : 'SD') : sg.type;
+    const isSD = effectiveType === 'SD';
+    const bgColor = normalizeColor(sg.style?.backgroundColor, '#ffffff');
+    const borderColor = normalizeColor(sg.style?.borderColor, '#333');
+    const rectRatio = Math.max(0.05, Math.min(0.95, sg.rectRatio ?? 0.55));
+
+    // 方向別の polygon を直接生成
+    // bbox: (wx, wy, w, h) で、矢印の「方向」は layout × type で決まる
+    // H SD: 下向き / H SG: 上向き / V SD: 右向き / V SG: 左向き
+    const points = buildSDSGPolygon(wx, wy, w, h, isH, isSD, rectRatio);
+    const svgPoints = points.map((p) => ({ x: t.toX(p.x), y: t.toY(p.y) }));
+    b.polygon(svgPoints, { fill: bgColor, stroke: borderColor, strokeWidth: 1.5 });
+
+    // ラベル: 矩形部分に限定配置
+    const sgTriRatio = 1 - rectRatio;
+    let tx2 = wx, ty2 = wy, tw2 = w, th2 = h;
+    if (isH) {
+      if (isSD) { th2 = h * rectRatio; }
+      else      { ty2 = wy + h * sgTriRatio; th2 = h * rectRatio; }
+    } else {
+      if (isSD) { tx2 = wx + w * sgTriRatio; tw2 = w * rectRatio; }
+      else      { tw2 = w * rectRatio; }
+    }
+    b.text(
+      t.toX(tx2), t.toY(ty2), t.toLen(tw2), t.toLen(th2),
+      sg.label,
+      {
+        fontSize: fontSizeScaled(sg.style?.fontSize ?? 11, t),
+        bold: sg.style?.bold ?? true,
+        italic: sg.style?.italic,
+        underline: sg.style?.underline,
+        color: normalizeColor(sg.style?.color, '#222'),
+        fontFamily: sg.style?.fontFamily,
+        alignH: (sg.style?.textAlign ?? 'center') as 'left' | 'center' | 'right',
+        alignV: (sg.style?.verticalAlign ?? 'middle') as 'top' | 'middle' | 'bottom',
+        asciiUpright: sg.asciiUpright,
+      },
+    );
+
+    drawSDSGTypeLabel(b, sg, wx, wy, w, h, isH, settings, t);
+    drawSDSGSubLabel(b, sg, wx, wy, w, h, isH, t);
+  }
+}
+
+/**
+ * SDSG 矢印 polygon を方向別に生成。
+ * bbox: (x, y, w, h)。rectRatio = 矩形部分の占める比率。
+ * H SD: 下向き / H SG: 上向き / V SD: 右向き / V SG: 左向き
+ */
+function buildSDSGPolygon(x: number, y: number, w: number, h: number, isH: boolean, isSD: boolean, rectRatio: number): Pt[] {
+  const neckRatio = 0.6; // 首の幅を bbox の 60% に
+  if (isH) {
+    if (isSD) {
+      // 下向き: 矩形上側 rectRatio*h、下側が三角（頂点下）
+      const neckW = w * neckRatio;
+      const neckCx = x + w / 2;
+      const rectBottom = y + h * rectRatio;
+      return [
+        { x: x + (w - neckW) / 2, y: y },                      // top-left neck
+        { x: x + (w + neckW) / 2, y: y },                      // top-right neck
+        { x: x + (w + neckW) / 2, y: rectBottom },             // neck-head junction R
+        { x: x + w,              y: rectBottom },              // head right shoulder
+        { x: neckCx,             y: y + h },                   // tip (bottom)
+        { x: x,                  y: rectBottom },              // head left shoulder
+        { x: x + (w - neckW) / 2, y: rectBottom },             // neck-head junction L
+      ];
+    }
+    // 上向き (SG): 矩形下側 rectRatio*h、上側が三角
+    const neckW = w * neckRatio;
+    const neckCx = x + w / 2;
+    const rectTop = y + h * (1 - rectRatio);
+    return [
+      { x: x + (w - neckW) / 2, y: y + h },
+      { x: x + (w + neckW) / 2, y: y + h },
+      { x: x + (w + neckW) / 2, y: rectTop },
+      { x: x + w,              y: rectTop },
+      { x: neckCx,             y: y },
+      { x: x,                  y: rectTop },
+      { x: x + (w - neckW) / 2, y: rectTop },
+    ];
+  }
+  // vertical layout
+  if (isSD) {
+    // 右向き: 矩形左 rectRatio*w、右側が三角
+    const neckH = h * neckRatio;
+    const neckCy = y + h / 2;
+    const rectRight = x + w * rectRatio;
+    return [
+      { x: x, y: y + (h - neckH) / 2 },
+      { x: x, y: y + (h + neckH) / 2 },
+      { x: rectRight, y: y + (h + neckH) / 2 },
+      { x: rectRight, y: y + h },
+      { x: x + w, y: neckCy },
+      { x: rectRight, y: y },
+      { x: rectRight, y: y + (h - neckH) / 2 },
+    ];
+  }
+  // 左向き (V SG): 矩形右 rectRatio*w、左側が三角
+  const neckH = h * neckRatio;
+  const neckCy = y + h / 2;
+  const rectLeft = x + w * (1 - rectRatio);
+  return [
+    { x: x + w, y: y + (h - neckH) / 2 },
+    { x: x + w, y: y + (h + neckH) / 2 },
+    { x: rectLeft, y: y + (h + neckH) / 2 },
+    { x: rectLeft, y: y + h },
+    { x: x,        y: neckCy },
+    { x: rectLeft, y: y },
+    { x: rectLeft, y: y + (h - neckH) / 2 },
+  ];
+}
+
+function drawSDSGTypeLabel(
+  b: SVGBuilder, sg: SDSG, wx: number, wy: number, w: number, h: number, isH: boolean,
+  settings: ProjectSettings, t: Transform,
+) {
+  const vis = settings.typeLabelVisibility;
+  if (vis && (vis as Record<string, boolean | undefined>)[sg.type] === false) return;
+  const baseFS = sg.typeLabelFontSize ?? 11;
+  const fs = fontSizeScaled(baseFS, t);
+  const bold = sg.typeLabelBold !== false;
+  const italic = !!sg.typeLabelItalic;
+  const fontFace = sg.typeLabelFontFamily;
+  const textColor = normalizeColor(sg.typeLabelColor, '#222');
+  const bgFill = sg.typeLabelBackgroundColor && sg.typeLabelBackgroundColor !== 'transparent'
+    ? sg.typeLabelBackgroundColor : undefined;
+  const borderW = sg.typeLabelBorderWidth ?? 0;
+  const borderColor = sg.typeLabelBorderColor;
+  if (isH) {
+    const wpx = Math.max(60, w);
+    const hpx = Math.max(14, baseFS * 1.8);
+    b.text(
+      t.toX(wx + w / 2 - wpx / 2), t.toY(wy - hpx - 4),
+      t.toLen(wpx), t.toLen(hpx),
+      sg.type,
+      {
+        fontSize: fs, bold, italic, fontFamily: fontFace, color: textColor,
+        alignH: 'center', alignV: 'bottom',
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  } else {
+    const wpx = Math.max(14, baseFS * 1.8);
+    const hpx = Math.max(60, h);
+    b.text(
+      t.toX(wx - wpx - 4), t.toY(wy + h / 2 - hpx / 2),
+      t.toLen(wpx), t.toLen(hpx),
+      sg.type,
+      {
+        fontSize: fs, bold, italic, fontFamily: fontFace, color: textColor,
+        alignH: 'center', alignV: 'middle',
+        writingMode: 'vertical', asciiUpright: sg.typeLabelAsciiUpright ?? sg.asciiUpright,
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  }
+}
+
+function drawSDSGSubLabel(
+  b: SVGBuilder, sg: SDSG, wx: number, wy: number, w: number, h: number, isH: boolean, t: Transform,
+) {
+  if (!sg.subLabel) return;
+  const baseFS = sg.subLabelFontSize ?? 10;
+  const fs = fontSizeScaled(baseFS, t);
+  const offX = sg.subLabelOffsetX ?? 0;
+  const offY = sg.subLabelOffsetY ?? 0;
+  const textColor = normalizeColor(sg.subLabelColor, '#555');
+  const bgFill = sg.subLabelBackgroundColor && sg.subLabelBackgroundColor !== 'transparent'
+    ? sg.subLabelBackgroundColor : undefined;
+  const borderW = sg.subLabelBorderWidth ?? 0;
+  const borderColor = sg.subLabelBorderColor;
+  if (isH) {
+    const wpx = Math.max(80, w);
+    const hpx = Math.max(14, baseFS * 1.6);
+    b.text(
+      t.toX(wx + w / 2 - wpx / 2 + offX), t.toY(wy + h + 6 + offY),
+      t.toLen(wpx), t.toLen(hpx),
+      sg.subLabel,
+      {
+        fontSize: fs, color: textColor,
+        alignH: 'center', alignV: 'top',
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  } else {
+    const wpx = Math.max(14, baseFS * 1.6);
+    const hpx = Math.max(80, h);
+    b.text(
+      t.toX(wx + w + 6 + offX), t.toY(wy + h / 2 - hpx / 2 + offY),
+      t.toLen(wpx), t.toLen(hpx),
+      sg.subLabel,
+      {
+        fontSize: fs, color: textColor,
+        alignH: 'center', alignV: 'middle',
+        writingMode: 'vertical', asciiUpright: sg.subLabelAsciiUpright ?? sg.asciiUpright,
+        bgFill, bgStroke: borderColor, bgStrokeWidth: borderW,
+      },
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Time arrow
+// ----------------------------------------------------------------------------
+
+function drawTimeArrow(
+  b: SVGBuilder, sheet: Sheet, layout: LayoutDirection,
+  settings: TimeArrowSettings, t: Transform,
+  sdsgSpace?: SDSGSpaceSettings, typeLabelVisibility?: TypeLabelVisibilityMap,
+) {
+  if (!settings || !settings.autoInsert) return;
+  const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace, typeLabelVisibility);
+  if (!arrow) return;
+  const color = '#222';
+  b.line(t.toX(arrow.startX), t.toY(arrow.startY), t.toX(arrow.endX), t.toY(arrow.endY), {
+    stroke: color, strokeWidth: arrow.strokeWidth,
+  });
+  drawArrowHead(b, t.toX(arrow.endX), t.toY(arrow.endY), t.toX(arrow.startX), t.toY(arrow.startY), arrow.strokeWidth, color);
+
+  // ラベル
+  const isVert = layout === 'vertical';
+  const fsBase = arrow.fontSize;
+  const fs = fontSizeScaled(fsBase, t);
+  const labelBoxWpx = isVert ? Math.max(20, fsBase * 1.8) : Math.max(160, fsBase * 12);
+  const labelBoxHpx = isVert ? Math.max(120, fsBase * 12) : Math.max(20, fsBase * 1.8);
+  let lbx = arrow.labelX;
+  let lby = arrow.labelY;
+  switch (arrow.labelSide) {
+    case 'top':    lbx = arrow.labelX - labelBoxWpx / 2; lby = arrow.labelY - labelBoxHpx; break;
+    case 'bottom': lbx = arrow.labelX - labelBoxWpx / 2; lby = arrow.labelY; break;
+    case 'left':   lbx = arrow.labelX - labelBoxWpx; lby = arrow.labelY - labelBoxHpx / 2; break;
+    case 'right':  lbx = arrow.labelX; lby = arrow.labelY - labelBoxHpx / 2; break;
+  }
+  b.text(
+    t.toX(lbx), t.toY(lby), t.toLen(labelBoxWpx), t.toLen(labelBoxHpx),
+    arrow.label,
+    {
+      fontSize: fs,
+      bold: !!settings.labelBold,
+      italic: !!settings.labelItalic,
+      underline: !!settings.labelUnderline,
+      fontFamily: settings.labelFontFamily,
+      color,
+      alignH: 'center', alignV: 'middle',
+      writingMode: isVert ? 'vertical' : 'horizontal',
+    },
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Period labels
+// ----------------------------------------------------------------------------
+
+function drawPeriodLabels(
+  b: SVGBuilder, sheet: Sheet, layout: LayoutDirection,
+  settings: PeriodLabelSettings, timeArrow: TimeArrowSettings, t: Transform,
+  sdsgSpace?: SDSGSpaceSettings, typeLabelVisibility?: TypeLabelVisibilityMap,
+) {
+  if (!settings || !settings.includeInExport) return;
+  if (sheet.periodLabels.length === 0) return;
+  const geom = computePeriodLabels(sheet, layout, settings, timeArrow, sdsgSpace, typeLabelVisibility);
+  if (!geom) return;
+
+  const isH = layout === 'horizontal';
+  const sideH = settings.labelSideHorizontal ?? 'top';
+  const sideV = settings.labelSideVertical ?? 'right';
+
+  if (settings.showDividers) {
+    b.line(t.toX(geom.startX), t.toY(geom.startY), t.toX(geom.endX), t.toY(geom.endY), {
+      stroke: '#555', strokeWidth: settings.dividerStrokeWidth,
+    });
+  }
+
+  if (settings.bandStyle === 'band') {
+    const sorted = [...geom.items].sort((a, bb) => (isH ? a.x - bb.x : a.y - bb.y));
+    const bounds: number[] = [];
+    bounds.push(isH ? geom.startX : geom.startY);
+    sorted.forEach((it, i) => {
+      if (i === 0) return;
+      const prev = sorted[i - 1];
+      const mid = isH ? (prev.x + it.x) / 2 : (prev.y + it.y) / 2;
+      bounds.push(mid);
+    });
+    bounds.push(isH ? geom.endX : geom.endY);
+
+    if (settings.showDividers) {
+      const tickLen = 10;
+      for (const bv of bounds) {
+        if (isH) {
+          b.line(t.toX(bv), t.toY(geom.startY - tickLen / 2), t.toX(bv), t.toY(geom.startY + tickLen / 2), {
+            stroke: '#555', strokeWidth: settings.dividerStrokeWidth * 1.4,
+          });
+        } else {
+          b.line(t.toX(geom.startX - tickLen / 2), t.toY(bv), t.toX(geom.startX + tickLen / 2), t.toY(bv), {
+            stroke: '#555', strokeWidth: settings.dividerStrokeWidth * 1.4,
+          });
+        }
+      }
+    }
+    const fsBase = settings.fontSize;
+    const fs = fontSizeScaled(fsBase, t);
+    sorted.forEach((item, i) => {
+      const left = bounds[i];
+      const right = bounds[i + 1];
+      const center = (left + right) / 2;
+      placePeriodLabel(b, item.label, center, geom, isH, sideH, sideV, fs, fsBase, t);
+    });
+    return;
+  }
+
+  const fsBase = settings.fontSize;
+  const fs = fontSizeScaled(fsBase, t);
+  geom.items.forEach((item) => {
+    const center = isH ? item.x : item.y;
+    placePeriodLabel(b, item.label, center, geom, isH, sideH, sideV, fs, fsBase, t);
+    if (settings.showDividers) {
+      const tickLen = 8;
+      if (isH) {
+        b.line(t.toX(item.x), t.toY(item.y - tickLen / 2), t.toX(item.x), t.toY(item.y + tickLen / 2), {
+          stroke: '#555', strokeWidth: settings.dividerStrokeWidth,
+        });
+      } else {
+        b.line(t.toX(item.x - tickLen / 2), t.toY(item.y), t.toX(item.x + tickLen / 2), t.toY(item.y), {
+          stroke: '#555', strokeWidth: settings.dividerStrokeWidth,
+        });
+      }
+    }
+  });
+}
+
+function placePeriodLabel(
+  b: SVGBuilder, label: string, centerWorld: number,
+  geom: { startX: number; startY: number; endX: number; endY: number },
+  isH: boolean, sideH: 'top' | 'bottom', sideV: 'left' | 'right',
+  fs: number, baseFS: number, t: Transform,
+) {
+  if (isH) {
+    const wpx = Math.max(80, baseFS * 8);
+    const hpx = Math.max(18, baseFS * 1.8);
+    const cx = centerWorld - wpx / 2;
+    const cy = sideH === 'top' ? geom.startY - hpx - 2 : geom.startY + 2;
+    b.text(t.toX(cx), t.toY(cy), t.toLen(wpx), t.toLen(hpx), label, {
+      fontSize: fs, color: '#222',
+      alignH: 'center', alignV: sideH === 'top' ? 'bottom' : 'top',
+    });
+  } else {
+    const wpx = Math.max(18, baseFS * 1.8);
+    const hpx = Math.max(80, baseFS * 8);
+    const cx = sideV === 'right' ? geom.startX + 2 : geom.startX - wpx - 2;
+    const cy = centerWorld - hpx / 2;
+    b.text(t.toX(cx), t.toY(cy), t.toLen(wpx), t.toLen(hpx), label, {
+      fontSize: fs, color: '#222',
+      alignH: 'center', alignV: 'middle',
+      writingMode: 'vertical',
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Legend
+// ----------------------------------------------------------------------------
+
+function drawLegend(
+  b: SVGBuilder, sheet: Sheet, layout: LayoutDirection, lg: LegendSettings, t: Transform,
+) {
+  if (!lg || !lg.includeInExport) return;
+  const items = computeLegendItems(sheet, lg);
+  if (items.length === 0) return;
+
+  const cols = Math.max(1, Math.floor(
+    (layout === 'vertical' ? lg.columnsVertical : lg.columnsHorizontal) ?? lg.columns ?? 1,
+  ));
+  const showDesc = lg.showDescriptions === true;
+  const baseFS = lg.fontSize;
+  const fs = fontSizeScaled(baseFS, t);
+  const titleBaseFS = lg.titleFontSize ?? lg.fontSize * 1.15;
+  const titleFS = fontSizeScaled(titleBaseFS, t);
+  const showTitle = lg.showTitle !== false;
+  const titlePosition = lg.titlePosition ?? 'top';
+
+  const sampleW = lg.sampleWidth ?? 32;
+  const sampleH = lg.sampleHeight ?? 18;
+  const padding = 10;
+  const iconColMinPx = sampleW + 8;
+  const cellGap = 12;
+  const rowGap = 4;
+
+  const rows = Math.ceil(items.length / cols);
+  const showDescPerRow = items.map((it) => {
+    const ov = lg.itemOverrides?.[`${it.category}:${it.key}`];
+    return ov?.showDescription ?? showDesc;
+  });
+
+  const rowHpx = Math.max(baseFS * (showDesc ? 2 : 1) * 1.4 + 4, sampleH + 4);
+  const cellLabelMinPx = Math.max(100, baseFS * 10);
+  const cellW = iconColMinPx + 8 + cellLabelMinPx;
+  const gridW = cols * cellW + (cols - 1) * cellGap;
+  const gridH = rows * rowHpx + (rows - 1) * rowGap;
+
+  const titleHpx = titleBaseFS * 1.4 + 6;
+  let boxW = 0;
+  let boxH = 0;
+  if (titlePosition === 'top') {
+    boxW = Math.max(lg.minWidth, gridW + padding * 2);
+    boxH = gridH + padding * 2 + (showTitle ? titleHpx : 0);
+  } else {
+    const titleAreaW = Math.max(60, titleBaseFS * 6);
+    boxW = Math.max(lg.minWidth, gridW + padding * 2 + (showTitle ? titleAreaW + 12 : 0));
+    boxH = Math.max(gridH + padding * 2, titleBaseFS * 2);
+  }
+
+  const bx = lg.position.x;
+  const by = lg.position.y;
+
+  if (lg.backgroundStyle !== 'none' || lg.borderWidth > 0) {
+    b.rect(t.toX(bx), t.toY(by), t.toLen(boxW), t.toLen(boxH), {
+      fill: lg.backgroundStyle === 'none' ? 'none' : '#ffffff',
+      stroke: lg.borderWidth > 0 ? normalizeColor(lg.borderColor, '#999') : 'none',
+      strokeWidth: lg.borderWidth > 0 ? lg.borderWidth : undefined,
+    });
+  }
+
+  if (showTitle) {
+    const titleBold = lg.titleBold !== false;
+    const titleItalic = !!lg.titleItalic;
+    const titleUnderline = !!lg.titleUnderline;
+    const titleAlign = (lg.titleAlign ?? 'left') as 'left' | 'center' | 'right';
+    const titleVert = lg.titleWritingMode === 'vertical';
+    if (titlePosition === 'top') {
+      b.text(
+        t.toX(bx + padding), t.toY(by + padding),
+        t.toLen(boxW - padding * 2), t.toLen(titleHpx),
+        lg.title,
+        {
+          fontSize: titleFS, bold: titleBold, italic: titleItalic, underline: titleUnderline,
+          fontFamily: lg.titleFontFamily ?? lg.fontFamily, color: '#222',
+          alignH: titleAlign, alignV: 'middle',
+          writingMode: titleVert ? 'vertical' : 'horizontal',
+        },
+      );
+    } else {
+      const titleAreaW = Math.max(60, titleBaseFS * 6);
+      const tva = lg.titleVerticalAlign ?? 'top';
+      const vAlign: 'top' | 'middle' | 'bottom' = tva === 'middle' ? 'middle' : tva === 'bottom' ? 'bottom' : 'top';
+      b.text(
+        t.toX(bx + padding), t.toY(by + padding),
+        t.toLen(titleAreaW), t.toLen(boxH - padding * 2),
+        lg.title,
+        {
+          fontSize: titleFS, bold: titleBold, italic: titleItalic, underline: titleUnderline,
+          fontFamily: lg.titleFontFamily ?? lg.fontFamily, color: '#222',
+          alignH: titleAlign, alignV: vAlign,
+          writingMode: titleVert ? 'vertical' : 'horizontal',
+        },
+      );
+    }
+  }
+
+  const gridOriginX = titlePosition === 'left'
+    ? bx + padding + (showTitle ? Math.max(60, titleBaseFS * 6) + 12 : 0)
+    : bx + padding;
+  const gridOriginY = titlePosition === 'top'
+    ? by + padding + (showTitle ? titleHpx : 0)
+    : by + padding;
+
+  items.forEach((item, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const cellX = gridOriginX + col * (cellW + cellGap);
+    const cellY = gridOriginY + row * (rowHpx + rowGap);
+    const iconX = cellX + (iconColMinPx - sampleW) / 2;
+    const iconY = cellY + (rowHpx - sampleH) / 2;
+    drawLegendIcon(b, item, iconX, iconY, sampleW, sampleH, t);
+
+    const overrideKey = `${item.category}:${item.key}`;
+    const ov = lg.itemOverrides?.[overrideKey];
+    const label = ov?.label ?? item.label;
+    const description = ov?.description ?? item.description;
+    const useShowDesc = showDescPerRow[idx];
+    const textX = cellX + iconColMinPx + 8;
+    const textW = cellLabelMinPx;
+    if (useShowDesc && description) {
+      b.richText(
+        t.toX(textX), t.toY(cellY),
+        t.toLen(textW), t.toLen(rowHpx),
+        [
+          { text: label, bold: true, fontSize: fs, color: '#222' },
+          { text: `\n${description}`, fontSize: fs * 0.85, color: '#666' },
+        ],
+        { alignH: 'left', alignV: 'middle', fontFamily: lg.fontFamily },
+      );
+    } else {
+      b.text(
+        t.toX(textX), t.toY(cellY),
+        t.toLen(textW), t.toLen(rowHpx),
+        label,
+        {
+          fontSize: fs, bold: true, color: '#222',
+          alignH: 'left', alignV: 'middle',
+          fontFamily: lg.fontFamily,
+        },
+      );
+    }
+  });
+}
+
+function drawLegendIcon(
+  b: SVGBuilder, item: LegendItem, x: number, y: number, w: number, h: number, t: Transform,
+) {
+  const X = t.toX(x), Y = t.toY(y), W = t.toLen(w), H = t.toLen(h);
+  if (item.category === 'box') {
+    const isPEfp = item.key === 'P-EFP' || item.key === 'P-2nd-EFP';
+    if (isPEfp) {
+      b.rect(X, Y, W, H, { fill: '#ffffff', stroke: '#222', strokeWidth: 1.2, strokeDasharray: '4 2' });
+      const inset = 2;
+      b.rect(X + inset, Y + inset, Math.max(1, W - inset * 2), Math.max(1, H - inset * 2), {
+        fill: 'none', stroke: '#222', strokeWidth: 1.2, strokeDasharray: '4 2',
+      });
+      return;
+    }
+    const spec = BOX_RENDER_SPECS[item.key] ?? BOX_RENDER_SPECS.normal;
+    const dashArr = spec.borderStyle === 'dashed' ? '5 3' : spec.borderStyle === 'dotted' ? '2 2' : undefined;
+    if (item.key === 'EFP' || item.key === '2nd-EFP') {
+      b.rect(X, Y, W, H, { fill: '#ffffff', stroke: '#222', strokeWidth: 1 });
+      const ins = 2;
+      b.rect(X + ins, Y + ins, Math.max(1, W - ins * 2), Math.max(1, H - ins * 2), {
+        fill: 'none', stroke: '#222', strokeWidth: 1,
+      });
+      return;
+    }
+    b.rect(X, Y, W, H, { fill: '#ffffff', stroke: '#222', strokeWidth: spec.borderWidth, strokeDasharray: dashArr });
+  } else if (item.category === 'line') {
+    const dashArr = item.key === 'XLine' ? '5 3' : undefined;
+    b.line(X, Y + H / 2, X + W, Y + H / 2, { stroke: '#222', strokeWidth: 1.5, strokeDasharray: dashArr });
+    drawArrowHead(b, X + W, Y + H / 2, X, Y + H / 2, 1.5, '#222');
+  } else if (item.category === 'sdsg') {
+    // 凡例内は横向き矢印として描画
+    const isSD = item.key === 'SD';
+    // SD: 右向き, SG: 左向き として凡例表示
+    const points = isSD
+      ? buildSDSGPolygon(x, y, w, h, false, true, 0.55)
+      : buildSDSGPolygon(x, y, w, h, false, false, 0.55);
+    const pts = points.map((p) => ({ x: t.toX(p.x), y: t.toY(p.y) }));
+    b.polygon(pts, { fill: '#ffffff', stroke: '#333', strokeWidth: 1 });
+  } else if (item.category === 'timeArrow') {
+    b.line(X, Y + H / 2, X + W, Y + H / 2, { stroke: '#222', strokeWidth: 2.5 });
+    drawArrowHead(b, X + W, Y + H / 2, X, Y + H / 2, 2.5, '#222');
+  }
+}

@@ -194,13 +194,21 @@ export function ExportPreviewDialog({
           await exportToPNG(PREVIEW_ID, `${baseName}.png`, 2, imgOpts);
         }
       } else if (format === 'svg') {
-        if (multi) {
-          const { exportToSVGPages } = await import('../utils/exportImage');
-          await exportToSVGPages(PREVIEW_ID, baseName, multi, imgOpts, onProg, ac.signal);
-        } else {
-          const { exportToSVG } = await import('../utils/exportImage');
-          await exportToSVG(PREVIEW_ID, `${baseName}.svg`, imgOpts);
-        }
+        const { exportToSVGNative } = await import('../utils/exportSVGNative');
+        const sheet = transformed.doc.sheets.find((s) => s.id === transformed.doc.activeSheetId);
+        if (!sheet) throw new Error('アクティブシートが見つかりません');
+        await exportToSVGNative({
+          filename: `${baseName}.svg`,
+          sheet,
+          settings: transformed.doc.settings,
+          paperSize: xf.paperSize,
+          scale: false,
+          offset: 0,
+          pages: multi ?? undefined,
+          background,
+          onProgress: onProg,
+          signal: ac.signal,
+        });
       } else if (format === 'pdf') {
         const { exportToPDF } = await import('../utils/exportPDF');
         await exportToPDF(PREVIEW_ID, `${baseName}.pdf`, {
