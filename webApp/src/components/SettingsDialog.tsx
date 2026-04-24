@@ -27,6 +27,7 @@ import type {
 } from '../types';
 import { FONT_OPTIONS, BOX_RENDER_SPECS } from '../store/defaults';
 import { ColorPicker } from './ColorPicker';
+import { CollapsibleSection } from './CollapsibleSection';
 import { computeLegendItems } from '../utils/legend';
 import type { PaperBaseKey } from '../types';
 
@@ -35,11 +36,12 @@ type Tab = 'general' | 'snap' | 'typelabel' | 'boxstyle' | 'timearrow' | 'legend
 const TABS: { key: Tab; label: string }[] = [
   { key: 'general', label: '全体' },
   { key: 'snap', label: 'スナップ' },
-  { key: 'typelabel', label: 'タイプラベル' },
+  // 図要素系タブをまとめて隣接配置 (Box スタイル → ラベル → 軸要素 → 凡例 → SD/SG)
   { key: 'boxstyle', label: 'Box スタイル' },
+  { key: 'typelabel', label: 'タイプラベル' },
   { key: 'timearrow', label: '非可逆的時間' },
-  { key: 'legend', label: '凡例' },
   { key: 'period', label: '時期区分' },
+  { key: 'legend', label: '凡例' },
   { key: 'sdsgspace', label: 'SD/SG 配置' },
   { key: 'project', label: 'プロジェクト' },
 ];
@@ -183,121 +185,128 @@ function GeneralSection() {
 
   return (
     <section className="settings-section">
-      <div className="setting-row">
-        <label>レイアウト</label>
-        <select
-          value={doc.settings.layout}
-          onChange={(e) => setLayout(e.target.value as 'horizontal' | 'vertical')}
-        >
-          <option value="horizontal">横型</option>
-          <option value="vertical">縦型</option>
-        </select>
-      </div>
-      <div className="setting-row">
-        <label>言語</label>
-        <select
-          value={doc.settings.locale}
-          onChange={(e) => setLocale(e.target.value as 'ja' | 'en')}
-        >
-          <option value="ja">日本語</option>
-          <option value="en">English</option>
-        </select>
-      </div>
-      <div className="setting-row">
-        <label>UI フォントサイズ（px）</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input
-            type="range"
-            min={10}
-            max={40}
-            value={doc.settings.uiFontSize}
-            onChange={(e) => setUIFontSize(Number(e.target.value))}
-            style={{ width: 120 }}
-          />
+      <CollapsibleSection title="表示" sectionKey="settings-general-display" defaultOpen={true}>
+        <div className="setting-row">
+          <label>レイアウト</label>
+          <select
+            value={doc.settings.layout}
+            onChange={(e) => setLayout(e.target.value as 'horizontal' | 'vertical')}
+          >
+            <option value="horizontal">横型</option>
+            <option value="vertical">縦型</option>
+          </select>
+        </div>
+        <div className="setting-row">
+          <label>言語</label>
+          <select
+            value={doc.settings.locale}
+            onChange={(e) => setLocale(e.target.value as 'ja' | 'en')}
+          >
+            <option value="ja">日本語</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div className="setting-row">
+          <label>UI フォントサイズ（px）</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="range"
+              min={10}
+              max={40}
+              value={doc.settings.uiFontSize}
+              onChange={(e) => setUIFontSize(Number(e.target.value))}
+              style={{ width: 120 }}
+            />
+            <input
+              type="number"
+              min={10}
+              max={40}
+              value={doc.settings.uiFontSize}
+              onChange={(e) => setUIFontSize(Number(e.target.value))}
+              style={{ width: 50 }}
+            />
+          </div>
+        </div>
+        <div className="setting-row">
+          <label>リボン文字サイズ（px）</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="range"
+              min={8}
+              max={24}
+              value={ribbonFontSize}
+              onChange={(e) => setRibbonFontSize(Number(e.target.value))}
+              style={{ width: 120 }}
+            />
+            <input
+              type="number"
+              min={8}
+              max={24}
+              value={ribbonFontSize}
+              onChange={(e) => setRibbonFontSize(Number(e.target.value))}
+              style={{ width: 50 }}
+            />
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="編集補助" sectionKey="settings-general-editing" defaultOpen={true}>
+        <div className="setting-row">
+          <label>Level 調整刻み</label>
           <input
             type="number"
-            min={10}
-            max={40}
-            value={doc.settings.uiFontSize}
-            onChange={(e) => setUIFontSize(Number(e.target.value))}
-            style={{ width: 50 }}
+            step="0.1"
+            min={0.1}
+            max={2}
+            value={doc.settings.levelStep ?? 0.5}
+            onChange={(e) => updateLevelStep(Number(e.target.value))}
+            style={{ width: 80 }}
           />
         </div>
-      </div>
-      <div className="setting-row">
-        <label>リボン文字サイズ（px）</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <p className="hint">プロパティパネルで Item/Time レベルを矢印キー/スピナーで調整する際の刻み幅</p>
+
+        <h5 style={{ margin: '12px 0 4px', fontSize: '0.92em', color: '#555' }}>Box 自動調整（既定）</h5>
+        <div className="setting-row">
+          <label>自動拡張モード（Box 個別未指定時）</label>
+          <select
+            value={doc.settings.defaultAutoFitBoxMode ?? 'width-fixed'}
+            onChange={(e) => {
+              useTEMStore.setState((state) => ({
+                doc: produce(state.doc, (d) => {
+                  d.settings.defaultAutoFitBoxMode = e.target.value as
+                    'none' | 'width-fixed' | 'height-fixed';
+                }),
+              }));
+            }}
+          >
+            <option value="none">自動拡張なし</option>
+            <option value="width-fixed">横幅固定で高さ自動</option>
+            <option value="height-fixed">高さ固定で横幅自動</option>
+          </select>
+        </div>
+        <div className="setting-row">
+          <label>文字サイズ自動調整（既定、全 Box）</label>
           <input
-            type="range"
-            min={8}
-            max={24}
-            value={ribbonFontSize}
-            onChange={(e) => setRibbonFontSize(Number(e.target.value))}
-            style={{ width: 120 }}
-          />
-          <input
-            type="number"
-            min={8}
-            max={24}
-            value={ribbonFontSize}
-            onChange={(e) => setRibbonFontSize(Number(e.target.value))}
-            style={{ width: 50 }}
+            type="checkbox"
+            checked={doc.settings.defaultAutoFitText === true}
+            onChange={(e) => {
+              useTEMStore.setState((state) => ({
+                doc: produce(state.doc, (d) => {
+                  d.settings.defaultAutoFitText = e.target.checked;
+                }),
+              }));
+            }}
           />
         </div>
-      </div>
-      <div className="setting-row">
-        <label>Level 調整刻み</label>
-        <input
-          type="number"
-          step="0.1"
-          min={0.1}
-          max={2}
-          value={doc.settings.levelStep ?? 0.5}
-          onChange={(e) => updateLevelStep(Number(e.target.value))}
-          style={{ width: 80 }}
-        />
-      </div>
-      <p className="hint">プロパティパネルで Item/Time レベルを矢印キー/スピナーで調整する際の刻み幅</p>
+        <p className="hint">
+          自動拡張: ラベルが収まらない時、どちら側を増やすか（Box 個別プロパティで上書き可）<br />
+          文字サイズ自動調整: Box に収まる最大文字サイズを自動設定（同時有効不可。個別設定優先）
+        </p>
+      </CollapsibleSection>
 
-      <PaperGuideSection />
-
-      <h4 style={{ marginTop: 16 }}>Box 自動調整（既定）</h4>
-      <div className="setting-row">
-        <label>自動拡張モード（Box 個別未指定時）</label>
-        <select
-          value={doc.settings.defaultAutoFitBoxMode ?? 'width-fixed'}
-          onChange={(e) => {
-            useTEMStore.setState((state) => ({
-              doc: produce(state.doc, (d) => {
-                d.settings.defaultAutoFitBoxMode = e.target.value as
-                  'none' | 'width-fixed' | 'height-fixed';
-              }),
-            }));
-          }}
-        >
-          <option value="none">自動拡張なし</option>
-          <option value="width-fixed">横幅固定で高さ自動</option>
-          <option value="height-fixed">高さ固定で横幅自動</option>
-        </select>
-      </div>
-      <div className="setting-row">
-        <label>文字サイズ自動調整（既定、全 Box）</label>
-        <input
-          type="checkbox"
-          checked={doc.settings.defaultAutoFitText === true}
-          onChange={(e) => {
-            useTEMStore.setState((state) => ({
-              doc: produce(state.doc, (d) => {
-                d.settings.defaultAutoFitText = e.target.checked;
-              }),
-            }));
-          }}
-        />
-      </div>
-      <p className="hint">
-        自動拡張: ラベルが収まらない時、どちら側を増やすか（Box 個別プロパティで上書き可）<br />
-        文字サイズ自動調整: Box に収まる最大文字サイズを自動設定（同時有効不可。個別設定優先）
-      </p>
+      <CollapsibleSection title="用紙枠" sectionKey="settings-general-paper-guide" defaultOpen={false}>
+        <PaperGuideSection />
+      </CollapsibleSection>
     </section>
   );
 }
@@ -1141,7 +1150,7 @@ function ProjectSection() {
   const setDefaultFontSize = useTEMStore((s) => s.setDefaultFontSize);
   return (
     <section className="settings-section">
-      <h4>プロジェクト情報</h4>
+      <h4>ドキュメント情報</h4>
       <div className="setting-row">
         <label>タイトル</label>
         <input type="text" value={doc.metadata.title} readOnly style={{ width: 200 }} />
@@ -1162,7 +1171,8 @@ function ProjectSection() {
         </span>
       </div>
 
-      <h4 style={{ marginTop: 16 }}>Box の既定サイズ</h4>
+      <h4 style={{ marginTop: 20, borderTop: '1px solid #e0e0e0', paddingTop: 12 }}>既定値</h4>
+      <h5 style={{ margin: '8px 0 4px', fontSize: '0.92em', color: '#555' }}>Box の既定サイズ</h5>
       <p className="hint" style={{ marginTop: 0 }}>
         「挿入」タブで Box を追加するときや CSV インポート時のデフォルトサイズ（ピクセル）。
         テキスト方向は現在のレイアウトに応じて自動設定されます（横型 → 縦書き / 縦型 → 横書き）。
@@ -1202,7 +1212,7 @@ function ProjectSection() {
         </button>
       </div>
 
-      <h4 style={{ marginTop: 16 }}>文字の既定</h4>
+      <h5 style={{ margin: '12px 0 4px', fontSize: '0.92em', color: '#555' }}>文字の既定</h5>
       <div className="setting-row">
         <label>既定フォント</label>
         <input type="text" value={doc.settings.defaultFont} readOnly style={{ width: 180 }} />
@@ -1792,7 +1802,7 @@ export function LegendSettingsSection() {
       </section>
 
       <section className="settings-section">
-        <h4>項目別の表記</h4>
+        <CollapsibleSection title="項目別の表記 (上書き設定)" sectionKey="settings-legend-item-overrides" defaultOpen={false}>
         <p className="hint" style={{ marginBottom: 6 }}>
           現在使用中の凡例項目について、ラベル（1行目）と説明文（2行目）を上書きできます。
           空欄にすると既定に戻ります。
@@ -1903,6 +1913,7 @@ export function LegendSettingsSection() {
             </div>
           );
         })}
+        </CollapsibleSection>
       </section>
 
       <p className="hint">凡例はキャンバス上でドラッグして位置調整、ダブルクリックでこの設定を開けます</p>
