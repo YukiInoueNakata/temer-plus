@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Handle, NodeResizer, Position, type NodeProps } from 'reactflow';
 import type { Box } from '../../types';
 import { BOX_RENDER_SPECS } from '../../store/defaults';
+import { resolveBoxVisuals } from '../../utils/boxPreset';
 import { computeBoxDisplay } from '../../utils/typeDisplay';
 import { renderVerticalAwareText } from '../../utils/verticalText';
 import { renderRichText } from '../../utils/richText';
@@ -49,17 +50,25 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   // リサイズとノードドラッグは editLocked の場合にも無効
   const resizeDisabled = isPreview || editLocked;
   const spec = BOX_RENDER_SPECS[data.type] ?? BOX_RENDER_SPECS.normal;
-  const shape = data.shape ?? spec.defaultShape;
+  // ProjectSettings.boxTypePresets による動的プリセット解決
+  // 優先順位: box 個別値 > preset > 工場出荷時 (BOX_RENDER_SPECS)
+  const boxForPreset = view.sheet?.boxes.find((b) => b.id === data.id);
+  const visuals = boxForPreset ? resolveBoxVisuals(boxForPreset, view.settings) : null;
+  const shape = visuals?.shape ?? data.shape ?? spec.defaultShape;
   const isTextVertical = data.textOrientation === 'vertical';
   const isVerticalLayout = layout === 'vertical';
 
-  const borderColor = data.style?.borderColor ?? '#222';
-  const bgColor = data.style?.backgroundColor ?? '#fff';
-  const textColor = data.style?.color ?? '#222';
-  const fontFamily = data.style?.fontFamily ?? 'inherit';
+  const borderColor = visuals?.borderColor ?? '#222';
+  const bgColor = visuals?.backgroundColor ?? '#fff';
+  const textColor = visuals?.color ?? '#222';
+  const fontFamily = visuals?.fontFamily ?? 'inherit';
   const textAlign = data.style?.textAlign ?? 'center';
   const verticalAlign = data.style?.verticalAlign ?? 'middle';
-  const fontSize = data.style?.fontSize ?? 13;
+  const fontSize = visuals?.fontSize ?? 13;
+  const boldEff = visuals?.bold ?? data.style?.bold;
+  const italicEff = visuals?.italic ?? data.style?.italic;
+  const specBorderWidth = visuals?.borderWidth ?? spec.borderWidth;
+  const specBorderStyle = visuals?.borderStyle ?? spec.borderStyle;
 
   // --------------------------------------------------------------------------
   // インライン編集
@@ -217,8 +226,8 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
     color: textColor,
     fontSize,
     fontFamily,
-    fontWeight: data.style?.bold ? 700 : 400,
-    fontStyle: data.style?.italic ? 'italic' : 'normal',
+    fontWeight: boldEff ? 700 : 400,
+    fontStyle: italicEff ? 'italic' : 'normal',
     textDecoration: data.style?.underline ? 'underline' : 'none',
     padding: 4,
     boxSizing: 'border-box',
@@ -240,7 +249,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
 
   const isPEfp = data.type === 'P-EFP' || data.type === 'P-2nd-EFP';
   const borderStyle: React.CSSProperties = shape === 'ellipse'
-    ? { borderRadius: '50%', border: `${spec.borderWidth}px ${spec.borderStyle} ${borderColor}` }
+    ? { borderRadius: '50%', border: `${specBorderWidth}px ${specBorderStyle} ${borderColor}` }
     : isPEfp
       ? {
           border: `1.5px dashed ${borderColor}`,
@@ -248,7 +257,7 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
           outlineOffset: '2px',
           borderRadius: 0,
         }
-      : { border: `${spec.borderWidth}px ${spec.borderStyle} ${borderColor}`, borderRadius: 0 };
+      : { border: `${specBorderWidth}px ${specBorderStyle} ${borderColor}`, borderRadius: 0 };
 
   // IDバッジ
   const idOffsetX = data.idOffsetX ?? 0;
@@ -294,10 +303,10 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   const typeFontStyle = data.typeLabelItalic ? 'italic' : 'normal';
   const typeFontFamily = data.typeLabelFontFamily ?? 'inherit';
 
-  const typeLabelColor = data.typeLabelColor ?? '#222';
-  const typeLabelBg = data.typeLabelBackgroundColor;
-  const typeLabelBorderColor = data.typeLabelBorderColor;
-  const typeLabelBorderWidth = data.typeLabelBorderWidth ?? 0;
+  const typeLabelColor = visuals?.typeLabelColor ?? '#222';
+  const typeLabelBg = visuals?.typeLabelBackgroundColor;
+  const typeLabelBorderColor = visuals?.typeLabelBorderColor;
+  const typeLabelBorderWidth = visuals?.typeLabelBorderWidth ?? 0;
   const typeLabelBorder = typeLabelBorderWidth > 0 && typeLabelBorderColor
     ? `${typeLabelBorderWidth}px solid ${typeLabelBorderColor}`
     : undefined;
@@ -339,10 +348,10 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
   const subOffsetY = data.subLabelOffsetY ?? 0;
   const subFontSize = data.subLabelFontSize ?? 10;
   const subAsciiUpright = data.subLabelAsciiUpright ?? asciiUpright;
-  const subLabelColor = data.subLabelColor ?? '#555';
-  const subLabelBg = data.subLabelBackgroundColor ?? 'rgba(255,255,255,0.85)';
-  const subLabelBorderColor = data.subLabelBorderColor;
-  const subLabelBorderWidth = data.subLabelBorderWidth ?? 0;
+  const subLabelColor = visuals?.subLabelColor ?? '#555';
+  const subLabelBg = visuals?.subLabelBackgroundColor ?? 'rgba(255,255,255,0.85)';
+  const subLabelBorderColor = visuals?.subLabelBorderColor;
+  const subLabelBorderWidth = visuals?.subLabelBorderWidth ?? 0;
   const subLabelBorder = subLabelBorderWidth > 0 && subLabelBorderColor
     ? `${subLabelBorderWidth}px solid ${subLabelBorderColor}`
     : undefined;

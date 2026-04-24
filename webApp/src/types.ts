@@ -490,6 +490,35 @@ export interface ProjectSettings {
   typeLabelVisibility: TypeLabelVisibilityMap;
   // SD/SG 配置: 上部・下部帯の設定
   sdsgSpace?: SDSGSpaceSettings;
+  // Box タイプごとの様式プリセット（描画時にBOX_RENDER_SPECS ← preset ← box.style の順で動的マージ）
+  boxTypePresets?: Partial<Record<BoxType, BoxTypePreset>>;
+}
+
+// Box タイプごとの既定スタイル。ユーザが工場出荷値 (BOX_RENDER_SPECS) を上書きするための層
+export interface BoxTypePreset {
+  // 枠線（BOX_RENDER_SPECS の borderStyle / borderWidth を上書き）
+  borderStyle?: 'solid' | 'double' | 'dashed' | 'dotted';
+  borderWidth?: number;
+  // 形状（BOX_RENDER_SPECS.defaultShape を上書き）
+  shape?: BoxShape;
+  // 本体の色 / 文字
+  backgroundColor?: string;
+  borderColor?: string;
+  color?: string;
+  fontSize?: number;
+  bold?: boolean;
+  italic?: boolean;
+  fontFamily?: string;
+  // タイプラベル関連色
+  typeLabelColor?: string;
+  typeLabelBackgroundColor?: string;
+  typeLabelBorderColor?: string;
+  typeLabelBorderWidth?: number;
+  // サブラベル関連色
+  subLabelColor?: string;
+  subLabelBackgroundColor?: string;
+  subLabelBorderColor?: string;
+  subLabelBorderWidth?: number;
 }
 
 // SD/SG 専用スペース（帯）の設定

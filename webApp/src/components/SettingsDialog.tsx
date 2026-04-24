@@ -22,17 +22,21 @@ import type {
   TimeArrowLabelAlignHorizontal,
   TimeArrowLabelAlignVertical,
   TypeLabelVisibilityKey,
+  BoxType,
+  BoxTypePreset,
 } from '../types';
-import { FONT_OPTIONS } from '../store/defaults';
+import { FONT_OPTIONS, BOX_RENDER_SPECS } from '../store/defaults';
+import { ColorPicker } from './ColorPicker';
 import { computeLegendItems } from '../utils/legend';
 import type { PaperBaseKey } from '../types';
 
-type Tab = 'general' | 'snap' | 'typelabel' | 'timearrow' | 'legend' | 'period' | 'sdsgspace' | 'project';
+type Tab = 'general' | 'snap' | 'typelabel' | 'boxstyle' | 'timearrow' | 'legend' | 'period' | 'sdsgspace' | 'project';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'general', label: '全体' },
   { key: 'snap', label: 'スナップ' },
   { key: 'typelabel', label: 'タイプラベル' },
+  { key: 'boxstyle', label: 'Box スタイル' },
   { key: 'timearrow', label: '非可逆的時間' },
   { key: 'legend', label: '凡例' },
   { key: 'period', label: '時期区分' },
@@ -145,6 +149,7 @@ export function SettingsDialog({
           {tab === 'general' && <GeneralSection />}
           {tab === 'snap' && <SnapSection />}
           {tab === 'typelabel' && <TypeLabelSection />}
+          {tab === 'boxstyle' && <BoxStyleSection />}
           {tab === 'timearrow' && <TimeArrowSettingsSection />}
           {tab === 'legend' && <LegendSettingsSection />}
           {tab === 'period' && <PeriodLabelSettingsSection />}
@@ -520,6 +525,262 @@ function TypeLabelSection() {
           />
         </div>
       ))}
+    </section>
+  );
+}
+
+// ============================================================================
+// Box スタイル（タイプ別プリセット）
+// ============================================================================
+function BoxStyleSection() {
+  const doc = useTEMStore((s) => s.doc);
+  const presets = doc.settings.boxTypePresets ?? {};
+
+  const TYPE_LIST: { key: BoxType; label: string }[] = [
+    { key: 'normal',     label: 'normal（通常）' },
+    { key: 'BFP',        label: 'BFP（分岐点）' },
+    { key: 'OPP',        label: 'OPP（必須通過点）' },
+    { key: 'EFP',        label: 'EFP（等至点）' },
+    { key: '2nd-EFP',    label: '2nd-EFP（第二等至点）' },
+    { key: 'P-EFP',      label: 'P-EFP（両極化等至点）' },
+    { key: 'P-2nd-EFP',  label: 'P-2nd-EFP（両極化第二等至点）' },
+    { key: 'annotation', label: 'annotation（潜在経験）' },
+  ];
+
+  const [activeType, setActiveType] = useState<BoxType>('normal');
+  const preset: BoxTypePreset = presets[activeType] ?? {};
+
+  const updatePreset = (patch: Partial<BoxTypePreset>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        if (!d.settings.boxTypePresets) d.settings.boxTypePresets = {};
+        const cur = d.settings.boxTypePresets[activeType] ?? {};
+        d.settings.boxTypePresets[activeType] = { ...cur, ...patch };
+      }),
+      dirty: true,
+    }));
+  };
+
+  const resetType = () => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        if (d.settings.boxTypePresets) {
+          delete d.settings.boxTypePresets[activeType];
+        }
+      }),
+      dirty: true,
+    }));
+  };
+
+  const factory = BOX_RENDER_SPECS[activeType] ?? BOX_RENDER_SPECS.normal;
+
+  return (
+    <section className="settings-section">
+      <h4>Box スタイルプリセット</h4>
+      <p className="hint" style={{ marginBottom: 8 }}>
+        Box タイプごとの既定スタイルを指定できます。<br />
+        描画時の優先順位: <strong>Box 個別値 ＞ プリセット ＞ 工場出荷時</strong>。
+        未指定の項目は「自動（既定）」として下位レイヤーに委ねられます。
+      </p>
+
+      <div className="setting-row" style={{ flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+        {TYPE_LIST.map((t) => (
+          <button
+            key={t.key}
+            className={activeType === t.key ? 'settings-tab active' : 'settings-tab'}
+            onClick={() => setActiveType(t.key)}
+            style={{ padding: '4px 10px', fontSize: '0.88em' }}
+          >
+            {t.key}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ fontSize: '0.86em', color: '#666', marginBottom: 6 }}>
+        編集中: <strong>{TYPE_LIST.find((t) => t.key === activeType)?.label}</strong>
+        <span style={{ marginLeft: 12, color: '#999' }}>
+          工場出荷時: {factory.borderStyle} {factory.borderWidth}px / {factory.defaultShape}
+        </span>
+      </div>
+
+      <h5 style={{ margin: '8px 0 4px', fontSize: '0.92em', color: '#555' }}>枠線・形状</h5>
+      <div className="setting-row">
+        <label>枠線スタイル</label>
+        <select
+          value={preset.borderStyle ?? ''}
+          onChange={(e) => updatePreset({ borderStyle: (e.target.value || undefined) as BoxTypePreset['borderStyle'] })}
+        >
+          <option value="">（工場出荷時: {factory.borderStyle}）</option>
+          <option value="solid">実線</option>
+          <option value="dashed">破線</option>
+          <option value="dotted">点線</option>
+          <option value="double">二重線</option>
+        </select>
+      </div>
+      <div className="setting-row">
+        <label>枠線太さ (px)</label>
+        <input
+          type="number"
+          min={0.5}
+          max={8}
+          step={0.5}
+          value={preset.borderWidth ?? ''}
+          placeholder={`工場 ${factory.borderWidth}`}
+          onChange={(e) => {
+            const v = e.target.value;
+            updatePreset({ borderWidth: v === '' ? undefined : Number(v) });
+          }}
+        />
+      </div>
+      <div className="setting-row">
+        <label>形状</label>
+        <select
+          value={preset.shape ?? ''}
+          onChange={(e) => updatePreset({ shape: (e.target.value || undefined) as BoxTypePreset['shape'] })}
+        >
+          <option value="">（工場出荷時: {factory.defaultShape}）</option>
+          <option value="rect">矩形</option>
+          <option value="ellipse">楕円</option>
+        </select>
+      </div>
+
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>本体の色・文字</h5>
+      <div className="setting-row">
+        <label>背景色</label>
+        <ColorPicker
+          value={preset.backgroundColor}
+          onChange={(c) => updatePreset({ backgroundColor: c })}
+          allowNone
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>枠線色</label>
+        <ColorPicker
+          value={preset.borderColor}
+          onChange={(c) => updatePreset({ borderColor: c })}
+          allowNone
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>文字色</label>
+        <ColorPicker
+          value={preset.color}
+          onChange={(c) => updatePreset({ color: c })}
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>文字サイズ (px)</label>
+        <input
+          type="number"
+          min={6}
+          max={60}
+          value={preset.fontSize ?? ''}
+          placeholder="自動"
+          onChange={(e) => {
+            const v = e.target.value;
+            updatePreset({ fontSize: v === '' ? undefined : Number(v) });
+          }}
+        />
+      </div>
+
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>タイプラベル色</h5>
+      <div className="setting-row">
+        <label>文字色</label>
+        <ColorPicker
+          value={preset.typeLabelColor}
+          onChange={(c) => updatePreset({ typeLabelColor: c })}
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>背景色</label>
+        <ColorPicker
+          value={preset.typeLabelBackgroundColor}
+          onChange={(c) => updatePreset({ typeLabelBackgroundColor: c })}
+          allowNone
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>枠線色</label>
+        <ColorPicker
+          value={preset.typeLabelBorderColor}
+          onChange={(c) => updatePreset({ typeLabelBorderColor: c })}
+          allowNone
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>枠線太さ (px)</label>
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={0.5}
+          value={preset.typeLabelBorderWidth ?? ''}
+          placeholder="自動"
+          onChange={(e) => {
+            const v = e.target.value;
+            updatePreset({ typeLabelBorderWidth: v === '' ? undefined : Number(v) });
+          }}
+        />
+      </div>
+
+      <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>サブラベル色</h5>
+      <div className="setting-row">
+        <label>文字色</label>
+        <ColorPicker
+          value={preset.subLabelColor}
+          onChange={(c) => updatePreset({ subLabelColor: c })}
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>背景色</label>
+        <ColorPicker
+          value={preset.subLabelBackgroundColor}
+          onChange={(c) => updatePreset({ subLabelBackgroundColor: c })}
+          allowNone
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>枠線色</label>
+        <ColorPicker
+          value={preset.subLabelBorderColor}
+          onChange={(c) => updatePreset({ subLabelBorderColor: c })}
+          allowNone
+          defaultLabel="自動"
+        />
+      </div>
+      <div className="setting-row">
+        <label>枠線太さ (px)</label>
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={0.5}
+          value={preset.subLabelBorderWidth ?? ''}
+          placeholder="自動"
+          onChange={(e) => {
+            const v = e.target.value;
+            updatePreset({ subLabelBorderWidth: v === '' ? undefined : Number(v) });
+          }}
+        />
+      </div>
+
+      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          className="ribbon-btn-small"
+          onClick={resetType}
+          title={`${activeType} のプリセットを削除し、工場出荷時 + Box 個別設定のみで描画`}
+        >
+          このタイプを工場出荷時に戻す
+        </button>
+      </div>
     </section>
   );
 }

@@ -43,6 +43,7 @@ import {
   computeAngleEndpoints,
   clampAngleDeg,
 } from './lineDirection';
+import { resolveBoxVisuals } from './boxPreset';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -423,10 +424,10 @@ function renderBox(
   const y = t.toY(b.y);
   const w = t.toLen(b.width);
   const h = t.toLen(b.height);
-  const spec = BOX_RENDER_SPECS[b.type] ?? BOX_RENDER_SPECS.normal;
-  const borderColor = rgbToHex(b.style?.borderColor ?? '#222');
-  const fill = { color: rgbToHex(b.style?.backgroundColor ?? '#ffffff') };
-  const isEllipse = (b.shape ?? spec.defaultShape) === 'ellipse';
+  const visuals = resolveBoxVisuals(b, settings);
+  const borderColor = rgbToHex(visuals.borderColor ?? '#222');
+  const fill = { color: rgbToHex(visuals.backgroundColor ?? '#ffffff') };
+  const isEllipse = visuals.shape === 'ellipse';
   const shapeType = isEllipse ? pres.ShapeType.ellipse : pres.ShapeType.rect;
 
   switch (b.type) {
@@ -502,12 +503,12 @@ function renderBox(
     x, y, w, h,
     align: toPptAlign((b.style?.textAlign ?? 'center') as 'left' | 'center' | 'right'),
     valign: toPptVAlign((b.style?.verticalAlign ?? 'middle') as 'top' | 'middle' | 'bottom'),
-    fontSize: fontSizeScaled(b.style?.fontSize ?? settings.defaultFontSize, t),
-    bold: b.style?.bold,
-    italic: b.style?.italic,
+    fontSize: fontSizeScaled(visuals.fontSize ?? settings.defaultFontSize, t),
+    bold: visuals.bold,
+    italic: visuals.italic,
     underline: b.style?.underline ? { style: 'sng' } : undefined,
-    color: rgbToHex(b.style?.color ?? '#222'),
-    fontFace: b.style?.fontFamily,
+    color: rgbToHex(visuals.color ?? '#222'),
+    fontFace: visuals.fontFamily,
     vert: isTextVertical ? 'eaVert' : undefined,
     margin: 2,
   });
@@ -515,7 +516,7 @@ function renderBox(
   // タイプラベル
   drawBoxTypeLabel(slide, b, layout, settings, sheet, t);
   // サブラベル
-  drawBoxSubLabel(slide, b, layout, t);
+  drawBoxSubLabel(slide, b, layout, settings, t);
 }
 
 function drawBoxTypeLabel(
@@ -538,14 +539,15 @@ function drawBoxTypeLabel(
   const bold = b.typeLabelBold !== false;
   const italic = !!b.typeLabelItalic;
   const fontFace = b.typeLabelFontFamily;
-  const textColor = rgbToHex(b.typeLabelColor ?? '#222');
-  const bgColor = b.typeLabelBackgroundColor && b.typeLabelBackgroundColor !== 'transparent'
-    ? { color: rgbToHex(b.typeLabelBackgroundColor) }
+  const visuals = resolveBoxVisuals(b, settings);
+  const textColor = rgbToHex(visuals.typeLabelColor ?? '#222');
+  const bgColor = visuals.typeLabelBackgroundColor && visuals.typeLabelBackgroundColor !== 'transparent'
+    ? { color: rgbToHex(visuals.typeLabelBackgroundColor) }
     : { color: 'FFFFFF', transparency: 100 };
-  const borderW = b.typeLabelBorderWidth ?? 0;
-  const hasBorder = borderW > 0 && !!b.typeLabelBorderColor;
+  const borderW = visuals.typeLabelBorderWidth ?? 0;
+  const hasBorder = borderW > 0 && !!visuals.typeLabelBorderColor;
   const lineProp = hasBorder
-    ? { color: rgbToHex(b.typeLabelBorderColor!), width: borderW }
+    ? { color: rgbToHex(visuals.typeLabelBorderColor!), width: borderW }
     : undefined;
 
   if (isH) {
@@ -592,7 +594,7 @@ function drawBoxTypeLabel(
   }
 }
 
-function drawBoxSubLabel(slide: PptxGenJS.Slide, b: Box, layout: LayoutDirection, t: Transform) {
+function drawBoxSubLabel(slide: PptxGenJS.Slide, b: Box, layout: LayoutDirection, settings: ProjectSettings, t: Transform) {
   const text = b.subLabel ?? b.participantId;
   if (!text) return;
   const isH = layout === 'horizontal';
@@ -600,14 +602,15 @@ function drawBoxSubLabel(slide: PptxGenJS.Slide, b: Box, layout: LayoutDirection
   const fs = fontSizeScaled(baseFS, t);
   const offX = b.subLabelOffsetX ?? 0;
   const offY = b.subLabelOffsetY ?? 0;
-  const textColor = rgbToHex(b.subLabelColor ?? '#555');
-  const bgColor = b.subLabelBackgroundColor && b.subLabelBackgroundColor !== 'transparent'
-    ? { color: rgbToHex(b.subLabelBackgroundColor) }
+  const visuals = resolveBoxVisuals(b, settings);
+  const textColor = rgbToHex(visuals.subLabelColor ?? '#555');
+  const bgColor = visuals.subLabelBackgroundColor && visuals.subLabelBackgroundColor !== 'transparent'
+    ? { color: rgbToHex(visuals.subLabelBackgroundColor) }
     : { color: 'FFFFFF', transparency: 100 };
-  const borderW = b.subLabelBorderWidth ?? 0;
-  const hasBorder = borderW > 0 && !!b.subLabelBorderColor;
+  const borderW = visuals.subLabelBorderWidth ?? 0;
+  const hasBorder = borderW > 0 && !!visuals.subLabelBorderColor;
   const lineProp = hasBorder
-    ? { color: rgbToHex(b.subLabelBorderColor!), width: borderW }
+    ? { color: rgbToHex(visuals.subLabelBorderColor!), width: borderW }
     : undefined;
   if (isH) {
     const wpx = Math.max(80, b.width);
