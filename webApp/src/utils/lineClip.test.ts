@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clipPolylineToRect } from './exportSVGNative';
+import { clipPolylineToRect } from './lineClip';
 
 const R = { x: 0, y: 0, width: 100, height: 100 };
 

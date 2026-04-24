@@ -53,6 +53,7 @@ import {
 } from './linePath';
 import { checkAborted, type ProgressCallback } from './exportProgress';
 import { resolveAttachedAnchor, anchorCenter } from './sdsgAttach';
+import { clipPolylineToRect, type Pt as ClipPt } from './lineClip';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -146,8 +147,8 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
     const pageSheet = filterSheetForPage(opts.sheet, page, layout, mode);
     drawTimeArrow(pres, slide, pageSheet, layout, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility, page, mode, showMarkers);
     drawPeriodLabels(pres, slide, pageSheet, layout, opts.settings.periodLabels, opts.settings.timeArrow, t, opts.settings.sdsgSpace, opts.settings.typeLabelVisibility);
-    // duplicate モードでは Line の端点解決に原シートの全 Box が必要なので opts.sheet を渡す
-    drawLines(pres, slide, mode === 'duplicate' ? opts.sheet : pageSheet, layout, t, page, mode, showMarkers);
+    // Line の端点解決と精密クリップのため、常に原シートの全 Box を持つ opts.sheet を渡す
+    drawLines(pres, slide, opts.sheet, layout, t, page, mode, showMarkers);
     drawSDSGs(pres, slide, pageSheet, layout, opts.settings, t);
     drawBoxes(pres, slide, pageSheet, layout, opts.settings, t);
     // 凡例は全スライドに表示（SPEC）
@@ -243,16 +244,15 @@ function filterSheetForPage(
   sheet: Sheet,
   page: PageBounds,
   layout: 'horizontal' | 'vertical',
-  mode: 'overlap' | 'duplicate' = 'overlap',
+  _mode: 'overlap' | 'duplicate' = 'overlap',
 ): Sheet {
   const visibleBoxes = sheet.boxes.filter((b) =>
     rectIntersectsPage({ x: b.x, y: b.y, width: b.width, height: b.height }, page),
   );
   const visibleBoxIds = new Set(visibleBoxes.map((b) => b.id));
   const visibleSDSGs = sheet.sdsg.filter((sg) => visibleBoxIds.has(sg.attachedTo));
-  const visibleLines = mode === 'duplicate'
-    ? sheet.lines  // drawLines 側でクリップ
-    : sheet.lines.filter((l) => visibleBoxIds.has(l.from) && visibleBoxIds.has(l.to));
+  // Line はクリップでページ可視性を決めるため filter しない (drawLines が精密クリップ)
+  const visibleLines = sheet.lines;
   const LEVEL = 100;
   const tStart = layout === 'horizontal' ? page.innerX / LEVEL : page.innerY / LEVEL;
   const tEnd = layout === 'horizontal'
@@ -759,6 +759,9 @@ function drawLines(
   const byId = new Map(sheet.boxes.map((b) => [b.id, b]));
   const isDup = !!(page && mode === 'duplicate');
   const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
+  const pageInnerRect = page
+    ? { x: page.innerX, y: page.innerY, width: page.innerWidth, height: page.innerHeight }
+    : null;
 
   for (const l of sheet.lines) {
     const fromOrig = byId.get(l.from);
@@ -768,7 +771,8 @@ function drawLines(
     const shouldDash = l.type === 'XLine' || connectsDashed;
     const effectiveShape = resolveEffectiveShape(l);
 
-    // L字 / 曲線: 多セグメントで描画（angle モードは無視）
+    // === すべての形状を polyline に正規化 ===
+    let polyline: LinePathPt[];
     if (effectiveShape === 'elbow' || effectiveShape === 'curve') {
       const resolved = resolveLineDirection(l, fromOrig, toOrig, layout);
       const resolvedLine: Line = {
@@ -785,70 +789,36 @@ function drawLines(
         resolved.startMargin,
         resolved.endMargin,
       );
-      const pts: LinePathPt[] = path.kind === 'curve'
-        ? sampleCurveToSegments(path, 14)
-        : path.points;
+      polyline = path.kind === 'curve' ? sampleCurveToSegments(path, 24) : path.points;
+    } else {
+      const seg = computeLineSegment(l, byId, layout);
+      if (!seg) continue;
+      polyline = [{ x: seg.sx, y: seg.sy }, { x: seg.ex, y: seg.ey }];
+    }
 
-      // duplicate モードではセグメントごとに page クリップ（簡易: 各端点のみチェック）
-      let visible: LinePathPt[] = pts;
-      if (isDup && page) {
-        // 端点が page 外のセグメントを除外する簡易クリップ（精密版は将来）
-        // MVP: 先頭が page 内であれば全体を描画
-        const first = pts[0];
-        const inside = first.x >= page.innerX && first.x <= page.innerX + page.innerWidth
-          && first.y >= page.innerY && first.y <= page.innerY + page.innerHeight;
-        if (!inside) continue;
-        visible = pts;
+    // === クリップ ===
+    if (pageInnerRect) {
+      const pieces = clipPolylineToRect(polyline as ClipPt[], pageInnerRect);
+      if (pieces.length === 0) continue;
+      for (const piece of pieces) {
+        if (piece.points.length < 2) continue;
+        drawLineSegments(pres, slide, piece.points as LinePathPt[], l, shouldDash, piece.endsAtOriginalEnd, t);
+        // duplicate モードでは続マーカーを描画
+        if (isDup && showMarkers !== false) {
+          const first = piece.points[0];
+          const last = piece.points[piece.points.length - 1];
+          const eq = (a: Pt, b: LinePathPt) => Math.abs(a.x - b.x) < 1e-3 && Math.abs(a.y - b.y) < 1e-3;
+          const origStart = polyline[0];
+          const origEnd = polyline[polyline.length - 1];
+          if (!eq(first, origStart)) drawContinuationMarker(slide, first, 'backward', layout, t);
+          if (!eq(last, origEnd)) drawContinuationMarker(slide, last, 'forward', layout, t);
+        }
       }
-      drawLineSegments(pres, slide, visible, l, shouldDash, true, t);
       continue;
     }
 
-    // straight (既存 computeLineSegment パス、angle モード含む)
-    const seg = computeLineSegment(l, byId, layout);
-    if (!seg) continue;
-    const { sx, sy, ex, ey } = seg;
-
-    let p0: Pt = { x: sx, y: sy };
-    let p1: Pt = { x: ex, y: ey };
-    let hasArrowhead = true;
-    let clippedStart = false;
-    let clippedEnd = false;
-
-    if (isDup && page) {
-      const clip = clipSegmentToPageInner(p0, p1, page);
-      if (!clip) continue;
-      p0 = clip.p0;
-      p1 = clip.p1;
-      clippedStart = clip.clippedStart;
-      clippedEnd = clip.clippedEnd;
-      hasArrowhead = !clippedEnd;
-    }
-
-    const minX = Math.min(p0.x, p1.x);
-    const minY = Math.min(p0.y, p1.y);
-    const w = Math.max(1, Math.abs(p1.x - p0.x));
-    const h = Math.max(1, Math.abs(p1.y - p0.y));
-
-    slide.addShape(pres.ShapeType.line, {
-      x: t.toX(minX),
-      y: t.toY(minY),
-      w: t.toLen(w),
-      h: t.toLen(h),
-      line: {
-        color: rgbToHex(l.style?.color ?? '#222'),
-        width: l.style?.strokeWidth ?? 1.5,
-        dashType: shouldDash ? 'dash' : 'solid',
-        endArrowType: hasArrowhead ? 'triangle' : 'none',
-      },
-      flipH: p1.x < p0.x,
-      flipV: p1.y < p0.y,
-    });
-
-    if (isDup && showMarkers !== false) {
-      if (clippedEnd) drawContinuationMarker(slide, p1, 'forward', layout, t);
-      if (clippedStart) drawContinuationMarker(slide, p0, 'backward', layout, t);
-    }
+    // クリップなし (単一ページ): 全部描画、末端に矢印頭
+    drawLineSegments(pres, slide, polyline, l, shouldDash, true, t);
   }
 }
 
