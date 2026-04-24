@@ -211,6 +211,10 @@ interface Actions {
   togglePaperGuides: () => void;
   toggleCommentMode: () => void;
   toggleBoxIds: () => void;
+  toggleSDSGIds: () => void;
+  toggleLineIds: () => void;
+  /** 全 ID バッジ (Box/SDSG/Line) の一括 ON/OFF */
+  toggleAllIds: () => void;
   toggleTopRuler: () => void;
   toggleLeftRuler: () => void;
   toggleLegend: () => void;
@@ -1762,6 +1766,13 @@ export const useTEMStore = create<Store>()(
       togglePaperGuides: () => set((state) => ({ view: { ...state.view, showPaperGuides: !state.view.showPaperGuides } })),
       toggleCommentMode: () => set((state) => ({ view: { ...state.view, commentMode: !state.view.commentMode } })),
       toggleBoxIds: () => set((state) => ({ view: { ...state.view, showBoxIds: !state.view.showBoxIds } })),
+      toggleSDSGIds: () => set((state) => ({ view: { ...state.view, showSDSGIds: !state.view.showSDSGIds } })),
+      toggleLineIds: () => set((state) => ({ view: { ...state.view, showLineIds: !state.view.showLineIds } })),
+      toggleAllIds: () => set((state) => {
+        const anyOn = state.view.showBoxIds || state.view.showSDSGIds || state.view.showLineIds;
+        const next = !anyOn;
+        return { view: { ...state.view, showBoxIds: next, showSDSGIds: next, showLineIds: next } };
+      }),
       toggleTopRuler: () => set((state) => ({ view: { ...state.view, showTopRuler: !state.view.showTopRuler } })),
       toggleLeftRuler: () => set((state) => ({ view: { ...state.view, showLeftRuler: !state.view.showLeftRuler } })),
       requestFit: (mode) => set((state) => ({ fitMode: mode, fitCounter: state.fitCounter + 1 })),

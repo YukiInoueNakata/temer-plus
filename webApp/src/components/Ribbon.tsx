@@ -622,6 +622,9 @@ function ViewTab({ onOpenPeriodSettings, onOpenPeriodLabels: _onOpenPeriodLabels
   const togglePropertyPanel = useTEMStore((s) => s.togglePropertyPanel);
   const toggleCommentMode = useTEMStore((s) => s.toggleCommentMode);
   const toggleBoxIds = useTEMStore((s) => s.toggleBoxIds);
+  const toggleSDSGIds = useTEMStore((s) => s.toggleSDSGIds);
+  const toggleLineIds = useTEMStore((s) => s.toggleLineIds);
+  const toggleAllIds = useTEMStore((s) => s.toggleAllIds);
   const toggleTopRuler = useTEMStore((s) => s.toggleTopRuler);
   const toggleLeftRuler = useTEMStore((s) => s.toggleLeftRuler);
   const toggleLegend = useTEMStore((s) => s.toggleLegend);
@@ -694,7 +697,23 @@ function ViewTab({ onOpenPeriodSettings, onOpenPeriodLabels: _onOpenPeriodLabels
         <RibbonButton label={view.showGrid ? 'グリッド ✓' : 'グリッド'} icon="⊞" onClick={toggleGrid} active={view.showGrid} />
         <RibbonButton label={view.snapEnabled ? 'スナップ ✓' : 'スナップ'} icon="⊡" onClick={toggleSnap} active={view.snapEnabled} />
         <RibbonButton label={view.showPaperGuides ? '用紙枠 ✓' : '用紙枠'} icon="▭" onClick={togglePaperGuides} active={view.showPaperGuides} />
-        <RibbonButton label={view.showBoxIds ? 'ID ✓' : 'ID'} icon="🏷" onClick={toggleBoxIds} active={view.showBoxIds} />
+        {(() => {
+          const anyIdOn = view.showBoxIds || view.showSDSGIds || view.showLineIds;
+          const allIdOn = view.showBoxIds && view.showSDSGIds && view.showLineIds;
+          const label = allIdOn ? 'ID ✓' : anyIdOn ? 'ID …' : 'ID';
+          return (
+            <RibbonButton
+              label={label}
+              icon="🏷"
+              onClick={toggleAllIds}
+              active={anyIdOn}
+              title={`Box / SDSG / Line の ID バッジ一括トグル (現状: Box=${view.showBoxIds ? 'ON' : 'OFF'}, SDSG=${view.showSDSGIds ? 'ON' : 'OFF'}, Line=${view.showLineIds ? 'ON' : 'OFF'})`}
+            />
+          );
+        })()}
+        <RibbonButton label={view.showBoxIds ? 'Box-ID ✓' : 'Box-ID'} icon="🔖" onClick={toggleBoxIds} active={view.showBoxIds} title="Box の ID バッジ表示切替" />
+        <RibbonButton label={view.showSDSGIds ? 'SDSG-ID ✓' : 'SDSG-ID'} icon="🔖" onClick={toggleSDSGIds} active={view.showSDSGIds} title="SDSG の ID バッジ表示切替" />
+        <RibbonButton label={view.showLineIds ? 'Line-ID ✓' : 'Line-ID'} icon="🔖" onClick={toggleLineIds} active={view.showLineIds} title="Line の ID バッジ表示切替（線の中点）" />
         <RibbonButton label={view.showTopRuler ? '上ルーラー ✓' : '上ルーラー'} icon="📏" onClick={toggleTopRuler} active={view.showTopRuler} />
         <RibbonButton label={view.showLeftRuler ? '左ルーラー ✓' : '左ルーラー'} icon="📐" onClick={toggleLeftRuler} active={view.showLeftRuler} />
         <RibbonButton

@@ -1174,6 +1174,34 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               </div>
             </div>
           </>}
+          <div className="prop-row">
+            <label>IDバッジ フォントサイズ</label>
+            <input
+              type="number"
+              min={6}
+              max={40}
+              value={getCommon(sdsgs, 'idFontSize') ?? 9}
+              placeholder={getCommon(sdsgs, 'idFontSize') === undefined ? '（混在）' : ''}
+              onChange={(e) => updateSDSGs(ids, { idFontSize: Number(e.target.value) })}
+            />
+          </div>
+          <div className="prop-row">
+            <label>IDバッジ位置調整 X / Y</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                type="number"
+                value={getCommon(sdsgs, 'idOffsetX') ?? 0}
+                placeholder={getCommon(sdsgs, 'idOffsetX') === undefined ? '混在' : ''}
+                onChange={(e) => updateSDSGs(ids, { idOffsetX: Number(e.target.value) })}
+              />
+              <input
+                type="number"
+                value={getCommon(sdsgs, 'idOffsetY') ?? 0}
+                placeholder={getCommon(sdsgs, 'idOffsetY') === undefined ? '混在' : ''}
+                onChange={(e) => updateSDSGs(ids, { idOffsetY: Number(e.target.value) })}
+              />
+            </div>
+          </div>
         </>
       )}
 
@@ -1796,6 +1824,37 @@ function LineProperties({ lines }: { lines: Line[] }) {
           onChange={(e) => updateLines(ids, { noDescriptionNeeded: e.target.checked })}
         />
       </div>
+
+      <CollapsibleSection title="IDバッジ" sectionKey="line-id-badge" compact defaultOpen={false}>
+        <div className="prop-row">
+          <label>フォントサイズ</label>
+          <input
+            type="number"
+            min={6}
+            max={40}
+            value={getCommon(lines, 'idFontSize') ?? 9}
+            placeholder={getCommon(lines, 'idFontSize') === undefined ? '（混在）' : ''}
+            onChange={(e) => updateLines(ids, { idFontSize: Number(e.target.value) })}
+          />
+        </div>
+        <div className="prop-row">
+          <label>位置調整 X / Y</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="number"
+              value={getCommon(lines, 'idOffsetX') ?? 0}
+              placeholder={getCommon(lines, 'idOffsetX') === undefined ? '混在' : ''}
+              onChange={(e) => updateLines(ids, { idOffsetX: Number(e.target.value) })}
+            />
+            <input
+              type="number"
+              value={getCommon(lines, 'idOffsetY') ?? -12}
+              placeholder={getCommon(lines, 'idOffsetY') === undefined ? '混在' : ''}
+              onChange={(e) => updateLines(ids, { idOffsetY: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+      </CollapsibleSection>
 
       <div className="prop-row">
         <button className="danger-btn" onClick={() => removeLines(ids)}>削除</button>
