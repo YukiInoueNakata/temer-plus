@@ -223,11 +223,8 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
         <RibbonButton label="進む (Ctrl+Y)" icon="↷" onClick={() => useTEMStore.temporal.getState().redo()} />
       </RibbonGroup>
       <RibbonGroup title="編集">
-        <SwapBoxesButton />
-        <SwapBoxesFullButton />
-        <ShiftAfterButton />
-        <RibbonButton label="複製" icon="⎘" onClick={() => { copyToClipboard(); pasteFromClipboard(); }} />
         <RibbonButton label="全選択" icon="☰" onClick={() => useTEMStore.getState().selectAll()} />
+        <RibbonButton label="複製" icon="⎘" onClick={() => { copyToClipboard(); pasteFromClipboard(); }} />
         <RibbonButton
           label="文字に合わせる"
           icon="↔↕"
@@ -267,8 +264,11 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
           }}
           title="幅は維持し、高さのみをラベルに合わせる"
         />
+        <SwapBoxesButton />
+        <SwapBoxesFullButton />
+        <ShiftAfterButton />
       </RibbonGroup>
-      <RibbonGroup title="整列">
+      <RibbonGroup title="整列・サイズ">
         <AlignButton type="left" />
         <AlignButton type="center-h" />
         <AlignButton type="right" />
@@ -276,8 +276,6 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
         <AlignButton type="middle" />
         <AlignButton type="bottom" />
         <AlignButton type="distribute-h" />
-      </RibbonGroup>
-      <RibbonGroup title="サイズ統一">
         <RibbonButton
           label="幅を揃える"
           icon="↔"
@@ -754,9 +752,9 @@ function ViewTab({ onOpenPeriodSettings, onOpenPeriodLabels: _onOpenPeriodLabels
 function HelpTab() {
   return (
     <RibbonGroup title="サポート">
-      <RibbonButton label="ツアー" icon="🎓" onClick={() => alert('チュートリアルツアーはPhase 4で実装')} />
-      <RibbonButton label="マニュアル" icon="📘" onClick={() => alert('マニュアルはPhase 4で実装')} />
-      <RibbonButton label="動画" icon="🎬" onClick={() => alert('動画リンクはPhase 4で実装')} />
+      <RibbonButton label="ツアー" icon="🎓" disabled title="チュートリアルツアー (開発中)" />
+      <RibbonButton label="マニュアル" icon="📘" disabled title="マニュアル (開発中)" />
+      <RibbonButton label="動画" icon="🎬" disabled title="動画リンク (開発中)" />
       <RibbonButton label="バージョン情報" icon="ℹ" onClick={() => alert('TEMer Plus v0.2.0-dev\n著者: 中田友貴\nライセンス: PolyForm Noncommercial 1.0.0')} />
     </RibbonGroup>
   );
@@ -779,18 +777,22 @@ function RibbonButton({
   onClick,
   title,
   active,
+  disabled,
 }: {
   label: string;
   icon: string;
   onClick?: () => void;
   title?: string;
   active?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       className={active ? 'ribbon-btn active' : 'ribbon-btn'}
       onClick={onClick}
       title={title ?? label}
+      disabled={disabled}
+      style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
     >
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
