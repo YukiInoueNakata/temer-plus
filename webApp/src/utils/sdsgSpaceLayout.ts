@@ -504,3 +504,64 @@ export function computeSDSGBandPosition(
     outOfRange,
   };
 }
+
+/**
+ * 指定 SDSG が現在の設定で帯からはみ出しているか判定（PropertyPanel 警告用）。
+ * band モード外 / 帯無効な場合は常に false。
+ */
+export function isSDSGOutOfRange(
+  sg: SDSG,
+  sheet: Sheet,
+  layout: LayoutDirection,
+  settings: ProjectSettings,
+): boolean {
+  const bk = sdsgBandKey(sg);
+  if (!bk || !settings.sdsgSpace?.enabled) return false;
+  const isH = layout === 'horizontal';
+
+  // band layout と row 割り当てを再計算（Canvas/export と同じロジック）
+  const entries: Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }> = [];
+  sheet.sdsg.forEach((s) => {
+    if (sdsgBandKey(s) !== bk) return;
+    let tS: number, tE: number;
+    if (s.anchorMode === 'between' && s.attachedTo2) {
+      const a = sheet.boxes.find((b) => b.id === s.attachedTo);
+      const b = sheet.boxes.find((bx) => bx.id === s.attachedTo2);
+      if (!a || !b) return;
+      const mode = s.betweenMode ?? 'edge-to-edge';
+      const aT = isH ? a.x : a.y; const bT = isH ? b.x : b.y;
+      const aSize = isH ? a.width : a.height; const bSize = isH ? b.width : b.height;
+      const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
+      const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
+      if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
+      else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
+    } else {
+      const attached = sheet.boxes.find((b) => b.id === s.attachedTo);
+      if (!attached) return;
+      const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
+      const w0 = s.spaceWidth ?? s.width ?? 70;
+      tS = centerT - w0 / 2; tE = centerT + w0 / 2;
+    }
+    entries.push({ id: s.id, timeStart: tS, timeEnd: tE, rowOverride: s.spaceRowOverride });
+  });
+  const rowMap = settings.sdsgSpace.autoArrange
+    ? computeBandRowAssignments(entries)
+    : new Map<string, number>();
+  const totalRows = Math.max(1, ...Array.from(rowMap.values()).map((v) => v + 1));
+  const bandLayout = computeSDSGBandLayout(sheet, layout, settings,
+    { top: bk === 'top' ? totalRows : 1, bottom: bk === 'bottom' ? totalRows : 1 });
+  const band = bk === 'top' ? bandLayout.topBand : bandLayout.bottomBand;
+  if (!band) return false;
+
+  const entry = entries.find((e) => e.id === sg.id);
+  if (!entry) return false;
+  const rowIdx = rowMap.get(sg.id) ?? 0;
+  const timeAnchor = (entry.timeStart + entry.timeEnd) / 2;
+  const timeWidth = Math.max(10, entry.timeEnd - entry.timeStart);
+  const bandSettings = bk === 'top' ? settings.sdsgSpace.bands.top : settings.sdsgSpace.bands.bottom;
+  const pos = computeSDSGBandPosition(
+    band, layout, timeAnchor, timeWidth, rowIdx, totalRows, sg, bk,
+    { shrinkToFitRow: bandSettings?.shrinkToFitRow !== false },
+  );
+  return pos.outOfRange;
+}

@@ -1055,9 +1055,9 @@ function SDSGSpaceSection() {
           }}
         />
       </div>
-      <p className="hint">ON: SDSG の高さを row span に合わせて自動圧縮 / OFF: はみ出しを許容（赤枠で警告）</p>
+      <p className="hint">ON: SDSG の高さを row span に合わせて自動圧縮 / OFF: はみ出しを許容（赤枠で警告）。主に manual 高さモードで効果あり</p>
       <div className="setting-row">
-        <label>row が多い時、帯を自動拡張</label>
+        <label>row が多い時、帯を自動拡張 <span style={{ color: '#888', fontSize: '0.85em' }}>(manual モード時)</span></label>
         <input
           type="checkbox"
           checked={!!(space.bands.top.autoExpandHeight || space.bands.bottom.autoExpandHeight)}
@@ -1067,7 +1067,10 @@ function SDSGSpaceSection() {
           }}
         />
       </div>
-      <p className="hint">ON: heightLevel を超える row 数が必要な時、帯を一時的に拡張（描画時のみ、設定値は保持）</p>
+      <p className="hint">
+        ON: heightLevel を超える row 数が必要な時、帯を一時的に拡張（描画時のみ、設定値は保持）。
+        auto 高さモードでは常に row 数に応じて自動拡張されるため、この設定は manual モード時のみ影響します。
+      </p>
       <div className="setting-row">
         <label>組合せ制限を解除</label>
         <input

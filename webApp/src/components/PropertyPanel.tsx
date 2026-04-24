@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
 import type { Box, BoxType, TextAlign, VerticalAlign, SDSG, Line, AutoFitBoxMode } from '../types';
 import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
+import { isSDSGOutOfRange } from '../utils/sdsgSpaceLayout';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
 import { RichTextToolbar } from './RichTextToolbar';
@@ -866,6 +867,38 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
   const topBandLabel = isH ? '上部 (SD) に配置' : '右側 (SD) に配置';
   const bottomBandLabel = isH ? '下部 (SG) に配置' : '左側 (SG) に配置';
 
+  // outOfRange 判定 (選択中の SDSG いずれかが帯からはみ出しているか)
+  const projectSettings = useTEMStore((s) => s.doc.settings);
+  const outOfRangeSDSGs = sheet
+    ? sdsgs.filter((sg) => isSDSGOutOfRange(sg, sheet, sdsgLayout, projectSettings))
+    : [];
+  const hasOutOfRange = outOfRangeSDSGs.length > 0;
+  const firstOutBand = outOfRangeSDSGs[0]
+    ? (outOfRangeSDSGs[0].spaceMode === 'band-top' ? 'top' : 'bottom')
+    : null;
+  const updateBandPatch = (which: 'top' | 'bottom', patch: Partial<NonNullable<typeof projectSettings.sdsgSpace>['bands']['top']>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        if (!d.settings.sdsgSpace) return;
+        d.settings.sdsgSpace.bands[which] = { ...d.settings.sdsgSpace.bands[which], ...patch };
+      }),
+    }));
+  };
+  const fixEnableAutoExpand = () => {
+    if (!firstOutBand) return;
+    updateBandPatch(firstOutBand, { autoExpandHeight: true, heightMode: 'manual' });
+  };
+  const fixEnableShrink = () => {
+    if (!firstOutBand) return;
+    updateBandPatch(firstOutBand, { shrinkToFitRow: true });
+  };
+  const fixDecreaseRow = () => {
+    outOfRangeSDSGs.forEach((sg) => {
+      const cur = sg.spaceRowOverride ?? 0;
+      updateSDSG(sg.id, { spaceRowOverride: Math.max(0, cur - 1) });
+    });
+  };
+
   const changeSpaceMode = (newMode: 'attached' | 'band-top' | 'band-bottom') => {
     const ids = sdsgs.map((s) => s.id);
     // 種別と帯の組合せチェック
@@ -1024,6 +1057,44 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
                     <span style={{ fontSize: '0.85em', color: '#856404' }}>
                       ⚠ SD/SG 配置機能が OFF です。band モード変更時に自動で ON になります。
                     </span>
+                  </div>
+                )}
+                {hasOutOfRange && (
+                  <div
+                    className="prop-row"
+                    style={{
+                      padding: 8,
+                      background: '#fdecea',
+                      border: '1px solid #e74c3c',
+                      borderRadius: 4,
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: 6,
+                    }}
+                  >
+                    <span style={{ fontSize: '0.85em', color: '#a02722', fontWeight: 'bold' }}>
+                      ⚠ 帯からはみ出しています（{outOfRangeSDSGs.length}件）
+                    </span>
+                    <span style={{ fontSize: '0.78em', color: '#5b1a17' }}>
+                      row 数が帯の高さを超えています。以下のいずれかで解消:
+                    </span>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      <button
+                        className="ribbon-btn-small"
+                        onClick={fixEnableAutoExpand}
+                        title="帯を縦方向に自動拡張 (manual heightMode に切替 + autoExpandHeight ON)"
+                      >帯を拡張</button>
+                      <button
+                        className="ribbon-btn-small"
+                        onClick={fixEnableShrink}
+                        title="SDSG を row span に合わせて自動圧縮 (shrinkToFitRow ON)"
+                      >SDSG を圧縮</button>
+                      <button
+                        className="ribbon-btn-small"
+                        onClick={fixDecreaseRow}
+                        title="選択中 SDSG の row を 1 つ内側 (Box 寄り) へ"
+                      >row を内側へ</button>
+                    </div>
                   </div>
                 )}
                 <div className="prop-row">
