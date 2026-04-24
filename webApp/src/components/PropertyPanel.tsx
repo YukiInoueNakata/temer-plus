@@ -261,6 +261,7 @@ function LabelWithToolbar({ box, updateBox }: {
 }
 
 type PropTab = 'basic' | 'label' | 'idLabel' | 'subLabel' | 'autoFit';
+type LineTab = 'basic' | 'endpoint' | 'info';
 
 function BoxProperties({ boxes }: { boxes: Box[] }) {
   const updateBox = useTEMStore((s) => s.updateBox);
@@ -1545,6 +1546,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
   const updateLines = useTEMStore((s) => s.updateLines);
   const removeLines = useTEMStore((s) => s.removeLines);
   const sheet = useActiveSheet();
+  const [tab, setTab] = useState<LineTab>('basic');
 
   const isMulti = lines.length > 1;
   const first = lines[0];
@@ -1568,6 +1570,13 @@ function LineProperties({ lines }: { lines: Line[] }) {
     <div className="prop-section">
       <h4>Line {isMulti && <span className="multi-badge">{lines.length}個</span>}</h4>
 
+      <div className="settings-tabs" style={{ marginBottom: 8, padding: 0 }}>
+        <button className={tab === 'basic' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('basic')}>基本</button>
+        <button className={tab === 'endpoint' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('endpoint')}>端点</button>
+        <button className={tab === 'info' ? 'settings-tab active' : 'settings-tab'} onClick={() => setTab('info')}>詳細</button>
+      </div>
+
+      {tab === 'basic' && <>
       <div className="prop-row">
         <label>線種</label>
         <select value={commonType ?? ''} onChange={(e) => updateLines(ids, { type: e.target.value as 'RLine' | 'XLine' })}>
@@ -1678,7 +1687,10 @@ function LineProperties({ lines }: { lines: Line[] }) {
         );
       })()}
 
-      <CollapsibleSection title="角度モード" sectionKey="line-angle" compact>
+      </>}
+
+      {tab === 'endpoint' && <>
+      <CollapsibleSection title="角度モード" sectionKey="line-angle" compact defaultOpen={true}>
         <div className="prop-row">
           <label>角度モード</label>
           <input
@@ -1774,7 +1786,9 @@ function LineProperties({ lines }: { lines: Line[] }) {
           />
         </div>
       </CollapsibleSection>
+      </>}
 
+      {tab === 'info' && <>
       {!isMulti && (
         <>
           <div className="prop-row">
@@ -1855,6 +1869,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
           </div>
         </div>
       </CollapsibleSection>
+      </>}
 
       <div className="prop-row">
         <button className="danger-btn" onClick={() => removeLines(ids)}>削除</button>
