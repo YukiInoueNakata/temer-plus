@@ -1376,12 +1376,52 @@ function LineProperties({ lines }: { lines: Line[] }) {
 
       <div className="prop-row">
         <label>形状</label>
-        <select value={commonShape ?? ''} onChange={(e) => updateLines(ids, { shape: e.target.value as 'straight' | 'curve' })}>
+        <select
+          value={commonShape ?? ''}
+          onChange={(e) => updateLines(ids, { shape: e.target.value as 'straight' | 'elbow' | 'curve' })}
+        >
           {commonShape === undefined && <option value="">（混在）</option>}
           <option value="straight">直線</option>
+          <option value="elbow">L字接続</option>
           <option value="curve">曲線</option>
         </select>
       </div>
+      {commonShape === 'elbow' && (
+        <div className="prop-row">
+          <label>L字 中継位置 (0〜1)</label>
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={getCommon(lines, 'elbowBendRatio') ?? 0.5}
+            placeholder={getCommon(lines, 'elbowBendRatio') === undefined ? '（混在）' : ''}
+            onChange={(e) => {
+              const v = Math.max(0, Math.min(1, Number(e.target.value) || 0));
+              updateLines(ids, { elbowBendRatio: v });
+            }}
+            title="折れ位置の比率。0 = from 寄り / 0.5 = 中央 / 1 = to 寄り"
+          />
+        </div>
+      )}
+      {commonShape === 'curve' && (
+        <div className="prop-row">
+          <label>曲率 (0〜1)</label>
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={getCommon(lines, 'curveIntensity') ?? 0.5}
+            placeholder={getCommon(lines, 'curveIntensity') === undefined ? '（混在）' : ''}
+            onChange={(e) => {
+              const v = Math.max(0, Math.min(1, Number(e.target.value) || 0));
+              updateLines(ids, { curveIntensity: v });
+            }}
+            title="0=ほぼ直線、0.5=標準、1=大きく膨らむ"
+          />
+        </div>
+      )}
 
       {(() => {
         const firstColor = first.style?.color;
@@ -1423,9 +1463,15 @@ function LineProperties({ lines }: { lines: Line[] }) {
           type="checkbox"
           checked={!!commonAngleMode}
           ref={(el) => { if (el) el.indeterminate = commonAngleMode === undefined; }}
+          disabled={commonShape === 'elbow' || commonShape === 'curve'}
           onChange={(e) => updateLines(ids, { angleMode: e.target.checked })}
         />
       </div>
+      {(commonShape === 'elbow' || commonShape === 'curve') && (
+        <p className="hint" style={{ margin: '0 0 4px', fontSize: '0.82em', color: '#888' }}>
+          L字 / 曲線形状中は角度モードは無効です。
+        </p>
+      )}
       <div className="prop-row">
         <label>角度 (°)</label>
         <input
@@ -1435,7 +1481,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
           step={1}
           value={commonAngleDeg ?? 0}
           placeholder={commonAngleDeg === undefined ? '（混在）' : ''}
-          disabled={!allAngleOn}
+          disabled={!allAngleOn || commonShape === 'elbow' || commonShape === 'curve'}
           onChange={(e) => {
             const v = Math.max(-85, Math.min(85, Number(e.target.value) || 0));
             updateLines(ids, { angleDeg: v });

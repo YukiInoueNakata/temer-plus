@@ -44,6 +44,13 @@ import {
   clampAngleDeg,
 } from './lineDirection';
 import { resolveBoxVisuals } from './boxPreset';
+import {
+  computeLinePath,
+  applyLinePathMargins,
+  resolveEffectiveShape,
+  sampleCurveToSegments,
+  type Pt as LinePathPt,
+} from './linePath';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -664,11 +671,56 @@ function drawLines(
 ) {
   const byId = new Map(sheet.boxes.map((b) => [b.id, b]));
   const isDup = !!(page && mode === 'duplicate');
+  const dashedEndpoints = new Set(['annotation', 'P-EFP', 'P-2nd-EFP']);
 
   for (const l of sheet.lines) {
+    const fromOrig = byId.get(l.from);
+    const toOrig = byId.get(l.to);
+    if (!fromOrig || !toOrig) continue;
+    const connectsDashed = dashedEndpoints.has(fromOrig.type) || dashedEndpoints.has(toOrig.type);
+    const shouldDash = l.type === 'XLine' || connectsDashed;
+    const effectiveShape = resolveEffectiveShape(l);
+
+    // L字 / 曲線: 多セグメントで描画（angle モードは無視）
+    if (effectiveShape === 'elbow' || effectiveShape === 'curve') {
+      const resolved = resolveLineDirection(l, fromOrig, toOrig, layout);
+      const resolvedLine: Line = {
+        ...l,
+        startMargin: resolved.startMargin,
+        endMargin: resolved.endMargin,
+        startOffsetTime: resolved.startOffsetTime,
+        endOffsetTime: resolved.endOffsetTime,
+        startOffsetItem: resolved.startOffsetItem,
+        endOffsetItem: resolved.endOffsetItem,
+      };
+      const path = applyLinePathMargins(
+        computeLinePath(resolvedLine, resolved.from, resolved.to, layout),
+        resolved.startMargin,
+        resolved.endMargin,
+      );
+      const pts: LinePathPt[] = path.kind === 'curve'
+        ? sampleCurveToSegments(path, 14)
+        : path.points;
+
+      // duplicate モードではセグメントごとに page クリップ（簡易: 各端点のみチェック）
+      let visible: LinePathPt[] = pts;
+      if (isDup && page) {
+        // 端点が page 外のセグメントを除外する簡易クリップ（精密版は将来）
+        // MVP: 先頭が page 内であれば全体を描画
+        const first = pts[0];
+        const inside = first.x >= page.innerX && first.x <= page.innerX + page.innerWidth
+          && first.y >= page.innerY && first.y <= page.innerY + page.innerHeight;
+        if (!inside) continue;
+        visible = pts;
+      }
+      drawLineSegments(pres, slide, visible, l, shouldDash, true, t);
+      continue;
+    }
+
+    // straight (既存 computeLineSegment パス、angle モード含む)
     const seg = computeLineSegment(l, byId, layout);
     if (!seg) continue;
-    const { sx, sy, ex, ey, shouldDash } = seg;
+    const { sx, sy, ex, ey } = seg;
 
     let p0: Pt = { x: sx, y: sy };
     let p1: Pt = { x: ex, y: ey };
@@ -683,7 +735,7 @@ function drawLines(
       p1 = clip.p1;
       clippedStart = clip.clippedStart;
       clippedEnd = clip.clippedEnd;
-      hasArrowhead = !clippedEnd;  // 真の終点が見えている時だけ矢頭
+      hasArrowhead = !clippedEnd;
     }
 
     const minX = Math.min(p0.x, p1.x);
@@ -710,6 +762,46 @@ function drawLines(
       if (clippedEnd) drawContinuationMarker(slide, p1, 'forward', layout, t);
       if (clippedStart) drawContinuationMarker(slide, p0, 'backward', layout, t);
     }
+  }
+}
+
+/**
+ * 多点 polyline を line shape 連打で描画。最後のセグメントのみ arrowhead。
+ */
+function drawLineSegments(
+  pres: PptxGenJS,
+  slide: PptxGenJS.Slide,
+  points: LinePathPt[],
+  l: Line,
+  shouldDash: boolean,
+  hasArrowhead: boolean,
+  t: Transform,
+) {
+  const color = rgbToHex(l.style?.color ?? '#222');
+  const width = l.style?.strokeWidth ?? 1.5;
+  const dashType = shouldDash ? 'dash' : 'solid';
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    const isLast = i === points.length - 2;
+    const minX = Math.min(a.x, b.x);
+    const minY = Math.min(a.y, b.y);
+    const w = Math.max(1, Math.abs(b.x - a.x));
+    const h = Math.max(1, Math.abs(b.y - a.y));
+    slide.addShape(pres.ShapeType.line, {
+      x: t.toX(minX),
+      y: t.toY(minY),
+      w: t.toLen(w),
+      h: t.toLen(h),
+      line: {
+        color,
+        width,
+        dashType,
+        endArrowType: (isLast && hasArrowhead) ? 'triangle' : 'none',
+      },
+      flipH: b.x < a.x,
+      flipV: b.y < a.y,
+    });
   }
 }
 

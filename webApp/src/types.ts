@@ -17,7 +17,8 @@ export type BoxShape = 'rect' | 'ellipse';
 
 export type LineType = 'RLine' | 'XLine';
 export type LineConnectionMode = 'center-to-center' | 'horizontal';
-export type LineShape = 'straight' | 'curve';
+// 'horizontal' は legacy: 旧 connectionMode='horizontal' が shape='elbow' にマイグレート
+export type LineShape = 'straight' | 'elbow' | 'curve';
 
 export type TextOrientation = 'horizontal' | 'vertical';
 
@@ -151,6 +152,13 @@ export interface Line {
   // ON のとき startOffset* / endOffset* は無効化し、startMargin/endMargin のみ適用
   angleMode?: boolean;
   angleDeg?: number;   // [-85, 85] にクランプ。既定 0
+  // L字（elbow）形状の中継位置比率（0..1、既定 0.5）
+  //   横型: 折れ位置の x = fx + (tx-fx) * bendRatio
+  //   縦型: 折れ位置の y = fy + (ty-fy) * bendRatio
+  elbowBendRatio?: number;
+  // 曲線（curve）形状の曲率（0..1、既定 0.5、0=ほぼ直線、1=大きく膨らむ）
+  //   三次 Bezier の制御点距離 = 時間軸差 * curveIntensity
+  curveIntensity?: number;
 }
 
 export interface SDSG {

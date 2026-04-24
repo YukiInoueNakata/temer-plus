@@ -320,7 +320,7 @@ function Inner({
       const dashed = l.type === 'XLine'
         || (fromBox && dashedEndpointTypes.includes(fromBox.type))
         || (toBox && dashedEndpointTypes.includes(toBox.type));
-      const useCustom = l.shape !== 'curve';
+      const useCustom = true;
       return {
         id: l.id,
         source: l.from,
@@ -335,6 +335,10 @@ function Inner({
           endOffsetItem: l.endOffsetItem ?? 0,
           angleMode: !!l.angleMode,
           angleDeg: l.angleDeg ?? 0,
+          shape: l.shape,
+          elbowBendRatio: l.elbowBendRatio,
+          curveIntensity: l.curveIntensity,
+          connectionMode: l.connectionMode,
           fromBoxId: l.from,
           toBoxId: l.to,
         } : undefined,

@@ -491,8 +491,8 @@ function CanvasInner({
         (fromBox && dashedEndpointTypes.includes(fromBox.type)) ||
         (toBox && dashedEndpointTypes.includes(toBox.type));
       const shouldDash = l.type === 'XLine' || connectsToDashedType;
-      // curve は React Flow の default edge を利用、straight は custom edge (LineEdge) でマージン対応
-      const useCustom = l.shape !== 'curve';
+      // 全形状 (straight / elbow / curve) を LineEdge で自前描画
+      const useCustom = true;
       return {
         id: l.id,
         source: l.from,
@@ -509,6 +509,10 @@ function CanvasInner({
               endOffsetItem: l.endOffsetItem ?? 0,
               angleMode: !!l.angleMode,
               angleDeg: l.angleDeg ?? 0,
+              shape: l.shape,
+              elbowBendRatio: l.elbowBendRatio,
+              curveIntensity: l.curveIntensity,
+              connectionMode: l.connectionMode,
               fromBoxId: l.from,
               toBoxId: l.to,
             }

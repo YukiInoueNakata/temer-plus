@@ -13,12 +13,18 @@
 
 import { BaseEdge, getStraightPath, type EdgeProps } from 'reactflow';
 import { useTEMView } from '../../context/TEMViewContext';
-import type { Line } from '../../types';
+import type { Line, LineShape } from '../../types';
 import {
   resolveLineDirection,
   computeAngleEndpoints,
   clampAngleDeg,
 } from '../../utils/lineDirection';
+import {
+  computeLinePath,
+  applyLinePathMargins,
+  toSvgPath,
+  resolveEffectiveShape,
+} from '../../utils/linePath';
 
 export interface LineEdgeData {
   startMargin?: number;
@@ -29,6 +35,10 @@ export interface LineEdgeData {
   endOffsetItem?: number;
   angleMode?: boolean;
   angleDeg?: number;
+  shape?: LineShape;
+  elbowBendRatio?: number;
+  curveIntensity?: number;
+  connectionMode?: 'center-to-center' | 'horizontal';   // legacy
   fromBoxId?: string;
   toBoxId?: string;
 }
@@ -53,21 +63,45 @@ export function LineEdge({
   const toBox = data?.toBoxId ? view.sheet?.boxes.find((b) => b.id === data.toBoxId) : undefined;
   const hasBoxes = !!(fromBox && toBox);
 
-  // 擬似 Line（resolveLineDirection に margin/offset を渡すため）
+  // 擬似 Line（resolveLineDirection / computeLinePath に渡すため）
   const line: Line = {
     id,
     type: 'RLine',
     from: data?.fromBoxId ?? '',
     to: data?.toBoxId ?? '',
-    connectionMode: 'center-to-center',
-    shape: 'straight',
+    connectionMode: data?.connectionMode ?? 'center-to-center',
+    shape: data?.shape ?? 'straight',
     startMargin: data?.startMargin,
     endMargin: data?.endMargin,
     startOffsetTime: data?.startOffsetTime,
     endOffsetTime: data?.endOffsetTime,
     startOffsetItem: data?.startOffsetItem,
     endOffsetItem: data?.endOffsetItem,
+    elbowBendRatio: data?.elbowBendRatio,
+    curveIntensity: data?.curveIntensity,
   };
+
+  const effectiveShape = resolveEffectiveShape(line);
+
+  // L字 / 曲線: 形状別 path を生成（angle モードは無視）
+  if (hasBoxes && (effectiveShape === 'elbow' || effectiveShape === 'curve')) {
+    const resolved = resolveLineDirection(line, fromBox!, toBox!, layout);
+    const resolvedLine: Line = {
+      ...line,
+      startMargin: resolved.startMargin,
+      endMargin: resolved.endMargin,
+      startOffsetTime: resolved.startOffsetTime,
+      endOffsetTime: resolved.endOffsetTime,
+      startOffsetItem: resolved.startOffsetItem,
+      endOffsetItem: resolved.endOffsetItem,
+    };
+    const path = applyLinePathMargins(
+      computeLinePath(resolvedLine, resolved.from, resolved.to, layout),
+      resolved.startMargin,
+      resolved.endMargin,
+    );
+    return <BaseEdge id={id} path={toSvgPath(path)} markerEnd={markerEnd} style={style} />;
+  }
 
   let sx: number;
   let sy: number;
