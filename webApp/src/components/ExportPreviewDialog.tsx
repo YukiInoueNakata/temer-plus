@@ -45,6 +45,8 @@ export function ExportPreviewDialog({
   const format: Format = method === 'print' ? 'png' : method;
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ current: number; total: number; label: string } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // 出力固有オプション
   const [background, setBackground] = useState<'white' | 'transparent'>('white');
@@ -170,6 +172,10 @@ export function ExportPreviewDialog({
   const runExport = async () => {
     setBusy(true);
     setNotice(null);
+    const ac = new AbortController();
+    abortRef.current = ac;
+    setProgress({ current: 0, total: 1, label: '準備中...' });
+    const onProg = (p: { current: number; total: number; label: string }) => setProgress(p);
     try {
       const baseName = doc.metadata.title || 'TEMer';
       const imgOpts: ExportOptions = {
@@ -182,7 +188,7 @@ export function ExportPreviewDialog({
       if (format === 'png') {
         if (multi) {
           const { exportToPNGPages } = await import('../utils/exportImage');
-          await exportToPNGPages(PREVIEW_ID, baseName, multi, 2, imgOpts);
+          await exportToPNGPages(PREVIEW_ID, baseName, multi, 2, imgOpts, onProg, ac.signal);
         } else {
           const { exportToPNG } = await import('../utils/exportImage');
           await exportToPNG(PREVIEW_ID, `${baseName}.png`, 2, imgOpts);
@@ -190,7 +196,7 @@ export function ExportPreviewDialog({
       } else if (format === 'svg') {
         if (multi) {
           const { exportToSVGPages } = await import('../utils/exportImage');
-          await exportToSVGPages(PREVIEW_ID, baseName, multi, imgOpts);
+          await exportToSVGPages(PREVIEW_ID, baseName, multi, imgOpts, onProg, ac.signal);
         } else {
           const { exportToSVG } = await import('../utils/exportImage');
           await exportToSVG(PREVIEW_ID, `${baseName}.svg`, imgOpts);
@@ -205,6 +211,8 @@ export function ExportPreviewDialog({
           includePaperGuides,
           includeRulers: false,
           pages: multi ?? undefined,
+          onProgress: onProg,
+          signal: ac.signal,
         });
       } else if (format === 'pptx') {
         const { exportToPPTX } = await import('../utils/exportPPT');
@@ -220,19 +228,31 @@ export function ExportPreviewDialog({
           pages: multi ?? undefined,
           pageSplitMode: xf.pageSplitMode,
           showContinuationMarkers: xf.showContinuationMarkers,
+          onProgress: onProg,
+          signal: ac.signal,
         });
       }
     } catch (e) {
-      console.error(e);
-      alert(`出力に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setNotice('出力をキャンセルしました');
+      } else {
+        console.error(e);
+        alert(`出力に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      }
     } finally {
       setBusy(false);
+      setProgress(null);
+      abortRef.current = null;
     }
   };
 
   const runPrint = async () => {
     setBusy(true);
     setNotice(null);
+    const ac = new AbortController();
+    abortRef.current = ac;
+    setProgress({ current: 0, total: 1, label: '準備中...' });
+    const onProg = (p: { current: number; total: number; label: string }) => setProgress(p);
     try {
       const multi = exportMode === 'multi' && xf.pageCount > 1 ? pageBounds : null;
       const { printDiagram } = await import('../utils/printing');
@@ -243,21 +263,37 @@ export function ExportPreviewDialog({
         includePaperGuides,
         includeRulers: false,
         pages: multi ?? undefined,
+        onProgress: onProg,
+        signal: ac.signal,
       });
     } catch (e) {
-      console.error(e);
-      alert(`印刷の準備に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setNotice('印刷準備をキャンセルしました');
+      } else {
+        console.error(e);
+        alert(`印刷の準備に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      }
     } finally {
       setBusy(false);
+      setProgress(null);
+      abortRef.current = null;
     }
   };
+
+  const cancelExport = () => {
+    abortRef.current?.abort();
+  };
+
+  const pct = progress && progress.total > 0
+    ? Math.round((progress.current / progress.total) * 100)
+    : 0;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal"
         onClick={(e) => e.stopPropagation()}
-        style={modalStyle}
+        style={{ ...modalStyle, position: modalStyle.position ?? 'relative' } as React.CSSProperties}
       >
         <div
           className="modal-header"
@@ -266,8 +302,65 @@ export function ExportPreviewDialog({
           title="ドラッグで移動"
         >
           <h3>出力プレビュー</h3>
-          <button onClick={onClose} className="modal-close">×</button>
+          <button onClick={onClose} className="modal-close" disabled={busy}>×</button>
         </div>
+        {busy && progress && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(255,255,255,0.85)',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div
+              style={{
+                minWidth: 320,
+                maxWidth: 480,
+                padding: '18px 22px',
+                background: '#fff',
+                border: '1px solid #c8d1e0',
+                borderRadius: 8,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <div style={{ fontWeight: 'bold', fontSize: '0.95em' }}>出力中...</div>
+              <div style={{ fontSize: '0.85em', color: '#333' }}>{progress.label}</div>
+              <div style={{ fontSize: '0.8em', color: '#666' }}>
+                {progress.current} / {progress.total} ({pct}%)
+              </div>
+              <div
+                style={{
+                  height: 10,
+                  background: '#e6ebf2',
+                  borderRadius: 5,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${pct}%`,
+                    height: '100%',
+                    background: '#3b82f6',
+                    transition: 'width 0.15s linear',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  className="ribbon-btn-small"
+                  onClick={cancelExport}
+                >キャンセル</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="modal-body" style={{ padding: 0, display: 'flex', gap: 0, height: 560, overflow: 'hidden' }}>
           {/* 左: パラメータ */}
           <div style={{ width: 360, padding: '10px 14px', overflowY: 'auto', borderRight: '1px solid #e0e0e0' }}>

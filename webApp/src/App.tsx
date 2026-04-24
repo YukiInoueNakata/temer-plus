@@ -264,7 +264,7 @@ export default function App() {
             onOpenPeriodSettings={() => openSettings('period')}
           />
         </div>
-        <PropertyPanel />
+        <PropertyPanel onOpenLegendSettings={() => openSettings('legend')} />
       </div>
       <SheetTabs />
       <StatusBar />

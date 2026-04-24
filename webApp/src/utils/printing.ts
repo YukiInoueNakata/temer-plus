@@ -8,6 +8,7 @@
 import { toPng } from 'html-to-image';
 import type { PageBounds } from './pageSplit';
 import { getPaperInch, type PaperSizeKey } from './paperSizes';
+import { checkAborted, type ProgressCallback } from './exportProgress';
 
 export interface PrintOptions {
   /** N ページ分割（未指定 or 1 枚なら単一ページ印刷） */
@@ -23,6 +24,8 @@ export interface PrintOptions {
   includeGrid?: boolean;
   includePaperGuides?: boolean;
   includeRulers?: boolean;
+  onProgress?: ProgressCallback;
+  signal?: AbortSignal;
 }
 
 function buildFilter(opts: PrintOptions) {
@@ -76,6 +79,10 @@ export async function printDiagram(
   if (!node) throw new Error(`Element not found: #${elementId}`);
 
   const paper = getPaperInch(opts.paperSize, opts.customPaperWidthPx, opts.customPaperHeightPx);
+  const pagesLen = opts.pages && opts.pages.length > 1 ? opts.pages.length : 1;
+  const totalSteps = 1 + pagesLen + 1; // capture + crops + print window
+  opts.onProgress?.({ current: 0, total: totalSteps, label: 'プレビューをキャプチャ中...' });
+  checkAborted(opts.signal);
 
   // 全体を 1 回キャプチャ
   const dataUrl = await toPng(node, {
@@ -83,6 +90,7 @@ export async function printDiagram(
     pixelRatio: 2,
     filter: buildFilter(opts),
   });
+  checkAborted(opts.signal);
 
   // 各ページの dataURL を作成
   let pageDataUrls: string[];
@@ -92,7 +100,11 @@ export async function printDiagram(
     const ratioX = img.width / Math.max(1, strip.width);
     const ratioY = img.height / Math.max(1, strip.height);
     pageDataUrls = [];
+    let idx = 0;
     for (const page of opts.pages) {
+      idx++;
+      checkAborted(opts.signal);
+      opts.onProgress?.({ current: 1 + idx, total: totalSteps, label: `ページ ${idx} / ${opts.pages.length} をクロップ中` });
       const sx = Math.round((page.innerX - strip.x) * ratioX);
       const sy = Math.round((page.innerY - strip.y) * ratioY);
       const sw = Math.round(page.innerWidth * ratioX);
@@ -167,6 +179,7 @@ ${pageDataUrls.map((u, i) => `  <div class="page"><img src="${u}" alt="page ${i 
 </body>
 </html>`;
 
+  opts.onProgress?.({ current: totalSteps, total: totalSteps, label: '印刷ウィンドウを開きます' });
   const win = window.open('', '_blank', 'width=960,height=720');
   if (!win) {
     throw new Error('ポップアップがブロックされました。ブラウザのポップアップブロックを解除してください。');

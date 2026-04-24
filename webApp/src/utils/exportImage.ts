@@ -6,6 +6,7 @@
 import { toPng, toSvg } from 'html-to-image';
 import JSZip from 'jszip';
 import type { PageBounds } from './pageSplit';
+import { checkAborted, type ProgressCallback } from './exportProgress';
 
 export interface ExportOptions {
   includeRulers?: boolean;       // 既定 false
@@ -137,13 +138,21 @@ export async function exportToPNGPages(
   pages: PageBounds[],
   pixelRatio = 2,
   opts: ExportOptions = {},
+  onProgress?: ProgressCallback,
+  signal?: AbortSignal,
 ): Promise<void> {
   if (!pages || pages.length <= 1) {
+    onProgress?.({ current: 0, total: 1, label: 'キャプチャ中...' });
     await exportToPNG(elementId, `${baseName}.png`, pixelRatio, opts);
+    onProgress?.({ current: 1, total: 1, label: '完了' });
     return;
   }
   const node = document.getElementById(elementId);
   if (!node) throw new Error(`Element not found: #${elementId}`);
+
+  const total = pages.length + 1; // 1=キャプチャ + N=ページクロップ
+  onProgress?.({ current: 0, total, label: 'プレビューをキャプチャ中...' });
+  checkAborted(signal);
 
   // 全体を 1 回キャプチャ
   const dataUrl = await toPng(node, {
@@ -151,6 +160,7 @@ export async function exportToPNGPages(
     pixelRatio,
     filter: buildFilter(opts),
   });
+  checkAborted(signal);
   const img = await loadImage(dataUrl);
   const strip = computeStripFromPages(pages);
   const ratioX = img.width / Math.max(1, strip.width);
@@ -158,6 +168,8 @@ export async function exportToPNGPages(
 
   const zip = new JSZip();
   for (let i = 0; i < pages.length; i++) {
+    checkAborted(signal);
+    onProgress?.({ current: i + 1, total, label: `ページ ${i + 1} / ${pages.length} をクロップ中` });
     const page = pages[i];
     const sx = Math.round((page.innerX - strip.x) * ratioX);
     const sy = Math.round((page.innerY - strip.y) * ratioY);
@@ -179,6 +191,7 @@ export async function exportToPNGPages(
   }
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   downloadBlob(zipBlob, `${baseName}_pages.zip`);
+  onProgress?.({ current: total, total, label: '完了' });
 }
 
 /**
@@ -191,13 +204,21 @@ export async function exportToSVGPages(
   baseName: string,
   pages: PageBounds[],
   opts: ExportOptions = {},
+  onProgress?: ProgressCallback,
+  signal?: AbortSignal,
 ): Promise<void> {
   if (!pages || pages.length <= 1) {
+    onProgress?.({ current: 0, total: 1, label: 'キャプチャ中...' });
     await exportToSVG(elementId, `${baseName}.svg`, opts);
+    onProgress?.({ current: 1, total: 1, label: '完了' });
     return;
   }
   const node = document.getElementById(elementId);
   if (!node) throw new Error(`Element not found: #${elementId}`);
+
+  const total = pages.length + 1;
+  onProgress?.({ current: 0, total, label: 'プレビューをキャプチャ中...' });
+  checkAborted(signal);
 
   // ベース画像は PNG（高 DPI）で 1 回キャプチャし、各ページをクロップ → PNG を <image> 埋め込みした SVG として保存
   const pixelRatio = 2;
@@ -206,6 +227,7 @@ export async function exportToSVGPages(
     pixelRatio,
     filter: buildFilter(opts),
   });
+  checkAborted(signal);
   const img = await loadImage(dataUrl);
   const strip = computeStripFromPages(pages);
   const ratioX = img.width / Math.max(1, strip.width);
@@ -213,6 +235,8 @@ export async function exportToSVGPages(
 
   const zip = new JSZip();
   for (let i = 0; i < pages.length; i++) {
+    checkAborted(signal);
+    onProgress?.({ current: i + 1, total, label: `ページ ${i + 1} / ${pages.length} をクロップ中` });
     const page = pages[i];
     const sx = Math.round((page.innerX - strip.x) * ratioX);
     const sy = Math.round((page.innerY - strip.y) * ratioY);
@@ -238,4 +262,5 @@ export async function exportToSVGPages(
   }
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   downloadBlob(zipBlob, `${baseName}_pages.zip`);
+  onProgress?.({ current: total, total, label: '完了' });
 }

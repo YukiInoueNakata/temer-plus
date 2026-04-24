@@ -9,11 +9,15 @@ import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
 import { RichTextToolbar } from './RichTextToolbar';
-import { LegendSettingsSection } from './SettingsDialog';
+import { produce } from 'immer';
 import { ColorPicker } from './ColorPicker';
 import { CollapsibleSection } from './CollapsibleSection';
 
-export function PropertyPanel() {
+interface PropertyPanelProps {
+  onOpenLegendSettings?: () => void;
+}
+
+export function PropertyPanel({ onOpenLegendSettings }: PropertyPanelProps = {}) {
   const visible = useTEMStore((s) => s.view.propertyPanelVisible);
   const toggle = useTEMStore((s) => s.togglePropertyPanel);
   const selection = useTEMStore((s) => s.selection);
@@ -70,7 +74,7 @@ export function PropertyPanel() {
       </div>
       <div className="panel-body">
         {!hasSelection && !selection.legendSelected && <EmptyState />}
-        {selection.legendSelected && <LegendProperties />}
+        {selection.legendSelected && <LegendProperties onOpenSettings={onOpenLegendSettings} />}
         {selectedBoxes.length > 0 && <BoxProperties boxes={selectedBoxes} />}
         {selectedLines.length > 0 && <LineProperties lines={selectedLines} />}
         {selectedSDSGs.length > 0 && <SDSGProperties sdsgs={selectedSDSGs} />}
@@ -80,17 +84,115 @@ export function PropertyPanel() {
 }
 
 // ============================================================================
-// 凡例選択時のプロパティ
+// 凡例選択時のプロパティ（軽量 UI。詳細は SettingsDialog > 凡例 タブへ）
 // ============================================================================
-function LegendProperties() {
+function LegendProperties({ onOpenSettings }: { onOpenSettings?: () => void }) {
+  const doc = useTEMStore((s) => s.doc);
+  const lg = doc.settings.legend;
+  const layout = doc.settings.layout;
+  const updateLegend = (patch: Partial<typeof lg>) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        d.settings.legend = { ...d.settings.legend, ...patch };
+      }),
+      dirty: true,
+    }));
+  };
+  const updatePosition = (which: 'x' | 'y', v: number) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        d.settings.legend.position = { ...d.settings.legend.position, [which]: v };
+      }),
+      dirty: true,
+    }));
+  };
+
+  const columnsKey = layout === 'vertical' ? 'columnsVertical' : 'columnsHorizontal';
+  const currentCols = (lg[columnsKey] ?? lg.columns) ?? 1;
+
   return (
     <div className="prop-section">
       <h4>凡例</h4>
-      <p className="hint" style={{ marginTop: 0 }}>
-        凡例の表示対象・タイトル・レイアウト・背景・項目別を編集できます。
-        キャンバス上でドラッグすると位置を動かせます。
+      <p className="hint" style={{ marginTop: 0, fontSize: '0.82em' }}>
+        キャンバス上でドラッグ、または下の数値で位置調整。詳細は「詳細設定」から。
       </p>
-      <LegendSettingsSection />
+      <div className="prop-row">
+        <label>エクスポートに含める</label>
+        <input
+          type="checkbox"
+          checked={lg.includeInExport !== false}
+          onChange={(e) => updateLegend({ includeInExport: e.target.checked })}
+        />
+      </div>
+      <div className="prop-row">
+        <label>タイトル表示</label>
+        <input
+          type="checkbox"
+          checked={lg.showTitle !== false}
+          onChange={(e) => updateLegend({ showTitle: e.target.checked })}
+        />
+      </div>
+      {lg.showTitle !== false && (
+        <div className="prop-row">
+          <label>タイトル</label>
+          <input
+            type="text"
+            value={lg.title ?? ''}
+            onChange={(e) => updateLegend({ title: e.target.value })}
+            placeholder="凡例"
+          />
+        </div>
+      )}
+      <div className="prop-row">
+        <label>位置 X / Y</label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input
+            type="number"
+            value={lg.position?.x ?? 0}
+            onChange={(e) => updatePosition('x', Number(e.target.value))}
+            style={{ width: 70 }}
+            title="px"
+          />
+          <input
+            type="number"
+            value={lg.position?.y ?? 0}
+            onChange={(e) => updatePosition('y', Number(e.target.value))}
+            style={{ width: 70 }}
+          />
+        </div>
+      </div>
+      <div className="prop-row">
+        <label>列数（{layout === 'vertical' ? '縦型' : '横型'}）</label>
+        <input
+          type="number"
+          min={1}
+          max={6}
+          step={1}
+          value={currentCols}
+          onChange={(e) => updateLegend({ [columnsKey]: Math.max(1, Number(e.target.value) || 1) } as Partial<typeof lg>)}
+          style={{ width: 70 }}
+        />
+      </div>
+      <div className="prop-row">
+        <label>説明文を表示</label>
+        <input
+          type="checkbox"
+          checked={lg.showDescriptions === true}
+          onChange={(e) => updateLegend({ showDescriptions: e.target.checked })}
+          title="各項目の説明文を横に並べる（幅が増える）"
+        />
+      </div>
+      <div className="prop-row" style={{ justifyContent: 'flex-start', gap: 6, marginTop: 8 }}>
+        {onOpenSettings && (
+          <button
+            className="ribbon-btn-small"
+            onClick={onOpenSettings}
+            title="背景色 / 枠線 / フォント / 項目別ラベル上書き 等の詳細設定"
+          >
+            詳細設定...
+          </button>
+        )}
+      </div>
     </div>
   );
 }

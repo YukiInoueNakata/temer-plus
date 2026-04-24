@@ -51,6 +51,7 @@ import {
   sampleCurveToSegments,
   type Pt as LinePathPt,
 } from './linePath';
+import { checkAborted, type ProgressCallback } from './exportProgress';
 
 // ----------------------------------------------------------------------------
 // Public API
@@ -69,6 +70,8 @@ export interface PPTXExportOptions {
   pageSplitMode?: 'overlap' | 'duplicate';
   /** duplicate モード時に続マーカーを描画（既定 true） */
   showContinuationMarkers?: boolean;
+  onProgress?: ProgressCallback;
+  signal?: AbortSignal;
 }
 
 const PX_PER_INCH = 96;
@@ -124,7 +127,10 @@ export async function exportToPPTX(opts: PPTXExportOptions): Promise<void> {
   }
 
   // N スライド分割出力
+  const total = pages.length;
   for (let i = 0; i < pages.length; i++) {
+    checkAborted(opts.signal);
+    opts.onProgress?.({ current: i + 1, total, label: `スライド ${i + 1} / ${total} を生成中` });
     const page = pages[i];
     const slide = pres.addSlide();
     const pageBbox = {

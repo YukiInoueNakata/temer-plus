@@ -9,6 +9,7 @@ import { toPng } from 'html-to-image';
 import { getPaperInch, type PaperSizeKey } from './paperSizes';
 import type { ExportOptions } from './exportImage';
 import type { PageBounds } from './pageSplit';
+import { checkAborted, type ProgressCallback } from './exportProgress';
 
 export interface PDFExportOptions extends ExportOptions {
   paperSize: PaperSizeKey;
@@ -19,6 +20,8 @@ export interface PDFExportOptions extends ExportOptions {
   pages?: PageBounds[];
   /** pages 指定時の、全ページを覆う world 座標 bbox */
   stripBounds?: { x: number; y: number; width: number; height: number };
+  onProgress?: ProgressCallback;
+  signal?: AbortSignal;
 }
 
 function buildFilter(opts: ExportOptions) {
@@ -114,7 +117,10 @@ export async function exportToPDF(
   const ratioX = imgW / Math.max(1, strip.width);
   const ratioY = imgH / Math.max(1, strip.height);
 
+  const total = pages.length;
   for (let i = 0; i < pages.length; i++) {
+    checkAborted(opts.signal);
+    opts.onProgress?.({ current: i + 1, total, label: `PDF ページ ${i + 1} / ${total}` });
     const page = pages[i];
     if (i > 0) {
       pdf.addPage([paper.width, paper.height], paper.width >= paper.height ? 'landscape' : 'portrait');
