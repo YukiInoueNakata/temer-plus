@@ -4,8 +4,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTEMStore, useActiveSheet } from '../store/store';
-import type { Box, BoxType, TextAlign, VerticalAlign, SDSG, Line, AutoFitBoxMode } from '../types';
-import { BOX_TYPE_LABELS, FONT_OPTIONS } from '../store/defaults';
+import type { Box, BoxType, SDSG, Line, AutoFitBoxMode } from '../types';
+import { BOX_TYPE_LABELS } from '../store/defaults';
+import {
+  FontFamilyRow,
+  FontSizeRow,
+  BoldItalicUnderlineRow,
+  ColorRow,
+  TextAlignRow,
+  VerticalAlignRow,
+} from './DecorationEditor';
 import { isSDSGOutOfRange } from '../utils/sdsgSpaceLayout';
 import { SELECTABLE_BOX_TYPES } from '../utils/typeDisplay';
 import { xyToTimeLevel, xyToItemLevel, setTimeLevelOnly, setItemLevelOnly } from '../utils/coords';
@@ -428,66 +436,42 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
       {/* ========== ラベル ========== */}
       {tab === 'label' && <>
         {!isMulti && <LabelWithToolbar box={first} updateBox={updateBox} />}
-        <div className="prop-row">
-          <label>フォント</label>
-          <select
-            value={commonFontFamily ?? ''}
-            onChange={(e) => updateBoxes(ids, { style: { ...first.style, fontFamily: e.target.value } })}
-          >
-            {commonFontFamily === undefined && <option value="">（混在）</option>}
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="prop-row">
-          <label>フォントサイズ</label>
-          <input
-            type="number"
-            min={6}
-            max={60}
-            value={commonFontSize ?? 13}
-            placeholder={commonFontSize === undefined ? '（混在）' : ''}
-            onChange={(e) => updateBoxes(ids, { style: { ...first.style, fontSize: Number(e.target.value) } })}
-          />
-        </div>
-        <div className="prop-row">
-          <label>装飾</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button className={commonBold ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateBoxes(ids, { style: { ...first.style, bold: !commonBold } })}><b>B</b></button>
-            <button className={commonItalic ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateBoxes(ids, { style: { ...first.style, italic: !commonItalic } })}><i>I</i></button>
-            <button className={commonUnderline ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateBoxes(ids, { style: { ...first.style, underline: !commonUnderline } })}><u>U</u></button>
-          </div>
-        </div>
-        <div className="prop-row">
-          <label>文字色</label>
-          <ColorPicker
-            value={first.style?.color}
-            onChange={(c) => updateBoxes(ids, { style: { ...first.style, color: c } })}
-            defaultLabel="既定 (#222)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>背景色</label>
-          <ColorPicker
-            value={first.style?.backgroundColor}
-            onChange={(c) => updateBoxes(ids, { style: { ...first.style, backgroundColor: c } })}
-            allowNone
-            defaultLabel="既定 (白)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>枠線色</label>
-          <ColorPicker
-            value={first.style?.borderColor}
-            onChange={(c) => updateBoxes(ids, { style: { ...first.style, borderColor: c } })}
-            allowNone
-            defaultLabel="既定 (#222)"
-          />
-        </div>
+        <FontFamilyRow
+          value={commonFontFamily}
+          onChange={(v) => updateBoxes(ids, { style: { ...first.style, fontFamily: v } })}
+        />
+        <FontSizeRow
+          value={commonFontSize}
+          onChange={(v) => updateBoxes(ids, { style: { ...first.style, fontSize: v } })}
+        />
+        <BoldItalicUnderlineRow
+          bold={commonBold}
+          italic={commonItalic}
+          underline={commonUnderline}
+          onBoldToggle={(v) => updateBoxes(ids, { style: { ...first.style, bold: v } })}
+          onItalicToggle={(v) => updateBoxes(ids, { style: { ...first.style, italic: v } })}
+          onUnderlineToggle={(v) => updateBoxes(ids, { style: { ...first.style, underline: v } })}
+        />
+        <ColorRow
+          label="文字色"
+          value={first.style?.color}
+          onChange={(c) => updateBoxes(ids, { style: { ...first.style, color: c } })}
+          defaultLabel="既定 (#222)"
+        />
+        <ColorRow
+          label="背景色"
+          value={first.style?.backgroundColor}
+          onChange={(c) => updateBoxes(ids, { style: { ...first.style, backgroundColor: c } })}
+          allowNone
+          defaultLabel="既定 (白)"
+        />
+        <ColorRow
+          label="枠線色"
+          value={first.style?.borderColor}
+          onChange={(c) => updateBoxes(ids, { style: { ...first.style, borderColor: c } })}
+          allowNone
+          defaultLabel="既定 (#222)"
+        />
         <div className="prop-row">
           <label>テキスト方向</label>
           <select
@@ -511,30 +495,14 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             </select>
           </div>
         )}
-        <div className="prop-row">
-          <label>左右方向の揃え</label>
-          <select
-            value={commonTextAlign ?? ''}
-            onChange={(e) => updateBoxes(ids, { style: { ...first.style, textAlign: e.target.value as TextAlign } })}
-          >
-            {commonTextAlign === undefined && <option value="">（混在）</option>}
-            <option value="left">左揃え</option>
-            <option value="center">中央</option>
-            <option value="right">右揃え</option>
-          </select>
-        </div>
-        <div className="prop-row">
-          <label>上下方向の揃え</label>
-          <select
-            value={commonVAlign ?? ''}
-            onChange={(e) => updateBoxes(ids, { style: { ...first.style, verticalAlign: e.target.value as VerticalAlign } })}
-          >
-            {commonVAlign === undefined && <option value="">（混在）</option>}
-            <option value="top">上揃え</option>
-            <option value="middle">中央</option>
-            <option value="bottom">下揃え</option>
-          </select>
-        </div>
+        <TextAlignRow
+          value={commonTextAlign}
+          onChange={(v) => updateBoxes(ids, { style: { ...first.style, textAlign: v } })}
+        />
+        <VerticalAlignRow
+          value={commonVAlign}
+          onChange={(v) => updateBoxes(ids, { style: { ...first.style, verticalAlign: v } })}
+        />
       </>}
 
       {/* ========== タイプラベル（種別バッジ） ========== */}
@@ -552,44 +520,23 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             title="OFF にすると種別名のみ表示（例: OPP-1 → OPP）"
           />
         </div>
-        <div className="prop-row">
-          <label>フォントサイズ</label>
-          <input
-            type="number"
-            min={6}
-            max={40}
-            value={getCommon(boxes, 'typeLabelFontSize') ?? 11}
-            placeholder={getCommon(boxes, 'typeLabelFontSize') === undefined ? '（混在）' : ''}
-            onChange={(e) => updateBoxes(ids, { typeLabelFontSize: Number(e.target.value) })}
-          />
-        </div>
-        <div className="prop-row">
-          <label>フォント</label>
-          <select
-            value={getCommon(boxes, 'typeLabelFontFamily') ?? ''}
-            onChange={(e) => updateBoxes(ids, { typeLabelFontFamily: e.target.value || undefined })}
-          >
-            <option value="">（Box本体と同じ）</option>
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="prop-row">
-          <label>装飾</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button
-              className={getCommon(boxes, 'typeLabelBold') !== false ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateBoxes(ids, { typeLabelBold: getCommon(boxes, 'typeLabelBold') === false })}
-              title="太字"
-            ><b>B</b></button>
-            <button
-              className={getCommon(boxes, 'typeLabelItalic') ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateBoxes(ids, { typeLabelItalic: !getCommon(boxes, 'typeLabelItalic') })}
-              title="斜体"
-            ><i>I</i></button>
-          </div>
-        </div>
+        <FontSizeRow
+          value={getCommon(boxes, 'typeLabelFontSize')}
+          onChange={(v) => updateBoxes(ids, { typeLabelFontSize: v })}
+          placeholder={11}
+          max={40}
+        />
+        <FontFamilyRow
+          value={getCommon(boxes, 'typeLabelFontFamily')}
+          onChange={(v) => updateBoxes(ids, { typeLabelFontFamily: v })}
+          emptyOptionLabel="（Box本体と同じ）"
+        />
+        <BoldItalicUnderlineRow
+          bold={getCommon(boxes, 'typeLabelBold') !== false}
+          italic={!!getCommon(boxes, 'typeLabelItalic')}
+          onBoldToggle={(v) => updateBoxes(ids, { typeLabelBold: v })}
+          onItalicToggle={(v) => updateBoxes(ids, { typeLabelItalic: v })}
+        />
         <div className="prop-row">
           <label>半角英数向き（縦型）</label>
           <select
@@ -603,32 +550,26 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             <option value="mixed">横倒し</option>
           </select>
         </div>
-        <div className="prop-row">
-          <label>文字色</label>
-          <ColorPicker
-            value={getCommon(boxes, 'typeLabelColor')}
-            onChange={(c) => updateBoxes(ids, { typeLabelColor: c })}
-            defaultLabel="既定 (#222)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>背景色</label>
-          <ColorPicker
-            value={getCommon(boxes, 'typeLabelBackgroundColor')}
-            onChange={(c) => updateBoxes(ids, { typeLabelBackgroundColor: c })}
-            allowNone
-            defaultLabel="既定 (透明)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>枠線色</label>
-          <ColorPicker
-            value={getCommon(boxes, 'typeLabelBorderColor')}
-            onChange={(c) => updateBoxes(ids, { typeLabelBorderColor: c })}
-            allowNone
-            defaultLabel="既定 (枠なし)"
-          />
-        </div>
+        <ColorRow
+          label="文字色"
+          value={getCommon(boxes, 'typeLabelColor')}
+          onChange={(c) => updateBoxes(ids, { typeLabelColor: c })}
+          defaultLabel="既定 (#222)"
+        />
+        <ColorRow
+          label="背景色"
+          value={getCommon(boxes, 'typeLabelBackgroundColor')}
+          onChange={(c) => updateBoxes(ids, { typeLabelBackgroundColor: c })}
+          allowNone
+          defaultLabel="既定 (透明)"
+        />
+        <ColorRow
+          label="枠線色"
+          value={getCommon(boxes, 'typeLabelBorderColor')}
+          onChange={(c) => updateBoxes(ids, { typeLabelBorderColor: c })}
+          allowNone
+          defaultLabel="既定 (枠なし)"
+        />
         <div className="prop-row">
           <label>枠線太さ (px)</label>
           <input
@@ -696,32 +637,26 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             <option value="mixed">横倒し（伝統的）</option>
           </select>
         </div>
-        <div className="prop-row">
-          <label>文字色</label>
-          <ColorPicker
-            value={getCommon(boxes, 'subLabelColor')}
-            onChange={(c) => updateBoxes(ids, { subLabelColor: c })}
-            defaultLabel="既定 (#555)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>背景色</label>
-          <ColorPicker
-            value={getCommon(boxes, 'subLabelBackgroundColor')}
-            onChange={(c) => updateBoxes(ids, { subLabelBackgroundColor: c })}
-            allowNone
-            defaultLabel="既定 (白半透明)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>枠線色</label>
-          <ColorPicker
-            value={getCommon(boxes, 'subLabelBorderColor')}
-            onChange={(c) => updateBoxes(ids, { subLabelBorderColor: c })}
-            allowNone
-            defaultLabel="既定 (枠なし)"
-          />
-        </div>
+        <ColorRow
+          label="文字色"
+          value={getCommon(boxes, 'subLabelColor')}
+          onChange={(c) => updateBoxes(ids, { subLabelColor: c })}
+          defaultLabel="既定 (#555)"
+        />
+        <ColorRow
+          label="背景色"
+          value={getCommon(boxes, 'subLabelBackgroundColor')}
+          onChange={(c) => updateBoxes(ids, { subLabelBackgroundColor: c })}
+          allowNone
+          defaultLabel="既定 (白半透明)"
+        />
+        <ColorRow
+          label="枠線色"
+          value={getCommon(boxes, 'subLabelBorderColor')}
+          onChange={(c) => updateBoxes(ids, { subLabelBorderColor: c })}
+          allowNone
+          defaultLabel="既定 (枠なし)"
+        />
         <div className="prop-row">
           <label>枠線太さ (px)</label>
           <input
@@ -1307,94 +1242,53 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             <input value={first.label} onChange={(e) => updateSDSG(first.id, { label: e.target.value })} />
           </div>
         )}
-        <div className="prop-row">
-          <label>フォント</label>
-          <select
-            value={commonFont ?? ''}
-            onChange={(e) => updateSDSGs(ids, { style: { fontFamily: e.target.value || undefined } })}
-          >
-            {commonFont === undefined && <option value="">（混在）</option>}
-            <option value="">（UI 既定）</option>
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="prop-row">
-          <label>フォントサイズ</label>
-          <input
-            type="number"
-            min={6}
-            max={40}
-            value={commonFS ?? 11}
-            placeholder={commonFS === undefined ? '（混在）' : ''}
-            onChange={(e) => updateSDSGs(ids, { style: { fontSize: Number(e.target.value) } })}
-          />
-        </div>
-        <div className="prop-row">
-          <label>装飾</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button className={commonBold !== false ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateSDSGs(ids, { style: { bold: !(commonBold !== false) } })}
-              title="太字"><b>B</b></button>
-            <button className={commonItalic ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateSDSGs(ids, { style: { italic: !commonItalic } })}
-              title="斜体"><i>I</i></button>
-            <button className={commonUnderline ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateSDSGs(ids, { style: { underline: !commonUnderline } })}
-              title="下線"><u>U</u></button>
-          </div>
-        </div>
-        <div className="prop-row">
-          <label>文字色</label>
-          <ColorPicker
-            value={commonTextColor}
-            onChange={(c) => updateSDSGs(ids, { style: { color: c } })}
-            defaultLabel="既定 (#222)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>背景色</label>
-          <ColorPicker
-            value={commonBg}
-            onChange={(c) => updateSDSGs(ids, { style: { backgroundColor: c } })}
-            allowNone
-            defaultLabel="既定 (白)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>枠線色</label>
-          <ColorPicker
-            value={commonBorder}
-            onChange={(c) => updateSDSGs(ids, { style: { borderColor: c } })}
-            allowNone
-            defaultLabel="既定 (#333)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>左右方向の揃え</label>
-          <select
-            value={commonTextAlign ?? 'center'}
-            onChange={(e) => updateSDSGs(ids, { style: { textAlign: e.target.value as TextAlign } })}
-          >
-            {commonTextAlign === undefined && <option value="">（混在）</option>}
-            <option value="left">左揃え</option>
-            <option value="center">中央</option>
-            <option value="right">右揃え</option>
-          </select>
-        </div>
-        <div className="prop-row">
-          <label>上下方向の揃え</label>
-          <select
-            value={commonVAlign ?? 'middle'}
-            onChange={(e) => updateSDSGs(ids, { style: { verticalAlign: e.target.value as VerticalAlign } })}
-          >
-            {commonVAlign === undefined && <option value="">（混在）</option>}
-            <option value="top">上揃え</option>
-            <option value="middle">中央</option>
-            <option value="bottom">下揃え</option>
-          </select>
-        </div>
+        <FontFamilyRow
+          value={commonFont}
+          onChange={(v) => updateSDSGs(ids, { style: { fontFamily: v } })}
+          emptyOptionLabel="（UI 既定）"
+        />
+        <FontSizeRow
+          value={commonFS}
+          onChange={(v) => updateSDSGs(ids, { style: { fontSize: v } })}
+          placeholder={11}
+          max={40}
+        />
+        <BoldItalicUnderlineRow
+          bold={commonBold !== false}
+          italic={!!commonItalic}
+          underline={!!commonUnderline}
+          onBoldToggle={(v) => updateSDSGs(ids, { style: { bold: v } })}
+          onItalicToggle={(v) => updateSDSGs(ids, { style: { italic: v } })}
+          onUnderlineToggle={(v) => updateSDSGs(ids, { style: { underline: v } })}
+        />
+        <ColorRow
+          label="文字色"
+          value={commonTextColor}
+          onChange={(c) => updateSDSGs(ids, { style: { color: c } })}
+          defaultLabel="既定 (#222)"
+        />
+        <ColorRow
+          label="背景色"
+          value={commonBg}
+          onChange={(c) => updateSDSGs(ids, { style: { backgroundColor: c } })}
+          allowNone
+          defaultLabel="既定 (白)"
+        />
+        <ColorRow
+          label="枠線色"
+          value={commonBorder}
+          onChange={(c) => updateSDSGs(ids, { style: { borderColor: c } })}
+          allowNone
+          defaultLabel="既定 (#333)"
+        />
+        <TextAlignRow
+          value={commonTextAlign}
+          onChange={(v) => updateSDSGs(ids, { style: { textAlign: v } })}
+        />
+        <VerticalAlignRow
+          value={commonVAlign}
+          onChange={(v) => updateSDSGs(ids, { style: { verticalAlign: v } })}
+        />
         <div className="prop-row">
           <label>ASCII縦向き（縦型レイアウト）</label>
           <input
@@ -1421,41 +1315,23 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             title="OFF にすると SD / SG のみ表示（連番を付けない）"
           />
         </div>
-        <div className="prop-row">
-          <label>フォントサイズ</label>
-          <input
-            type="number"
-            min={6}
-            max={40}
-            value={commonTLFontSize ?? 11}
-            placeholder={commonTLFontSize === undefined ? '（混在）' : ''}
-            onChange={(e) => updateSDSGs(ids, { typeLabelFontSize: Number(e.target.value) })}
-          />
-        </div>
-        <div className="prop-row">
-          <label>フォント</label>
-          <select
-            value={commonTLFontFamily ?? ''}
-            onChange={(e) => updateSDSGs(ids, { typeLabelFontFamily: e.target.value || undefined })}
-          >
-            {commonTLFontFamily === undefined && <option value="">（混在）</option>}
-            <option value="">（本文と同じ）</option>
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="prop-row">
-          <label>装飾</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button className={commonTLBold !== false ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateSDSGs(ids, { typeLabelBold: !(commonTLBold !== false) })}
-              title="太字"><b>B</b></button>
-            <button className={commonTLItalic ? 'style-btn active' : 'style-btn'}
-              onClick={() => updateSDSGs(ids, { typeLabelItalic: !commonTLItalic })}
-              title="斜体"><i>I</i></button>
-          </div>
-        </div>
+        <FontSizeRow
+          value={commonTLFontSize}
+          onChange={(v) => updateSDSGs(ids, { typeLabelFontSize: v })}
+          placeholder={11}
+          max={40}
+        />
+        <FontFamilyRow
+          value={commonTLFontFamily}
+          onChange={(v) => updateSDSGs(ids, { typeLabelFontFamily: v })}
+          emptyOptionLabel="（本文と同じ）"
+        />
+        <BoldItalicUnderlineRow
+          bold={commonTLBold !== false}
+          italic={!!commonTLItalic}
+          onBoldToggle={(v) => updateSDSGs(ids, { typeLabelBold: v })}
+          onItalicToggle={(v) => updateSDSGs(ids, { typeLabelItalic: v })}
+        />
         <div className="prop-row">
           <label>ASCII縦向き（縦型レイアウト）</label>
           <input
@@ -1465,32 +1341,26 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             onChange={(e) => updateSDSGs(ids, { typeLabelAsciiUpright: e.target.checked })}
           />
         </div>
-        <div className="prop-row">
-          <label>文字色</label>
-          <ColorPicker
-            value={commonTLColor}
-            onChange={(c) => updateSDSGs(ids, { typeLabelColor: c })}
-            defaultLabel="既定 (#222)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>背景色</label>
-          <ColorPicker
-            value={commonTLBg}
-            onChange={(c) => updateSDSGs(ids, { typeLabelBackgroundColor: c })}
-            allowNone
-            defaultLabel="既定 (透明)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>枠線色</label>
-          <ColorPicker
-            value={commonTLBorderColor}
-            onChange={(c) => updateSDSGs(ids, { typeLabelBorderColor: c })}
-            allowNone
-            defaultLabel="既定 (枠なし)"
-          />
-        </div>
+        <ColorRow
+          label="文字色"
+          value={commonTLColor}
+          onChange={(c) => updateSDSGs(ids, { typeLabelColor: c })}
+          defaultLabel="既定 (#222)"
+        />
+        <ColorRow
+          label="背景色"
+          value={commonTLBg}
+          onChange={(c) => updateSDSGs(ids, { typeLabelBackgroundColor: c })}
+          allowNone
+          defaultLabel="既定 (透明)"
+        />
+        <ColorRow
+          label="枠線色"
+          value={commonTLBorderColor}
+          onChange={(c) => updateSDSGs(ids, { typeLabelBorderColor: c })}
+          allowNone
+          defaultLabel="既定 (枠なし)"
+        />
         <div className="prop-row">
           <label>枠線太さ (px)</label>
           <input
@@ -1560,32 +1430,26 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             onChange={(e) => updateSDSGs(ids, { subLabelAsciiUpright: e.target.checked })}
           />
         </div>
-        <div className="prop-row">
-          <label>文字色</label>
-          <ColorPicker
-            value={commonSubColor}
-            onChange={(c) => updateSDSGs(ids, { subLabelColor: c })}
-            defaultLabel="既定 (#555)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>背景色</label>
-          <ColorPicker
-            value={commonSubBg}
-            onChange={(c) => updateSDSGs(ids, { subLabelBackgroundColor: c })}
-            allowNone
-            defaultLabel="既定 (白半透明)"
-          />
-        </div>
-        <div className="prop-row">
-          <label>枠線色</label>
-          <ColorPicker
-            value={commonSubBorderColor}
-            onChange={(c) => updateSDSGs(ids, { subLabelBorderColor: c })}
-            allowNone
-            defaultLabel="既定 (枠なし)"
-          />
-        </div>
+        <ColorRow
+          label="文字色"
+          value={commonSubColor}
+          onChange={(c) => updateSDSGs(ids, { subLabelColor: c })}
+          defaultLabel="既定 (#555)"
+        />
+        <ColorRow
+          label="背景色"
+          value={commonSubBg}
+          onChange={(c) => updateSDSGs(ids, { subLabelBackgroundColor: c })}
+          allowNone
+          defaultLabel="既定 (白半透明)"
+        />
+        <ColorRow
+          label="枠線色"
+          value={commonSubBorderColor}
+          onChange={(c) => updateSDSGs(ids, { subLabelBorderColor: c })}
+          allowNone
+          defaultLabel="既定 (枠なし)"
+        />
         <div className="prop-row">
           <label>枠線太さ (px)</label>
           <input
