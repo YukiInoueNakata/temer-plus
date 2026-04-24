@@ -274,43 +274,6 @@ function filterSheetForPage(
 
 interface Pt { x: number; y: number; }
 
-function clipSegmentToPageInner(
-  p0: Pt,
-  p1: Pt,
-  page: PageBounds,
-): { p0: Pt; p1: Pt; clippedStart: boolean; clippedEnd: boolean } | null {
-  const xMin = page.innerX;
-  const xMax = page.innerX + page.innerWidth;
-  const yMin = page.innerY;
-  const yMax = page.innerY + page.innerHeight;
-  const dx = p1.x - p0.x;
-  const dy = p1.y - p0.y;
-  const pArr = [-dx, dx, -dy, dy];
-  const qArr = [p0.x - xMin, xMax - p0.x, p0.y - yMin, yMax - p0.y];
-  let t0 = 0;
-  let t1 = 1;
-  for (let i = 0; i < 4; i++) {
-    if (Math.abs(pArr[i]) < 1e-9) {
-      if (qArr[i] < 0) return null;
-      continue;
-    }
-    const r = qArr[i] / pArr[i];
-    if (pArr[i] < 0) {
-      if (r > t1) return null;
-      if (r > t0) t0 = r;
-    } else {
-      if (r < t0) return null;
-      if (r < t1) t1 = r;
-    }
-  }
-  return {
-    p0: { x: p0.x + t0 * dx, y: p0.y + t0 * dy },
-    p1: { x: p0.x + t1 * dx, y: p0.y + t1 * dy },
-    clippedStart: t0 > 1e-6,
-    clippedEnd: t1 < 1 - 1e-6,
-  };
-}
-
 /**
  * 続マーカー「→続」「続→」を page 境界付近に描画。
  * direction='forward' = この側でページ外へ続く（右/下方向）→ 「→続」
@@ -1201,45 +1164,37 @@ function drawTimeArrow(
   const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace, typeLabelVisibility);
   if (!arrow) return;
 
-  let p0: Pt = { x: arrow.startX, y: arrow.startY };
-  let p1: Pt = { x: arrow.endX, y: arrow.endY };
-  let hasArrowhead = true;
-  let clippedStart = false;
-  let clippedEnd = false;
+  const origStart: Pt = { x: arrow.startX, y: arrow.startY };
+  const origEnd: Pt = { x: arrow.endX, y: arrow.endY };
   const isDup = !!(page && mode === 'duplicate');
 
-  if (isDup && page) {
-    const clip = clipSegmentToPageInner(p0, p1, page);
-    if (!clip) return;
-    p0 = clip.p0;
-    p1 = clip.p1;
-    clippedStart = clip.clippedStart;
-    clippedEnd = clip.clippedEnd;
-    hasArrowhead = !clippedEnd;
-  }
+  // 多ページ時は page.inner 内にクリップ (overlap/duplicate 共通)
+  const pieces = page
+    ? clipPolylineToRect([origStart, origEnd] as ClipPt[], { x: page.innerX, y: page.innerY, width: page.innerWidth, height: page.innerHeight })
+    : [{ points: [origStart, origEnd] as ClipPt[], endsAtOriginalEnd: true }];
+  if (pieces.length === 0) return;
 
-  const minX = Math.min(p0.x, p1.x);
-  const minY = Math.min(p0.y, p1.y);
-  const w = Math.max(1, Math.abs(p1.x - p0.x));
-  const h = Math.max(1, Math.abs(p1.y - p0.y));
-
-  slide.addShape(pres.ShapeType.line, {
-    x: t.toX(minX),
-    y: t.toY(minY),
-    w: t.toLen(w),
-    h: t.toLen(h),
-    line: {
-      color: '222222',
-      width: arrow.strokeWidth,
-      endArrowType: hasArrowhead ? 'triangle' : 'none',
-    },
-    flipH: p1.x < p0.x,
-    flipV: p1.y < p0.y,
-  });
-
-  if (isDup && showMarkers !== false) {
-    if (clippedEnd) drawContinuationMarker(slide, p1, 'forward', layout, t);
-    if (clippedStart) drawContinuationMarker(slide, p0, 'backward', layout, t);
+  const emitSeg = (p0: ClipPt, p1: ClipPt, hasArrowhead: boolean) => {
+    const minX = Math.min(p0.x, p1.x);
+    const minY = Math.min(p0.y, p1.y);
+    const w = Math.max(1, Math.abs(p1.x - p0.x));
+    const h = Math.max(1, Math.abs(p1.y - p0.y));
+    slide.addShape(pres.ShapeType.line, {
+      x: t.toX(minX), y: t.toY(minY), w: t.toLen(w), h: t.toLen(h),
+      line: { color: '222222', width: arrow.strokeWidth, endArrowType: hasArrowhead ? 'triangle' : 'none' },
+      flipH: p1.x < p0.x, flipV: p1.y < p0.y,
+    });
+  };
+  for (const piece of pieces) {
+    if (piece.points.length < 2) continue;
+    const p0 = piece.points[0];
+    const p1 = piece.points[piece.points.length - 1];
+    emitSeg(p0, p1, piece.endsAtOriginalEnd);
+    if (isDup && showMarkers !== false) {
+      const eq = (a: ClipPt, b: Pt) => Math.abs(a.x - b.x) < 1e-3 && Math.abs(a.y - b.y) < 1e-3;
+      if (!eq(p0, origStart)) drawContinuationMarker(slide, p0, 'backward', layout, t);
+      if (!eq(p1, origEnd)) drawContinuationMarker(slide, p1, 'forward', layout, t);
+    }
   }
 
   // duplicate モード: ラベル位置が page.inner 外なら skip（1 スライドにだけ出す）

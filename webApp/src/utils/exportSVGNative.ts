@@ -152,7 +152,8 @@ function renderPage(
   if (background !== 'transparent') {
     b.rect(0, 0, paperW, paperH, { fill: '#ffffff', stroke: 'none' });
   }
-  drawTimeArrow(b, sheet, settings.layout, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
+  // TimeArrow は原シートのレイアウトで計算してページにクリップする
+  drawTimeArrow(b, lineSourceSheet ?? sheet, settings.layout, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility, pageInnerRect);
   drawPeriodLabels(b, sheet, settings.layout, settings.periodLabels, settings.timeArrow, t, settings.sdsgSpace, settings.typeLabelVisibility);
   drawLines(b, lineSourceSheet ?? sheet, settings.layout, t, includeIds.line, pageInnerRect);
   drawSDSGs(b, sheet, settings.layout, settings, t, includeIds.sdsg);
@@ -1350,17 +1351,40 @@ function drawTimeArrow(
   b: SVGBuilder, sheet: Sheet, layout: LayoutDirection,
   settings: TimeArrowSettings, t: Transform,
   sdsgSpace?: SDSGSpaceSettings, typeLabelVisibility?: TypeLabelVisibilityMap,
+  pageInnerRect?: { x: number; y: number; width: number; height: number },
 ) {
   if (!settings || !settings.autoInsert) return;
   const arrow = computeTimeArrow(sheet, layout, settings, sdsgSpace, typeLabelVisibility);
   if (!arrow) return;
   const color = '#222';
-  b.line(t.toX(arrow.startX), t.toY(arrow.startY), t.toX(arrow.endX), t.toY(arrow.endY), {
-    stroke: color, strokeWidth: arrow.strokeWidth,
-  });
-  drawArrowHead(b, t.toX(arrow.endX), t.toY(arrow.endY), t.toX(arrow.startX), t.toY(arrow.startY), arrow.strokeWidth, color);
 
-  // ラベル
+  // 多ページ時は page.inner にクリップ、未指定時はそのまま描画
+  const polyline = [
+    { x: arrow.startX, y: arrow.startY },
+    { x: arrow.endX, y: arrow.endY },
+  ];
+  const pieces = pageInnerRect
+    ? clipPolylineToRect(polyline, pageInnerRect)
+    : [{ points: polyline, endsAtOriginalEnd: true }];
+  if (pieces.length === 0) return;
+
+  for (const piece of pieces) {
+    if (piece.points.length < 2) continue;
+    const p0 = piece.points[0];
+    const p1 = piece.points[piece.points.length - 1];
+    b.line(t.toX(p0.x), t.toY(p0.y), t.toX(p1.x), t.toY(p1.y), {
+      stroke: color, strokeWidth: arrow.strokeWidth,
+    });
+    if (piece.endsAtOriginalEnd) {
+      drawArrowHead(b, t.toX(p1.x), t.toY(p1.y), t.toX(p0.x), t.toY(p0.y), arrow.strokeWidth, color);
+    }
+  }
+
+  // ラベル: 本体が完全に見えていない (クリップで分割された) 場合は、末端を含む
+  // piece がある場合に限りラベルを描く (そうでなければ複数ページに重複しないよう抑止)
+  const hasEndPiece = pieces.some((p) => p.endsAtOriginalEnd);
+  if (pageInnerRect && !hasEndPiece) return;
+
   const isVert = layout === 'vertical';
   const fsBase = arrow.fontSize;
   const fs = fontSizeScaled(fsBase, t);
