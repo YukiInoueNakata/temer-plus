@@ -9,6 +9,7 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { InsertBetweenDialog } from './components/InsertBetweenDialog';
 import { PeriodLabelsDialog } from './components/PeriodLabelsDialog';
 import { ExportPreviewDialog } from './components/ExportPreviewDialog';
+import { CommandPalette } from './components/CommandPalette';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PaperReportDialog } from './components/PaperReportDialog';
 import { ResizeDialog } from './components/ResizeDialog';
@@ -34,6 +35,7 @@ export default function App() {
   const [resizeOpen, setResizeOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   // タブ指定で設定を開く: 同じタブを連続で指定されても再度切替できるよう nonce を回す
   const openSettings = (tab?: string) => {
     setSettingsInitialTab(tab);
@@ -192,6 +194,8 @@ export default function App() {
 
       const ctrl = e.ctrlKey || e.metaKey;
 
+      // Ctrl+K: コマンドパレット (編集中でも有効、ただし Ctrl 必須なのでリスクなし)
+      if (ctrl && e.key === 'k') { e.preventDefault(); setPaletteOpen(true); return; }
       if (ctrl && !e.shiftKey && e.key === 's') { e.preventDefault(); handleSave(); return; }
       if (ctrl && e.shiftKey && e.key === 'S') { e.preventDefault(); handleSaveAs(); return; }
       if (ctrl && e.key === 'o') { e.preventDefault(); handleOpen(); return; }
@@ -298,6 +302,24 @@ export default function App() {
       <ResizeDialog open={resizeOpen} onClose={() => setResizeOpen(false)} />
       <CSVImportDialog open={csvOpen} onClose={() => setCsvOpen(false)} />
       <ShiftContentDialog open={shiftOpen} onClose={() => setShiftOpen(false)} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        callbacks={{
+          onNew: handleNew,
+          onOpen: handleOpen,
+          onSave: handleSave,
+          onSaveAs: handleSaveAs,
+          onOpenSettings: openSettings,
+          onOpenExport: () => setExportOpen(true),
+          onOpenInsertBetween: () => setInsertBetweenOpen(true),
+          onOpenPeriodLabels: () => setPeriodLabelsOpen(true),
+          onOpenPaperReport: () => setReportOpen(true),
+          onOpenResize: () => setResizeOpen(true),
+          onOpenCSVImport: () => setCsvOpen(true),
+          onOpenShiftContent: () => setShiftOpen(true),
+        }}
+      />
     </div>
   );
 }
