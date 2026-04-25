@@ -36,32 +36,51 @@ type Tab = 'general' | 'snap' | 'typelabel' | 'boxstyle' | 'timearrow' | 'legend
 interface NavLeaf {
   key: Tab;
   label: string;
+  /** 検索対象キーワード (サブセクション・設定ラベル等) */
+  keywords?: string;
 }
 type NavItem =
   | { kind: 'item'; leaf: NavLeaf }
   | { kind: 'group'; label: string; children: NavLeaf[] };
 
 const NAV: NavItem[] = [
-  { kind: 'item', leaf: { key: 'general', label: '全体' } },
-  { kind: 'item', leaf: { key: 'snap', label: 'スナップ' } },
+  { kind: 'item', leaf: { key: 'general', label: '全体',
+    keywords: 'レイアウト 言語 locale UI フォントサイズ リボン文字サイズ Level 刻み 用紙枠 paper guide Box 自動拡張 auto expand 文字サイズ自動' } },
+  { kind: 'item', leaf: { key: 'snap', label: 'スナップ',
+    keywords: 'グリッド grid snap 整列 ガイド guide 距離 刻み' } },
   {
     kind: 'group',
     label: '図要素',
     children: [
-      { key: 'boxstyle', label: 'Box スタイル' },
-      { key: 'typelabel', label: 'タイプラベル' },
-      { key: 'timearrow', label: '非可逆的時間' },
-      { key: 'period', label: '時期区分' },
-      { key: 'legend', label: '凡例' },
-      { key: 'sdsgspace', label: 'SD/SG 配置' },
+      { key: 'boxstyle', label: 'Box スタイル',
+        keywords: 'Box プリセット 様式 normal BFP OPP EFP P-EFP 2nd annotation 枠線 背景色 文字色 borderColor backgroundColor borderWidth' },
+      { key: 'typelabel', label: 'タイプラベル',
+        keywords: '種別 バッジ type label 連番 numbered 表示切替 visibility' },
+      { key: 'timearrow', label: '非可逆的時間',
+        keywords: '時間 矢印 arrow irreversible auto insert 線の太さ stroke ラベル位置' },
+      { key: 'period', label: '時期区分',
+        keywords: '時期 period 区分 divider band 位置 stroke fontSize' },
+      { key: 'legend', label: '凡例',
+        keywords: '凡例 legend タイトル title フォント columns 背景 枠線 項目別 上書き overrides showDescription' },
+      { key: 'sdsgspace', label: 'SD/SG 配置',
+        keywords: 'SD SG 帯 band 配置 row heightLevel offsetLevel autoExpand shrinkToFitRow autoArrange allowMismatched' },
     ],
   },
-  { kind: 'item', leaf: { key: 'project', label: 'プロジェクト' } },
+  { kind: 'item', leaf: { key: 'project', label: 'プロジェクト',
+    keywords: 'プロジェクト project メタデータ metadata タイトル 既定値 defaults Box サイズ フォント' } },
 ];
 
 const ALL_TABS: NavLeaf[] = NAV.flatMap((n) =>
   n.kind === 'item' ? [n.leaf] : n.children,
 );
+
+function matchesSearch(leaf: NavLeaf, q: string): boolean {
+  if (!q) return true;
+  const lower = q.toLowerCase();
+  if (leaf.label.toLowerCase().includes(lower)) return true;
+  if (leaf.keywords && leaf.keywords.toLowerCase().includes(lower)) return true;
+  return false;
+}
 
 export function SettingsDialog({
   open,
@@ -79,6 +98,7 @@ export function SettingsDialog({
   const [tab, setTab] = useState<Tab>(() =>
     initialTab && ALL_TABS.some((t) => t.key === initialTab) ? (initialTab as Tab) : 'general'
   );
+  const [search, setSearch] = useState('');
   // ドラッグ位置（null = 中央配置）
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -158,38 +178,59 @@ export function SettingsDialog({
         </div>
         <div className="settings-dialog-body">
           <nav className="settings-sidebar" role="tablist" aria-orientation="vertical">
+            <div className="settings-sidebar-search">
+              <input
+                type="search"
+                placeholder="設定項目を検索..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus={false}
+              />
+            </div>
             {NAV.map((n, i) => {
               if (n.kind === 'item') {
+                const match = matchesSearch(n.leaf, search);
                 return (
                   <button
                     key={n.leaf.key}
                     type="button"
                     role="tab"
                     aria-selected={tab === n.leaf.key}
-                    className={tab === n.leaf.key ? 'settings-sidebar-item active' : 'settings-sidebar-item'}
+                    className={
+                      (tab === n.leaf.key ? 'settings-sidebar-item active' : 'settings-sidebar-item')
+                      + (!match && search ? ' dimmed' : '')
+                    }
                     onClick={() => setTab(n.leaf.key)}
                   >
                     {n.leaf.label}
                   </button>
                 );
               }
+              // group: show header only if any child matches (or search is empty)
+              const anyChildMatches = !search || n.children.some((c) => matchesSearch(c, search));
+              if (!anyChildMatches) return null;
               return (
                 <div key={`grp-${i}`}>
                   <div className="settings-sidebar-group-header">{n.label}</div>
-                  {n.children.map((c) => (
-                    <button
-                      key={c.key}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === c.key}
-                      className={
-                        (tab === c.key ? 'settings-sidebar-item active' : 'settings-sidebar-item') + ' is-child'
-                      }
-                      onClick={() => setTab(c.key)}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+                  {n.children.map((c) => {
+                    const match = matchesSearch(c, search);
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === c.key}
+                        className={
+                          (tab === c.key ? 'settings-sidebar-item active' : 'settings-sidebar-item')
+                          + ' is-child'
+                          + (!match && search ? ' dimmed' : '')
+                        }
+                        onClick={() => setTab(c.key)}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
                 </div>
               );
             })}
