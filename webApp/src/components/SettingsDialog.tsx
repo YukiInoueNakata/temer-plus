@@ -25,9 +25,9 @@ import type {
   BoxType,
   BoxTypePreset,
 } from '../types';
-import { FONT_OPTIONS, BOX_RENDER_SPECS } from '../store/defaults';
-import { ColorPicker } from './ColorPicker';
+import { BOX_RENDER_SPECS } from '../store/defaults';
 import { CollapsibleSection } from './CollapsibleSection';
+import { FontFamilyRow, FontSizeRow, ColorRow } from './DecorationEditor';
 import { computeLegendItems } from '../utils/legend';
 import type { PaperBaseKey } from '../types';
 
@@ -743,74 +743,36 @@ function BoxStyleSection() {
       </div>
 
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>本体の色・文字</h5>
-      <div className="setting-row">
-        <label>背景色</label>
-        <ColorPicker
-          value={preset.backgroundColor}
-          onChange={(c) => updatePreset({ backgroundColor: c })}
-          allowNone
-          defaultLabel="自動"
-        />
-      </div>
-      <div className="setting-row">
-        <label>枠線色</label>
-        <ColorPicker
-          value={preset.borderColor}
-          onChange={(c) => updatePreset({ borderColor: c })}
-          allowNone
-          defaultLabel="自動"
-        />
-      </div>
-      <div className="setting-row">
-        <label>文字色</label>
-        <ColorPicker
-          value={preset.color}
-          onChange={(c) => updatePreset({ color: c })}
-          defaultLabel="自動"
-        />
-      </div>
-      <div className="setting-row">
-        <label>文字サイズ (px)</label>
-        <input
-          type="number"
-          min={6}
-          max={60}
-          value={preset.fontSize ?? ''}
-          placeholder="自動"
-          onChange={(e) => {
-            const v = e.target.value;
-            updatePreset({ fontSize: v === '' ? undefined : Number(v) });
-          }}
-        />
-      </div>
+      <ColorRow rowClassName="setting-row" label="背景色"
+        value={preset.backgroundColor}
+        onChange={(c) => updatePreset({ backgroundColor: c })}
+        allowNone defaultLabel="自動" />
+      <ColorRow rowClassName="setting-row" label="枠線色"
+        value={preset.borderColor}
+        onChange={(c) => updatePreset({ borderColor: c })}
+        allowNone defaultLabel="自動" />
+      <ColorRow rowClassName="setting-row" label="文字色"
+        value={preset.color}
+        onChange={(c) => updatePreset({ color: c })}
+        defaultLabel="自動" />
+      <FontSizeRow rowClassName="setting-row" label="文字サイズ (px)"
+        value={preset.fontSize}
+        onChange={(v) => updatePreset({ fontSize: v })}
+        emptyAllowed placeholderText="自動" />
 
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>タイプラベル色</h5>
-      <div className="setting-row">
-        <label>文字色</label>
-        <ColorPicker
-          value={preset.typeLabelColor}
-          onChange={(c) => updatePreset({ typeLabelColor: c })}
-          defaultLabel="自動"
-        />
-      </div>
-      <div className="setting-row">
-        <label>背景色</label>
-        <ColorPicker
-          value={preset.typeLabelBackgroundColor}
-          onChange={(c) => updatePreset({ typeLabelBackgroundColor: c })}
-          allowNone
-          defaultLabel="自動"
-        />
-      </div>
-      <div className="setting-row">
-        <label>枠線色</label>
-        <ColorPicker
-          value={preset.typeLabelBorderColor}
-          onChange={(c) => updatePreset({ typeLabelBorderColor: c })}
-          allowNone
-          defaultLabel="自動"
-        />
-      </div>
+      <ColorRow rowClassName="setting-row" label="文字色"
+        value={preset.typeLabelColor}
+        onChange={(c) => updatePreset({ typeLabelColor: c })}
+        defaultLabel="自動" />
+      <ColorRow rowClassName="setting-row" label="背景色"
+        value={preset.typeLabelBackgroundColor}
+        onChange={(c) => updatePreset({ typeLabelBackgroundColor: c })}
+        allowNone defaultLabel="自動" />
+      <ColorRow rowClassName="setting-row" label="枠線色"
+        value={preset.typeLabelBorderColor}
+        onChange={(c) => updatePreset({ typeLabelBorderColor: c })}
+        allowNone defaultLabel="自動" />
       <div className="setting-row">
         <label>枠線太さ (px)</label>
         <input
@@ -828,32 +790,18 @@ function BoxStyleSection() {
       </div>
 
       <h5 style={{ margin: '10px 0 4px', fontSize: '0.92em', color: '#555' }}>サブラベル色</h5>
-      <div className="setting-row">
-        <label>文字色</label>
-        <ColorPicker
-          value={preset.subLabelColor}
-          onChange={(c) => updatePreset({ subLabelColor: c })}
-          defaultLabel="自動"
-        />
-      </div>
-      <div className="setting-row">
-        <label>背景色</label>
-        <ColorPicker
-          value={preset.subLabelBackgroundColor}
-          onChange={(c) => updatePreset({ subLabelBackgroundColor: c })}
-          allowNone
-          defaultLabel="自動"
-        />
-      </div>
-      <div className="setting-row">
-        <label>枠線色</label>
-        <ColorPicker
-          value={preset.subLabelBorderColor}
-          onChange={(c) => updatePreset({ subLabelBorderColor: c })}
-          allowNone
-          defaultLabel="自動"
-        />
-      </div>
+      <ColorRow rowClassName="setting-row" label="文字色"
+        value={preset.subLabelColor}
+        onChange={(c) => updatePreset({ subLabelColor: c })}
+        defaultLabel="自動" />
+      <ColorRow rowClassName="setting-row" label="背景色"
+        value={preset.subLabelBackgroundColor}
+        onChange={(c) => updatePreset({ subLabelBackgroundColor: c })}
+        allowNone defaultLabel="自動" />
+      <ColorRow rowClassName="setting-row" label="枠線色"
+        value={preset.subLabelBorderColor}
+        onChange={(c) => updatePreset({ subLabelBorderColor: c })}
+        allowNone defaultLabel="自動" />
       <div className="setting-row">
         <label>枠線太さ (px)</label>
         <input
@@ -1656,32 +1604,15 @@ export function LegendSettingsSection() {
             </select>
           </div>
         )}
-        <div className="setting-row">
-          <label>タイトル フォント</label>
-          <select
-            value={lg.titleFontFamily ?? ''}
-            onChange={(e) => update({ titleFontFamily: e.target.value || undefined })}
-          >
-            <option value="">（本文と同じ）</option>
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="setting-row">
-          <label>タイトル サイズ (px)</label>
-          <input
-            type="number"
-            min={6}
-            max={60}
-            value={lg.titleFontSize ?? ''}
-            placeholder={`既定 ${Math.round(lg.fontSize * 1.15)}`}
-            onChange={(e) => update({
-              titleFontSize: e.target.value === '' ? undefined : Number(e.target.value),
-            })}
-            style={{ width: 80 }}
-          />
-        </div>
+        <FontFamilyRow rowClassName="setting-row" label="タイトル フォント"
+          value={lg.titleFontFamily}
+          onChange={(v) => update({ titleFontFamily: v })}
+          emptyOptionLabel="（本文と同じ）" />
+        <FontSizeRow rowClassName="setting-row" label="タイトル サイズ (px)"
+          value={lg.titleFontSize}
+          onChange={(v) => update({ titleFontSize: v })}
+          emptyAllowed
+          placeholderText={`既定 ${Math.round(lg.fontSize * 1.15)}`} />
         <div className="setting-row">
           <label>タイトル 装飾</label>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -1748,29 +1679,14 @@ export function LegendSettingsSection() {
             style={{ width: 80 }}
           />
         </div>
-        <div className="setting-row">
-          <label>本文 フォント</label>
-          <select
-            value={lg.fontFamily ?? ''}
-            onChange={(e) => update({ fontFamily: e.target.value || undefined })}
-          >
-            <option value="">（UI 既定）</option>
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="setting-row">
-          <label>本文 フォントサイズ (px)</label>
-          <input
-            type="number"
-            min={8}
-            max={30}
-            value={lg.fontSize}
-            onChange={(e) => update({ fontSize: Number(e.target.value) })}
-            style={{ width: 70 }}
-          />
-        </div>
+        <FontFamilyRow rowClassName="setting-row" label="本文 フォント"
+          value={lg.fontFamily}
+          onChange={(v) => update({ fontFamily: v })}
+          emptyOptionLabel="（UI 既定）" />
+        <FontSizeRow rowClassName="setting-row" label="本文 フォントサイズ (px)"
+          value={lg.fontSize}
+          onChange={(v) => v !== undefined && update({ fontSize: v })}
+          min={8} max={30} fallbackValue={11} />
         <div className="setting-row">
           <label>最小幅 (px)</label>
           <input
@@ -2144,18 +2060,10 @@ function TimeArrowSettingsSection() {
           <option value="start">上寄り（矢印始点側）</option>
         </select>
       </div>
-      <div className="setting-row">
-        <label>ラベル フォント</label>
-        <select
-          value={ta.labelFontFamily ?? ''}
-          onChange={(e) => update({ labelFontFamily: e.target.value || undefined })}
-        >
-          <option value="">（UI既定）</option>
-          {FONT_OPTIONS.map((f) => (
-            <option key={f.value} value={f.value}>{f.label}</option>
-          ))}
-        </select>
-      </div>
+      <FontFamilyRow rowClassName="setting-row" label="ラベル フォント"
+        value={ta.labelFontFamily}
+        onChange={(v) => update({ labelFontFamily: v })}
+        emptyOptionLabel="（UI既定）" />
       <div className="setting-row">
         <label>ラベル 装飾</label>
         <div style={{ display: 'flex', gap: 4 }}>

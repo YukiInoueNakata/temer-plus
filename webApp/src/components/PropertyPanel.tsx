@@ -523,7 +523,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         <FontSizeRow
           value={getCommon(boxes, 'typeLabelFontSize')}
           onChange={(v) => updateBoxes(ids, { typeLabelFontSize: v })}
-          placeholder={11}
+          fallbackValue={11}
           max={40}
         />
         <FontFamilyRow
@@ -1250,7 +1250,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
         <FontSizeRow
           value={commonFS}
           onChange={(v) => updateSDSGs(ids, { style: { fontSize: v } })}
-          placeholder={11}
+          fallbackValue={11}
           max={40}
         />
         <BoldItalicUnderlineRow
@@ -1318,7 +1318,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
         <FontSizeRow
           value={commonTLFontSize}
           onChange={(v) => updateSDSGs(ids, { typeLabelFontSize: v })}
-          placeholder={11}
+          fallbackValue={11}
           max={40}
         />
         <FontFamilyRow

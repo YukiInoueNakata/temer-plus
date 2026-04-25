@@ -20,15 +20,17 @@ export function FontFamilyRow({
   onChange,
   label = 'フォント',
   emptyOptionLabel,
+  rowClassName = 'prop-row',
 }: {
   value: string | undefined;
   onChange: (v: string | undefined) => void;
   label?: string;
   /** 設定時に空値の選択肢を追加表示 (例: '（UI 既定）' '（Box本体と同じ）') */
   emptyOptionLabel?: string;
+  rowClassName?: string;
 }) {
   return (
-    <div className="prop-row">
+    <div className={rowClassName}>
       <label>{label}</label>
       <select
         value={value ?? ''}
@@ -52,28 +54,42 @@ export function FontSizeRow({
   value,
   onChange,
   label = 'フォントサイズ',
-  placeholder = 13,
+  fallbackValue = 13,
+  placeholderText,
+  emptyAllowed = false,
   min = 6,
   max = 60,
+  rowClassName = 'prop-row',
 }: {
   value: number | undefined;
-  onChange: (v: number) => void;
+  onChange: (v: number | undefined) => void;
   label?: string;
-  /** 混在時の表示値 (UI 既定のサイズ) */
-  placeholder?: number;
+  /** value=undefined のときに表示する数値 (UI 既定値) */
+  fallbackValue?: number;
+  /** 空欄時のプレースホルダ文字列 (省略時 '（混在）') */
+  placeholderText?: string;
+  /** 空文字入力で onChange(undefined) を発火 (プリセット解除等) */
+  emptyAllowed?: boolean;
   min?: number;
   max?: number;
+  /** ラベル/値の row class 名 (PropertyPanel: prop-row, SettingsDialog: setting-row) */
+  rowClassName?: string;
 }) {
+  const placeholder = placeholderText ?? (value === undefined ? '（混在）' : '');
   return (
-    <div className="prop-row">
+    <div className={rowClassName}>
       <label>{label}</label>
       <input
         type="number"
         min={min}
         max={max}
-        value={value ?? placeholder}
-        placeholder={value === undefined ? '（混在）' : ''}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={emptyAllowed ? (value ?? '') : (value ?? fallbackValue)}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (emptyAllowed && v === '') onChange(undefined);
+          else onChange(Number(v));
+        }}
       />
     </div>
   );
@@ -138,6 +154,7 @@ export function ColorRow({
   onChange,
   allowNone,
   defaultLabel,
+  rowClassName = 'prop-row',
 }: {
   label: string;
   value: string | undefined;
@@ -146,9 +163,10 @@ export function ColorRow({
   allowNone?: boolean;
   /** 既定値表示ラベル (例: "既定 (#222)") */
   defaultLabel?: string;
+  rowClassName?: string;
 }) {
   return (
-    <div className="prop-row">
+    <div className={rowClassName}>
       <label>{label}</label>
       <ColorPicker
         value={value}
