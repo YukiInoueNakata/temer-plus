@@ -98,13 +98,16 @@ export function SettingsDialog({
   // ドラッグされている場合は left/top 絶対値、未ドラッグなら中央配置
   const modalStyle: React.CSSProperties = pos
     ? {
-        width: 640,
+        width: 900,
+        maxWidth: '95vw',
+        height: 600,
+        maxHeight: '85vh',
         position: 'absolute',
         left: pos.x,
         top: pos.y,
         margin: 0,
       }
-    : { width: 640 };
+    : { width: 900, maxWidth: '95vw', height: 600, maxHeight: '85vh' };
 
   const onHeaderMouseDown = (e: React.MouseEvent) => {
     // 子ボタン（×など）のクリックは除外
@@ -136,27 +139,32 @@ export function SettingsDialog({
           <h3>設定</h3>
           <button onClick={onClose} className="modal-close">×</button>
         </div>
-        <div className="settings-tabs">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              className={tab === t.key ? 'settings-tab active' : 'settings-tab'}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="modal-body" style={{ minHeight: 360 }}>
-          {tab === 'general' && <GeneralSection />}
-          {tab === 'snap' && <SnapSection />}
-          {tab === 'typelabel' && <TypeLabelSection />}
-          {tab === 'boxstyle' && <BoxStyleSection />}
-          {tab === 'timearrow' && <TimeArrowSettingsSection />}
-          {tab === 'legend' && <LegendSettingsSection />}
-          {tab === 'period' && <PeriodLabelSettingsSection />}
-          {tab === 'sdsgspace' && <SDSGSpaceSection />}
-          {tab === 'project' && <ProjectSection />}
+        <div className="settings-dialog-body">
+          <nav className="settings-sidebar" role="tablist" aria-orientation="vertical">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.key}
+                className={tab === t.key ? 'settings-sidebar-item active' : 'settings-sidebar-item'}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          <div className="settings-content-pane">
+            {tab === 'general' && <GeneralSection />}
+            {tab === 'snap' && <SnapSection />}
+            {tab === 'typelabel' && <TypeLabelSection />}
+            {tab === 'boxstyle' && <BoxStyleSection />}
+            {tab === 'timearrow' && <TimeArrowSettingsSection />}
+            {tab === 'legend' && <LegendSettingsSection />}
+            {tab === 'period' && <PeriodLabelSettingsSection />}
+            {tab === 'sdsgspace' && <SDSGSpaceSection />}
+            {tab === 'project' && <ProjectSection />}
+          </div>
         </div>
         <div className="modal-footer">
           <button className="ribbon-btn-primary" onClick={onClose}>閉じる</button>
