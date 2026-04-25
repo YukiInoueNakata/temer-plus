@@ -53,7 +53,10 @@ webApp/*.tsbuildinfo
 # LICENSE はテキストファイルなので影響なし
 
 # docs/（調査資料・文献PDF・画像はローカル保持）
-docs/
+docs/*
+# ただしユーザ向けマニュアル/チュートリアルは tracked
+!docs/manual/
+!docs/manual/**
 
 # Web アプリからの出力ファイル（ルート直下 / webApp 直下）
 /*.png
