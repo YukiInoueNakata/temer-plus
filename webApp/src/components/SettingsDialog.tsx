@@ -33,18 +33,35 @@ import type { PaperBaseKey } from '../types';
 
 type Tab = 'general' | 'snap' | 'typelabel' | 'boxstyle' | 'timearrow' | 'legend' | 'period' | 'sdsgspace' | 'project';
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'general', label: '全体' },
-  { key: 'snap', label: 'スナップ' },
-  // 図要素系タブをまとめて隣接配置 (Box スタイル → ラベル → 軸要素 → 凡例 → SD/SG)
-  { key: 'boxstyle', label: 'Box スタイル' },
-  { key: 'typelabel', label: 'タイプラベル' },
-  { key: 'timearrow', label: '非可逆的時間' },
-  { key: 'period', label: '時期区分' },
-  { key: 'legend', label: '凡例' },
-  { key: 'sdsgspace', label: 'SD/SG 配置' },
-  { key: 'project', label: 'プロジェクト' },
+interface NavLeaf {
+  key: Tab;
+  label: string;
+}
+type NavItem =
+  | { kind: 'item'; leaf: NavLeaf }
+  | { kind: 'group'; label: string; children: NavLeaf[] };
+
+const NAV: NavItem[] = [
+  { kind: 'item', leaf: { key: 'general', label: '全体' } },
+  { kind: 'item', leaf: { key: 'snap', label: 'スナップ' } },
+  {
+    kind: 'group',
+    label: '図要素',
+    children: [
+      { key: 'boxstyle', label: 'Box スタイル' },
+      { key: 'typelabel', label: 'タイプラベル' },
+      { key: 'timearrow', label: '非可逆的時間' },
+      { key: 'period', label: '時期区分' },
+      { key: 'legend', label: '凡例' },
+      { key: 'sdsgspace', label: 'SD/SG 配置' },
+    ],
+  },
+  { kind: 'item', leaf: { key: 'project', label: 'プロジェクト' } },
 ];
+
+const ALL_TABS: NavLeaf[] = NAV.flatMap((n) =>
+  n.kind === 'item' ? [n.leaf] : n.children,
+);
 
 export function SettingsDialog({
   open,
@@ -60,7 +77,7 @@ export function SettingsDialog({
 }) {
   // マウント時は initialTab を反映して 'general' フラッシュを避ける
   const [tab, setTab] = useState<Tab>(() =>
-    initialTab && TABS.some((t) => t.key === initialTab) ? (initialTab as Tab) : 'general'
+    initialTab && ALL_TABS.some((t) => t.key === initialTab) ? (initialTab as Tab) : 'general'
   );
   // ドラッグ位置（null = 中央配置）
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -69,7 +86,7 @@ export function SettingsDialog({
 
   // open / initialTab / tabNonce いずれかの変化で initialTab を適用
   useEffect(() => {
-    if (open && initialTab && TABS.some((t) => t.key === initialTab)) {
+    if (open && initialTab && ALL_TABS.some((t) => t.key === initialTab)) {
       setTab(initialTab as Tab);
     }
   }, [open, initialTab, tabNonce]);
@@ -141,18 +158,41 @@ export function SettingsDialog({
         </div>
         <div className="settings-dialog-body">
           <nav className="settings-sidebar" role="tablist" aria-orientation="vertical">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={tab === t.key}
-                className={tab === t.key ? 'settings-sidebar-item active' : 'settings-sidebar-item'}
-                onClick={() => setTab(t.key)}
-              >
-                {t.label}
-              </button>
-            ))}
+            {NAV.map((n, i) => {
+              if (n.kind === 'item') {
+                return (
+                  <button
+                    key={n.leaf.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === n.leaf.key}
+                    className={tab === n.leaf.key ? 'settings-sidebar-item active' : 'settings-sidebar-item'}
+                    onClick={() => setTab(n.leaf.key)}
+                  >
+                    {n.leaf.label}
+                  </button>
+                );
+              }
+              return (
+                <div key={`grp-${i}`}>
+                  <div className="settings-sidebar-group-header">{n.label}</div>
+                  {n.children.map((c) => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === c.key}
+                      className={
+                        (tab === c.key ? 'settings-sidebar-item active' : 'settings-sidebar-item') + ' is-child'
+                      }
+                      onClick={() => setTab(c.key)}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </nav>
           <div className="settings-content-pane">
             {tab === 'general' && <GeneralSection />}
