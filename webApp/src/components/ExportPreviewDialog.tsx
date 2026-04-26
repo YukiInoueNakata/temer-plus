@@ -19,6 +19,15 @@ import { ExportPreviewCanvas } from './ExportPreviewCanvas';
 import { CollapsibleSection } from './CollapsibleSection';
 import type { ExportOptions } from '../utils/exportImage';
 import { computePageBounds } from '../utils/pageSplit';
+import {
+  BUILTIN_PRESETS,
+  deleteUserPreset,
+  loadUserPresets,
+  saveUserPreset,
+  updateUserPreset,
+  type ExportPreset,
+  type ExportPresetOptions,
+} from '../utils/exportPresets';
 
 type Format = 'png' | 'svg' | 'pdf' | 'pptx';
 type OutputMethod = Format | 'print';
@@ -63,6 +72,81 @@ export function ExportPreviewDialog({
 
   // プレビュー中のページ index（単一モードでは 0 固定）
   const [previewPageIndex, setPreviewPageIndex] = useState(0);
+
+  // プリセット
+  const [userPresets, setUserPresets] = useState<ExportPreset[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  useEffect(() => {
+    if (open) setUserPresets(loadUserPresets());
+  }, [open]);
+
+  const currentOptions = (): ExportPresetOptions => ({
+    transform: { ...xf },
+    output: {
+      background,
+      includeGrid,
+      includePaperGuides,
+      includeIds: { box: includeIds.box, sdsg: includeIds.sdsg, line: includeIds.line },
+      pdfMargin,
+    },
+  });
+
+  const applyPreset = (preset: ExportPreset) => {
+    const { transform, output } = preset.options;
+    setXf({ ...transform });
+    setBackground(output.background);
+    setIncludeGrid(output.includeGrid);
+    setIncludePaperGuides(output.includePaperGuides);
+    const anyId = output.includeIds.box || output.includeIds.sdsg || output.includeIds.line;
+    setIncludeIds({ any: anyId, ...output.includeIds });
+    setPdfMargin(output.pdfMargin);
+    // pageCount > 1 なら multi モードに切替（switchMode を介さず直接、preset の値を尊重）
+    setExportMode(transform.pageCount > 1 ? 'multi' : 'single');
+    setPreviewPageIndex(0);
+    setSelectedPresetId(preset.id);
+  };
+
+  const handlePresetSelect = (id: string) => {
+    if (!id) {
+      setSelectedPresetId('');
+      return;
+    }
+    const builtin = BUILTIN_PRESETS.find((p) => p.id === id);
+    const user = userPresets.find((p) => p.id === id);
+    const preset = builtin ?? user;
+    if (preset) applyPreset(preset);
+  };
+
+  const handleSavePreset = () => {
+    const name = window.prompt('プリセット名を入力してください');
+    if (!name) return;
+    try {
+      const next = saveUserPreset(name, currentOptions());
+      setUserPresets(next);
+      setSelectedPresetId(next[next.length - 1].id);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const handleOverwritePreset = () => {
+    const cur = userPresets.find((p) => p.id === selectedPresetId);
+    if (!cur) return;
+    if (!window.confirm(`「${cur.name}」を現在の設定で上書きしますか？`)) return;
+    const next = updateUserPreset(cur.id, { options: currentOptions() });
+    setUserPresets(next);
+  };
+
+  const handleDeletePreset = () => {
+    const cur = userPresets.find((p) => p.id === selectedPresetId);
+    if (!cur) return;
+    if (!window.confirm(`「${cur.name}」を削除しますか？`)) return;
+    const next = deleteUserPreset(cur.id);
+    setUserPresets(next);
+    setSelectedPresetId('');
+  };
+
+  const isUserPresetSelected = !!userPresets.find((p) => p.id === selectedPresetId);
 
   // ダイアログ open 時の初期化:
   //  - 印刷モードは常に 'single' からスタート
@@ -399,6 +483,60 @@ export function ExportPreviewDialog({
                 ))}
               </select>
             </div>
+
+            {/* プリセット */}
+            <CollapsibleSection title="プリセット" sectionKey="export-preset" defaultOpen={true}>
+              <div className="setting-row">
+                <select
+                  value={selectedPresetId}
+                  onChange={(e) => handlePresetSelect(e.target.value)}
+                  style={{ flex: 1, minWidth: 0 }}
+                  title="用途別の出力設定を一発で適用"
+                >
+                  <option value="">（選択してください）</option>
+                  <optgroup label="組み込み">
+                    {BUILTIN_PRESETS.map((p) => (
+                      <option key={p.id} value={p.id} title={p.description}>{p.name}</option>
+                    ))}
+                  </optgroup>
+                  {userPresets.length > 0 && (
+                    <optgroup label="ユーザー">
+                      {userPresets.map((p) => (
+                        <option key={p.id} value={p.id} title={p.description}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              <div className="setting-row" style={{ justifyContent: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
+                <button className="ribbon-btn-small" onClick={handleSavePreset} title="現在の設定を新しいプリセットとして保存">
+                  現状を保存...
+                </button>
+                <button
+                  className="ribbon-btn-small"
+                  onClick={handleOverwritePreset}
+                  disabled={!isUserPresetSelected}
+                  title={isUserPresetSelected ? '選択中のプリセットを現在の設定で上書き' : 'ユーザープリセットを選択してください'}
+                >
+                  上書き
+                </button>
+                <button
+                  className="ribbon-btn-small"
+                  onClick={handleDeletePreset}
+                  disabled={!isUserPresetSelected}
+                  title={isUserPresetSelected ? '選択中のプリセットを削除' : 'ユーザープリセットを選択してください'}
+                >
+                  削除
+                </button>
+              </div>
+              {selectedPresetId && (() => {
+                const sel = BUILTIN_PRESETS.find((p) => p.id === selectedPresetId)
+                  ?? userPresets.find((p) => p.id === selectedPresetId);
+                return sel?.description ? (
+                  <p className="hint" style={{ marginTop: 0, fontSize: '0.8em' }}>{sel.description}</p>
+                ) : null;
+              })()}
+            </CollapsibleSection>
 
             {/* 印刷モードタブ */}
             <div className="settings-tabs" style={{ marginBottom: 10, padding: 0 }}>
