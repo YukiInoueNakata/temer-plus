@@ -55,6 +55,8 @@ function itemBoundsOfBoxes(sheet: Sheet, layout: LayoutDirection) {
 /**
  * 時期区分 / 時間矢印 / Box 群を基準に、上部・下部帯の配置を算出
  * @param requiredRows 自動拡張用: 各帯で必要な row 数（事前計算済み）
+ *   省略時は内部で computeBandRequiredRows で自動算出するため、
+ *   どの呼び出し元からでも row 数追従の帯高さが保証される。
  */
 export function computeSDSGBandLayout(
   sheet: Sheet,
@@ -66,6 +68,10 @@ export function computeSDSGBandLayout(
   const isH = layout === 'horizontal';
   const boxBounds = itemBoundsOfBoxes(sheet, layout);
   if (!boxBounds) return {};
+  // requiredRows が呼び出し元から渡されない場合、内部で自動計算する。
+  // これがないと SDSGBandOverlay (Canvas L1436) など requiredRows を
+  // 渡さない呼び出し元で帯高さが row 数追従しない不具合になる。
+  const effectiveRequiredRows = requiredRows ?? computeBandRequiredRows(sheet, layout);
 
   // 「内側」= Box 群に近い側
   const result: SDSGBandLayout = {};
@@ -140,7 +146,7 @@ export function computeSDSGBandLayout(
     if (ref == null) return undefined;
     const { coord: refCoord, fallback: referenceFallback } = ref;
     const offsetPx = band.offsetLevel * LEVEL_PX;
-    const rowsNeeded = side === 'top' ? requiredRows?.top ?? 0 : requiredRows?.bottom ?? 0;
+    const rowsNeeded = side === 'top' ? effectiveRequiredRows.top ?? 0 : effectiveRequiredRows.bottom ?? 0;
 
     // heightPx 決定:
     //   heightMode='auto' (既定): 帯内 SDSG + typeLabel から算出（rows 反映）
@@ -362,6 +368,50 @@ export function resolveBandOuterBounds(
   };
 
   return { topOuter: calcOuter('top'), bottomOuter: calcOuter('bottom') };
+}
+
+/**
+ * 帯内 SDSG の Time 範囲を集計し、各帯の必要 row 数を返す。
+ * `computeSDSGBandLayout` が requiredRows 省略で呼ばれたときに内部利用される。
+ * 帯描画 (SDSGBandOverlay) など requiredRows を渡せない呼び出し元の保険。
+ */
+export function computeBandRequiredRows(
+  sheet: Sheet,
+  layout: LayoutDirection,
+): { top: number; bottom: number } {
+  const isH = layout === 'horizontal';
+  const boxById = new Map(sheet.boxes.map((b) => [b.id, b]));
+  const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
+  const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
+  sheet.sdsg.forEach((sg) => {
+    const bk = sdsgBandKey(sg);
+    if (!bk) return;
+    let tS: number, tE: number;
+    if (sg.anchorMode === 'between' && sg.attachedTo2) {
+      const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+      const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+      if (!ep1 || !ep2) return;
+      const mode = sg.betweenMode ?? 'edge-to-edge';
+      const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+      const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
+      if (mode === 'edge-to-edge') { tS = left.timeStart; tE = right.timeStart + right.timeSize; }
+      else { tS = left.timeStart + left.timeSize / 2; tE = right.timeStart + right.timeSize / 2; }
+    } else {
+      const attached = boxById.get(sg.attachedTo);
+      if (!attached) return;
+      const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
+      const taxSize = isH ? (sg.spaceWidth ?? sg.width ?? 70) : (sg.spaceHeight ?? sg.height ?? 40);
+      tS = centerT - taxSize / 2;
+      tE = centerT + taxSize / 2;
+    }
+    bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE, rowOverride: sg.spaceRowOverride });
+  });
+  const topRows = computeBandRowAssignments(bandEntries.top);
+  const bottomRows = computeBandRowAssignments(bandEntries.bottom);
+  return {
+    top: Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1)),
+    bottom: Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1)),
+  };
 }
 
 /**
