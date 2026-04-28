@@ -299,7 +299,8 @@ export function resolveBandOuterBounds(
         const bSize = isH ? b.width : b.height;
         const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
         const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-        tS = left.t + left.sz; tE = right.t;
+        // edge-to-edge: 左 Box の左端 ～ 右 Box の右端（Time 軸両端を覆う）
+        tS = left.t; tE = right.t + right.sz;
       } else {
         const at = sheet.boxes.find((b) => b.id === sg.attachedTo);
         if (!at) return null;
@@ -533,7 +534,7 @@ export function isSDSGOutOfRange(
       const aSize = isH ? a.width : a.height; const bSize = isH ? b.width : b.height;
       const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
       const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-      if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
+      if (mode === 'edge-to-edge') { tS = left.t; tE = right.t + right.sz; }
       else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
     } else {
       const attached = sheet.boxes.find((b) => b.id === s.attachedTo);

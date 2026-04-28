@@ -915,55 +915,51 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               ) : null}
             </div>
 
-            {/* アンカー方式（band/attached どちらでも表示。band + between も可） */}
+            {/* 2 つ目の対象（attachedTo2）— 値を入れた瞬間 between に、空に戻すと single に自動切替 */}
             <div className="prop-row">
-              <label>アンカー方式</label>
-              <select
-                value={first.anchorMode ?? 'single'}
-                onChange={(e) => {
-                  const mode = e.target.value as 'single' | 'between';
-                  if (mode === 'between' && !first.attachedTo2) {
-                    alert('between モードには 2 つ目の対象の指定が必要です。下の「2 つ目の対象」で選択してください');
-                  }
-                  updateSDSG(first.id, { anchorMode: mode });
-                }}
-              >
-                <option value="single">single（単一）</option>
-                <option value="between">between（2 アイテム間）</option>
-              </select>
+              <label>2 つ目の対象 (attachedTo2)</label>
+              {sheet ? (
+                <select
+                  value={first.attachedTo2 ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value || undefined;
+                    if (v) {
+                      // between 化: betweenMode 既定値も併せてセット
+                      updateSDSG(first.id, {
+                        attachedTo2: v,
+                        anchorMode: 'between',
+                        betweenMode: first.betweenMode ?? 'edge-to-edge',
+                      });
+                    } else {
+                      // single へ戻す
+                      updateSDSG(first.id, { attachedTo2: undefined, anchorMode: 'single' });
+                    }
+                  }}
+                  style={{ fontFamily: 'monospace', fontSize: '0.85em' }}
+                  title="値を選ぶと between モードになります。空（未指定）に戻すと single モードに戻ります"
+                >
+                  <option value="">（未指定 / single モード）</option>
+                  <optgroup label="Box">
+                    {sheet.boxes.filter((b) => b.id !== first.attachedTo).map((b) => (
+                      <option key={b.id} value={b.id}>Box: {b.id} — {b.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Line">
+                    {sheet.lines.filter((l) => l.id !== first.attachedTo).map((l) => (
+                      <option key={l.id} value={l.id}>Line: {l.id}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              ) : null}
             </div>
-            {first.anchorMode === 'between' && (
-              <div className="prop-row">
-                <label>2 つ目の対象 (attachedTo2)</label>
-                {sheet ? (
-                  <select
-                    value={first.attachedTo2 ?? ''}
-                    onChange={(e) => updateSDSG(first.id, { attachedTo2: e.target.value || undefined })}
-                    style={{ fontFamily: 'monospace', fontSize: '0.85em' }}
-                  >
-                    <option value="">（未指定）</option>
-                    <optgroup label="Box">
-                      {sheet.boxes.filter((b) => b.id !== first.attachedTo).map((b) => (
-                        <option key={b.id} value={b.id}>Box: {b.id} — {b.label}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Line">
-                      {sheet.lines.filter((l) => l.id !== first.attachedTo).map((l) => (
-                        <option key={l.id} value={l.id}>Line: {l.id}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                ) : null}
-              </div>
-            )}
-            {first.anchorMode === 'between' && (
+            {first.anchorMode === 'between' && first.attachedTo2 && (
               <div className="prop-row">
                 <label>幅の定義</label>
                 <select
                   value={first.betweenMode ?? 'edge-to-edge'}
                   onChange={(e) => updateSDSG(first.id, { betweenMode: e.target.value as 'edge-to-edge' | 'center-to-center' })}
                 >
-                  <option value="edge-to-edge">Box 端から Box 端まで（既定）</option>
+                  <option value="edge-to-edge">Box 外辺から外辺まで（Time 軸両端を覆う）</option>
                   <option value="center-to-center">Box 中心から Box 中心まで</option>
                 </select>
               </div>

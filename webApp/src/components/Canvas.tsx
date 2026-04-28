@@ -245,8 +245,9 @@ function CanvasInner({
         const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
         const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
         if (mode === 'edge-to-edge') {
-          timeStart = left.t + left.sz;
-          timeEnd = right.t;
+          // Time レベル最小 Box の外辺（手前側）から最大 Box の外辺（奥側）まで覆う
+          timeStart = left.t;
+          timeEnd = right.t + right.sz;
         } else {
           timeStart = left.t + left.sz / 2;
           timeEnd = right.t + right.sz / 2;
@@ -360,8 +361,9 @@ function CanvasInner({
           const leftBox = aLeft <= bLeft ? boxA : boxB;
           const rightBox = aLeft <= bLeft ? boxB : boxA;
           if (betweenMode === 'edge-to-edge') {
-            startPos = leftBox.x + leftBox.width;  // 左 Box の右端
-            endPos = rightBox.x;                    // 右 Box の左端
+            // Time 軸両端を覆う: 左 Box の左端 ～ 右 Box の右端
+            startPos = leftBox.x;
+            endPos = rightBox.x + rightBox.width;
           } else {
             // center-to-center
             startPos = leftBox.x + leftBox.width / 2;
@@ -375,8 +377,9 @@ function CanvasInner({
           const topBox = aTop <= bTop ? boxA : boxB;
           const bottomBox = aTop <= bTop ? boxB : boxA;
           if (betweenMode === 'edge-to-edge') {
-            startPos = topBox.y + topBox.height;
-            endPos = bottomBox.y;
+            // Time 軸両端を覆う: 上 Box の上端 ～ 下 Box の下端
+            startPos = topBox.y;
+            endPos = bottomBox.y + bottomBox.height;
           } else {
             startPos = topBox.y + topBox.height / 2;
             endPos = bottomBox.y + bottomBox.height / 2;

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useTEMStore } from '../store/store';
 import type { BoxType } from '../types';
 import { BOX_TYPE_LABELS } from '../store/defaults';
+import { pickBetweenAnchors } from '../utils/sdsgBetween';
 
 type RibbonTab = 'file' | 'home' | 'insert' | 'view' | 'help';
 
@@ -487,27 +488,45 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
   const addSDSG = useTEMStore((s) => s.addSDSG);
   const boxTypes: BoxType[] = ['normal', 'BFP', 'EFP', 'P-EFP', 'OPP', 'annotation'];
 
+  // 選択数で自動分岐:
+  //   Box 0 + Line 0 → エラー
+  //   Box 0 + Line 1+ → single (Line 先頭)
+  //   Box 1            → single
+  //   Box 2            → between (両 Box)
+  //   Box 3+           → between (Time レベル最小・最大の 2 Box)
   const handleAddSDSG = (type: 'SD' | 'SG') => {
+    const st = useTEMStore.getState();
+    const sheet = st.doc.sheets.find((s) => s.id === st.doc.activeSheetId);
+    const isH = st.doc.settings.layout === 'horizontal';
     const { boxIds, lineIds } = selection;
-    const attachedTo = boxIds[0] ?? lineIds[0];
-    if (!attachedTo) {
-      alert('Box または Line を1つ選択してください（SD/SGはその要素に紐づきます）');
-      return;
-    }
-    addSDSG({ type, attachedTo, label: type });
-  };
 
-  // 2 Box 選択時、2 アイテム間に配置する SD/SG を追加
-  const handleAddSDSGBetween = (type: 'SD' | 'SG') => {
-    const { boxIds } = selection;
-    if (boxIds.length !== 2) {
-      alert('Box を 2 つ選択してください（2 アイテム間に配置します）');
+    if (boxIds.length === 0 && lineIds.length === 0) {
+      alert('Box または Line を選択してください（SD/SG は選択要素に紐づきます）');
       return;
     }
+
+    // Box 0 個 + Line のみ → single (先頭 Line)
+    if (boxIds.length === 0) {
+      addSDSG({ type, attachedTo: lineIds[0], label: type });
+      return;
+    }
+
+    // Box 1 個 → single
+    if (boxIds.length === 1) {
+      addSDSG({ type, attachedTo: boxIds[0], label: type });
+      return;
+    }
+
+    // Box 2+ 個 → between
+    // 3 個以上は Time レベル（横型=x / 縦型=y）の最小・最大 Box を採用
+    if (!sheet) return;
+    const selectedBoxes = sheet.boxes.filter((b) => boxIds.includes(b.id));
+    const pair = pickBetweenAnchors(selectedBoxes, isH);
+    if (!pair) return;
     addSDSG({
       type,
-      attachedTo: boxIds[0],
-      attachedTo2: boxIds[1],
+      attachedTo: pair.lowBoxId,
+      attachedTo2: pair.highBoxId,
       anchorMode: 'between',
       betweenMode: 'edge-to-edge',
       label: type,
@@ -552,10 +571,8 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
         <RibbonButton label="順次接続(点線)" icon="⇢⇢" onClick={() => handleSequentialArrow('XLine')} />
       </RibbonGroup>
       <RibbonGroup title="SD/SG 作成">
-        <RibbonButton label="SD追加" icon="▽" onClick={() => handleAddSDSG('SD')} title="選択中の Box / Line に紐づく SD を追加" />
-        <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} title="選択中の Box / Line に紐づく SG を追加" />
-        <RibbonButton label="SD (2 アイテム間)" icon="⊳⊲" onClick={() => handleAddSDSGBetween('SD')} title="選択した 2 Box の間に配置する SD を追加" />
-        <RibbonButton label="SG (2 アイテム間)" icon="⊲⊳" onClick={() => handleAddSDSGBetween('SG')} title="選択した 2 Box の間に配置する SG を追加" />
+        <RibbonButton label="SD追加" icon="▽" onClick={() => handleAddSDSG('SD')} title="Box 1個=single / 2個=between / 3個以上=Time軸両端2個でbetween" />
+        <RibbonButton label="SG追加" icon="△" onClick={() => handleAddSDSG('SG')} title="Box 1個=single / 2個=between / 3個以上=Time軸両端2個でbetween" />
       </RibbonGroup>
       <RibbonGroup title="SD/SG 配置">
         <RibbonButton

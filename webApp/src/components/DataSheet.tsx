@@ -584,7 +584,7 @@ function SDSGTable() {
       <table className="data-table">
         <thead>
           <tr>
-            <th>ID</th><th>種別</th><th>ラベル</th><th>対象</th><th style={{ width: 30 }}></th>
+            <th>ID</th><th>種別</th><th>ラベル</th><th>モード</th><th>対象 1</th><th>対象 2</th><th style={{ width: 30 }}></th>
           </tr>
         </thead>
         <tbody>
@@ -594,9 +594,11 @@ function SDSGTable() {
             disabled={!canPaste}
             pasteCount={clipboardSDSGCount}
             onPaste={() => pasteAt('sdsg', 0)}
-            colSpan={5}
+            colSpan={7}
           />
-          {sheet.sdsg.map((s, idx) => (
+          {sheet.sdsg.map((s, idx) => {
+            const isBetween = s.anchorMode === 'between';
+            return (
             <tr key={s.id} className="data-row">
               <td><code style={{ fontSize: '0.82em' }}>{s.id}</code></td>
               <td>{s.type}</td>
@@ -607,6 +609,29 @@ function SDSGTable() {
                   rows={1}
                   style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: '0.9em', minHeight: 22 }}
                 />
+              </td>
+              <td>
+                <select
+                  value={isBetween ? 'between' : 'single'}
+                  onChange={(e) => {
+                    const mode = e.target.value as 'single' | 'between';
+                    if (mode === 'between') {
+                      // attachedTo2 未指定なら attachedTo 以外の先頭 Box を採用
+                      const fallback = sheet.boxes.find((b) => b.id !== s.attachedTo)?.id;
+                      updateSDSG(s.id, {
+                        anchorMode: 'between',
+                        attachedTo2: s.attachedTo2 ?? fallback,
+                        betweenMode: s.betweenMode ?? 'edge-to-edge',
+                      });
+                    } else {
+                      updateSDSG(s.id, { anchorMode: 'single', attachedTo2: undefined });
+                    }
+                  }}
+                  style={{ fontSize: '0.82em' }}
+                >
+                  <option value="single">single</option>
+                  <option value="between">between</option>
+                </select>
               </td>
               <td>
                 <select
@@ -630,6 +655,42 @@ function SDSGTable() {
                   </optgroup>
                 </select>
               </td>
+              <td>
+                <select
+                  value={s.attachedTo2 ?? ''}
+                  disabled={!isBetween}
+                  onChange={(e) => {
+                    const v = e.target.value || undefined;
+                    if (v) {
+                      updateSDSG(s.id, {
+                        attachedTo2: v,
+                        anchorMode: 'between',
+                        betweenMode: s.betweenMode ?? 'edge-to-edge',
+                      });
+                    } else {
+                      updateSDSG(s.id, { attachedTo2: undefined, anchorMode: 'single' });
+                    }
+                  }}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '0.82em',
+                    background: isBetween ? undefined : '#f0f0f0',
+                    color: isBetween ? undefined : '#999',
+                  }}
+                >
+                  <option value="">（未指定）</option>
+                  <optgroup label="Box">
+                    {sheet.boxes.filter((b) => b.id !== s.attachedTo).map((b) => (
+                      <option key={b.id} value={b.id}>Box: {b.id}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Line">
+                    {sheet.lines.filter((l) => l.id !== s.attachedTo).map((l) => (
+                      <option key={l.id} value={l.id}>Line: {l.id}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </td>
               <td style={{ position: 'relative' }}>
                 <RowHoverButtons
                   canPaste={canPaste}
@@ -639,17 +700,18 @@ function SDSGTable() {
                 />
               </td>
             </tr>
-          ))}
+            );
+          })}
           <InsertSlot
             kind="sdsg"
             index={sheet.sdsg.length}
             disabled={!canPaste}
             pasteCount={clipboardSDSGCount}
             onPaste={() => pasteAt('sdsg', sheet.sdsg.length)}
-            colSpan={5}
+            colSpan={7}
           />
           {sheet.sdsg.length === 0 && (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#888', padding: 20 }}>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#888', padding: 20 }}>
               SD/SG はまだありません。上のボタンから追加できます。
             </td></tr>
           )}

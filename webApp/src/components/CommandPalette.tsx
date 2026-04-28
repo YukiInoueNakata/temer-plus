@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTEMStore } from '../store/store';
 import type { BoxType, SDSGType } from '../types';
+import { pickBetweenAnchors } from '../utils/sdsgBetween';
 
 export interface CommandPaletteCallbacks {
   onNew: () => void;
@@ -279,14 +280,37 @@ function useCommands(callbacks: CommandPaletteCallbacks): Command[] {
       })),
       ...(['SD', 'SG'] as SDSGType[]).map((type): Command => ({
         id: `insert.sdsg.${type}`,
-        label: `${type} を追加 (選択 Box / Line に紐付け)`,
-        keywords: `insert sdsg add ${type}`,
+        label: `${type} を追加 (1個=single / 2個以上=between)`,
+        keywords: `insert sdsg add ${type} between`,
         category: 'insert',
         run: () => {
-          const sel = store().selection;
-          const target = sel.boxIds[0] ?? sel.lineIds[0];
-          if (!target) { alert('Box か Line を選択してください'); return; }
-          store().addSDSG({ type, attachedTo: target, label: type });
+          const st = store();
+          const sel = st.selection;
+          const sheet = st.doc.sheets.find((s) => s.id === st.doc.activeSheetId);
+          const isH = st.doc.settings.layout === 'horizontal';
+          if (sel.boxIds.length === 0 && sel.lineIds.length === 0) {
+            alert('Box か Line を選択してください'); return;
+          }
+          if (sel.boxIds.length === 0) {
+            st.addSDSG({ type, attachedTo: sel.lineIds[0], label: type });
+            return;
+          }
+          if (sel.boxIds.length === 1) {
+            st.addSDSG({ type, attachedTo: sel.boxIds[0], label: type });
+            return;
+          }
+          if (!sheet) return;
+          const selectedBoxes = sheet.boxes.filter((b) => sel.boxIds.includes(b.id));
+          const pair = pickBetweenAnchors(selectedBoxes, isH);
+          if (!pair) return;
+          st.addSDSG({
+            type,
+            attachedTo: pair.lowBoxId,
+            attachedTo2: pair.highBoxId,
+            anchorMode: 'between',
+            betweenMode: 'edge-to-edge',
+            label: type,
+          });
         },
       })),
       { id: 'insert.line.rline', label: 'Line: RLine (実線) を追加', keywords: 'insert line rline 実線', category: 'insert',

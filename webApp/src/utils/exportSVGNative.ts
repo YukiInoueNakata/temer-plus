@@ -1048,7 +1048,7 @@ function drawSDSGs(
       const aSize = isH ? a.width : a.height; const bSize = isH ? bx2.width : bx2.height;
       const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
       const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-      if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
+      if (mode === 'edge-to-edge') { tS = left.t; tE = right.t + right.sz; }
       else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
     } else {
       const attached = boxById.get(sg.attachedTo);
@@ -1095,12 +1095,12 @@ function drawSDSGs(
       if (isH) {
         const leftBox = boxA.x <= boxB.x ? boxA : boxB;
         const rightBox = boxA.x <= boxB.x ? boxB : boxA;
-        if (mode === 'edge-to-edge') { startPos = leftBox.x + leftBox.width; endPos = rightBox.x; }
+        if (mode === 'edge-to-edge') { startPos = leftBox.x; endPos = rightBox.x + rightBox.width; }
         else { startPos = leftBox.x + leftBox.width / 2; endPos = rightBox.x + rightBox.width / 2; }
       } else {
         const topBox = boxA.y <= boxB.y ? boxA : boxB;
         const botBox = boxA.y <= boxB.y ? boxB : boxA;
-        if (mode === 'edge-to-edge') { startPos = topBox.y + topBox.height; endPos = botBox.y; }
+        if (mode === 'edge-to-edge') { startPos = topBox.y; endPos = botBox.y + botBox.height; }
         else { startPos = topBox.y + topBox.height / 2; endPos = botBox.y + botBox.height / 2; }
       }
       const timeCenter = (startPos + endPos) / 2;

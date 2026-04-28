@@ -58,7 +58,7 @@ export function computeContentBounds(
         const bSize = isH ? b.width : b.height;
         const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
         const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-        if (mode === 'edge-to-edge') { tS = left.t + left.sz; tE = right.t; }
+        if (mode === 'edge-to-edge') { tS = left.t; tE = right.t + right.sz; }
         else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
       } else {
         const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
@@ -114,12 +114,12 @@ export function computeContentBounds(
         if (isH) {
           const leftBox = a.x <= b.x ? a : b;
           const rightBox = a.x <= b.x ? b : a;
-          if (mode === 'edge-to-edge') { startPos = leftBox.x + leftBox.width; endPos = rightBox.x; }
+          if (mode === 'edge-to-edge') { startPos = leftBox.x; endPos = rightBox.x + rightBox.width; }
           else { startPos = leftBox.x + leftBox.width / 2; endPos = rightBox.x + rightBox.width / 2; }
         } else {
           const topBox = a.y <= b.y ? a : b;
           const botBox = a.y <= b.y ? b : a;
-          if (mode === 'edge-to-edge') { startPos = topBox.y + topBox.height; endPos = botBox.y; }
+          if (mode === 'edge-to-edge') { startPos = topBox.y; endPos = botBox.y + botBox.height; }
           else { startPos = topBox.y + topBox.height / 2; endPos = botBox.y + botBox.height / 2; }
         }
         const timeCenter = (startPos + endPos) / 2;
