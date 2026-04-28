@@ -2,118 +2,1037 @@
   "version": "0.3",
   "sheets": [
     {
-      "id": "sheet-kanzaki2021",
-      "name": "神崎・鈴木 2021 Figure 1",
+      "id": "Sheet_moioi0bb_zqbww",
+      "name": "参加者A",
       "type": "individual",
       "order": 0,
       "boxes": [
-        { "id": "Item1",  "type": "normal", "label": "中学校に\n進学", "x": 100, "y": 0, "width": 70, "height": 100, "textOrientation": "vertical", "subLabel": "共通", "participantId": "p_common" },
-        { "id": "Item2A", "type": "normal", "label": "授業に\nついて\nいけない", "x": 220, "y": -200, "width": 70, "height": 110, "textOrientation": "vertical", "subLabel": "A・B", "participantId": "p_AB" },
-        { "id": "Item2B", "type": "normal", "label": "人間関係の\n摩擦", "x": 220, "y": -50, "width": 70, "height": 100, "textOrientation": "vertical", "subLabel": "C・D", "participantId": "p_CD" },
-        { "id": "BFP1",   "type": "BFP",    "label": "不登校に\nなる", "x": 360, "y": -100, "width": 80, "height": 130, "textOrientation": "vertical" },
-        { "id": "Item3A", "type": "normal", "label": "ゲーム・\nエッセイ\nとの出会い", "x": 500, "y": -240, "width": 80, "height": 130, "textOrientation": "vertical", "subLabel": "A", "participantId": "p_A" },
-        { "id": "Item3B", "type": "normal", "label": "通信制\n高校選択", "x": 500, "y": -100, "width": 80, "height": 110, "textOrientation": "vertical", "subLabel": "B・C", "participantId": "p_BC" },
-        { "id": "Item3D", "type": "normal", "label": "保護者の\n勧めで\n高校選択", "x": 500, "y": 40, "width": 80, "height": 130, "textOrientation": "vertical", "subLabel": "D", "participantId": "p_D" },
-        { "id": "OPP1",   "type": "OPP",    "label": "高校入学", "x": 660, "y": -90, "width": 90, "height": 140, "textOrientation": "vertical" },
-        { "id": "Item4A", "type": "normal", "label": "自然と\n友人が\nできる", "x": 800, "y": -250, "width": 80, "height": 130, "textOrientation": "vertical", "subLabel": "A・B", "participantId": "p_AB" },
-        { "id": "Item4C", "type": "normal", "label": "クラスに\n馴染めず", "x": 800, "y": 50, "width": 80, "height": 110, "textOrientation": "vertical", "subLabel": "C", "participantId": "p_C" },
-        { "id": "Item5",  "type": "normal", "label": "学校の課題を\n頼りに自己変容\nの挑戦", "x": 940, "y": -100, "width": 100, "height": 140, "textOrientation": "vertical", "subLabel": "全員", "participantId": "p_common" },
-        { "id": "OPP2",   "type": "OPP",    "label": "進路選択\nの自己決定", "x": 1100, "y": -90, "width": 90, "height": 150, "textOrientation": "vertical" },
-        { "id": "Item6A", "type": "normal", "label": "やりたい\nことが\n見つかる", "x": 1240, "y": -240, "width": 80, "height": 130, "textOrientation": "vertical", "subLabel": "A・B", "participantId": "p_AB" },
-        { "id": "Item6C", "type": "normal", "label": "なりたい\n自分を\n展望", "x": 1240, "y": -100, "width": 80, "height": 130, "textOrientation": "vertical", "subLabel": "C", "participantId": "p_C" },
-        { "id": "Item6D", "type": "normal", "label": "住みたい\n場所を\n優先", "x": 1240, "y": 40, "width": 80, "height": 130, "textOrientation": "vertical", "subLabel": "D", "participantId": "p_D" },
-        { "id": "EFP1",   "type": "EFP",    "label": "進路を\n選択する", "x": 1400, "y": -160, "width": 90, "height": 130, "textOrientation": "vertical" },
-        { "id": "P_EFP1", "type": "P-EFP",  "label": "進路を\n決められない", "x": 1400, "y": 40, "width": 90, "height": 130, "textOrientation": "vertical" }
+        {
+          "id": "Item1",
+          "type": "normal",
+          "label": "出発点",
+          "x": 100,
+          "y": 200,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "OPP1",
+          "type": "OPP",
+          "label": "必須通過点",
+          "x": 300,
+          "y": 200,
+          "width": 60,
+          "height": 120,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "BFP1",
+          "type": "BFP",
+          "label": "分岐点",
+          "x": 500,
+          "y": 200,
+          "width": 60,
+          "height": 100,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "EFP1",
+          "type": "EFP",
+          "label": "等至点",
+          "x": 700,
+          "y": 100,
+          "width": 70,
+          "height": 120,
+          "textOrientation": "vertical"
+        },
+        {
+          "id": "P_EFP1",
+          "type": "P-EFP",
+          "label": "両極化等至点",
+          "x": 700,
+          "y": 300,
+          "width": 70,
+          "height": 120,
+          "textOrientation": "vertical"
+        }
       ],
       "lines": [
-        { "id": "RL_1",  "type": "RLine", "from": "Item1",  "to": "Item2A", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_2",  "type": "RLine", "from": "Item1",  "to": "Item2B", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_3",  "type": "RLine", "from": "Item2A", "to": "BFP1",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_4",  "type": "RLine", "from": "Item2B", "to": "BFP1",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_5",  "type": "RLine", "from": "BFP1",   "to": "Item3A", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_6",  "type": "RLine", "from": "BFP1",   "to": "Item3B", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_7",  "type": "RLine", "from": "BFP1",   "to": "Item3D", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_8",  "type": "RLine", "from": "Item3A", "to": "OPP1",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_9",  "type": "RLine", "from": "Item3B", "to": "OPP1",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_10", "type": "RLine", "from": "Item3D", "to": "OPP1",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_11", "type": "RLine", "from": "OPP1",   "to": "Item4A", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_12", "type": "RLine", "from": "OPP1",   "to": "Item4C", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_13", "type": "RLine", "from": "Item4A", "to": "Item5",  "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_14", "type": "RLine", "from": "Item4C", "to": "Item5",  "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_15", "type": "RLine", "from": "Item5",  "to": "OPP2",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_16", "type": "RLine", "from": "OPP2",   "to": "Item6A", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_17", "type": "RLine", "from": "OPP2",   "to": "Item6C", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_18", "type": "RLine", "from": "OPP2",   "to": "Item6D", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_19", "type": "RLine", "from": "Item6A", "to": "EFP1",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "RL_20", "type": "RLine", "from": "Item6C", "to": "EFP1",   "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "XL_1",  "type": "XLine", "from": "Item6D", "to": "P_EFP1", "connectionMode": "center-to-center", "shape": "straight" },
-        { "id": "XL_2",  "type": "XLine", "from": "Item6A", "to": "P_EFP1", "connectionMode": "center-to-center", "shape": "straight" }
+        {
+          "id": "RL_1",
+          "type": "RLine",
+          "from": "Item1",
+          "to": "OPP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_2",
+          "type": "RLine",
+          "from": "OPP1",
+          "to": "BFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "RL_3",
+          "type": "RLine",
+          "from": "BFP1",
+          "to": "EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "XL_1",
+          "type": "XLine",
+          "from": "BFP1",
+          "to": "P_EFP1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        }
       ],
       "sdsg": [
-        { "id": "SD1", "type": "SD", "label": "SD", "attachedTo": "BFP1", "attachedType": "box", "itemOffset": -180, "timeOffset": 0, "width": 70, "height": 50, "subLabel": "授業の難しさ\n孤立感" },
-        { "id": "SG1", "type": "SG", "label": "SG", "attachedTo": "BFP1", "attachedType": "box", "itemOffset": 200, "timeOffset": 0, "width": 70, "height": 50, "subLabel": "保護者の理解\n選択肢の存在" },
-        { "id": "SD2", "type": "SD", "label": "SD", "attachedTo": "OPP1", "attachedType": "box", "itemOffset": -180, "timeOffset": 0, "width": 70, "height": 50, "subLabel": "再不適応の不安" },
-        { "id": "SG2", "type": "SG", "label": "SG", "attachedTo": "OPP1", "attachedType": "box", "itemOffset": 200, "timeOffset": 0, "width": 70, "height": 50, "subLabel": "新しい環境\nボランティア支援" },
-        { "id": "SD3", "type": "SD", "label": "SD", "attachedTo": "OPP2", "attachedType": "box", "itemOffset": -180, "timeOffset": 0, "width": 70, "height": 50, "subLabel": "進路情報の不足" },
-        { "id": "SG3", "type": "SG", "label": "SG", "attachedTo": "OPP2", "attachedType": "box", "itemOffset": 200, "timeOffset": 0, "width": 70, "height": 50, "subLabel": "学校の課題\n友人との対話" }
+        {
+          "id": "SD1",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "BFP1",
+          "attachedType": "box",
+          "itemOffset": -120,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40
+        },
+        {
+          "id": "SG1",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "BFP1",
+          "attachedType": "box",
+          "itemOffset": 130,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40
+        }
       ],
       "notes": [],
       "comments": [],
       "periodLabels": [
-        { "id": "PL1", "position": 1.5, "label": "第1期 不登校期" },
-        { "id": "PL2", "position": 5.0, "label": "第2期 転機・高校選択" },
-        { "id": "PL3", "position": 9.0, "label": "第3期 高校入学・自己変容" },
-        { "id": "PL4", "position": 13.0, "label": "第4期 進路選択" }
+        {
+          "id": "P_moioi0bb_04hkh",
+          "position": 4,
+          "label": "時期1"
+        },
+        {
+          "id": "P_moioi0bb_gusya",
+          "position": 7.5,
+          "label": "時期2"
+        }
+      ]
+    },
+    {
+      "id": "sheet-kanzaki2021-detail",
+      "name": "神崎・鈴木 2021 Figure 1 詳細版",
+      "type": "individual",
+      "order": 1,
+      "boxes": [
+        {
+          "id": "A_1_1",
+          "type": "normal",
+          "label": "きついからかいにあう",
+          "subLabel": "A",
+          "participantId": "p_A",
+          "x": 100,
+          "y": -320,
+          "width": 80,
+          "height": 60,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "A_1_2",
+          "type": "normal",
+          "label": "関係がどうにもならず\n「もう無理だ」となる",
+          "subLabel": "A",
+          "participantId": "p_A",
+          "x": 220,
+          "y": -320,
+          "width": 100,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "A_1_3",
+          "type": "normal",
+          "label": "同級生に会わない形で\n別室登校",
+          "subLabel": "A",
+          "participantId": "p_A",
+          "x": 360,
+          "y": -320,
+          "width": 110,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "B_1_1",
+          "type": "normal",
+          "label": "転校することになる",
+          "subLabel": "B",
+          "participantId": "p_B",
+          "x": 220,
+          "y": -200,
+          "width": 90,
+          "height": 60,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "B_1_2",
+          "type": "normal",
+          "label": "学校に行けなくなる",
+          "subLabel": "B",
+          "participantId": "p_B",
+          "x": 360,
+          "y": -200,
+          "width": 90,
+          "height": 60,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "C_1_1",
+          "type": "normal",
+          "label": "犬猿の仲であった\n同級生とペアを組まれる",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 100,
+          "y": -50,
+          "width": 130,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "C_1_2",
+          "type": "normal",
+          "label": "組んで数か月で\n上位に入る",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 250,
+          "y": -50,
+          "width": 100,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "C_1_3",
+          "type": "normal",
+          "label": "顧問が「3年生の思い出\n作りのため引いてくれ」\nと言い出す",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 380,
+          "y": -50,
+          "width": 130,
+          "height": 90,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "C_1_4",
+          "type": "normal",
+          "label": "ペアの子が、親の都合で\n海外に行ってしまう",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 530,
+          "y": -50,
+          "width": 130,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "C_1_5",
+          "type": "normal",
+          "label": "部活を抜ける",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 680,
+          "y": -50,
+          "width": 80,
+          "height": 60,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "D_1_1",
+          "type": "normal",
+          "label": "学校に行くと大人しく\nなってしまう",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 100,
+          "y": 150,
+          "width": 110,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "D_1_2",
+          "type": "normal",
+          "label": "課題も部活動も授業での\n発表も一所懸命にやる",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 230,
+          "y": 150,
+          "width": 130,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "D_1_3",
+          "type": "normal",
+          "label": "本格的に休むように\nなって、学校を休み始める",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 380,
+          "y": 150,
+          "width": 130,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "D_1_4",
+          "type": "normal",
+          "label": "1つひとつの事が重荷に\nなり、病院に通い始める",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 530,
+          "y": 150,
+          "width": 130,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "D_1_5",
+          "type": "normal",
+          "label": "発達障害だと診断される",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 680,
+          "y": 150,
+          "width": 130,
+          "height": 60,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "BFP_A_1",
+          "type": "BFP",
+          "label": "本を借りて読む\nようになる",
+          "subLabel": "A 分岐点",
+          "participantId": "p_A",
+          "x": 500,
+          "y": -320,
+          "width": 100,
+          "height": 80,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "BFP_B_1",
+          "type": "BFP",
+          "label": "E 先生を\n尊敬するように\nなる",
+          "subLabel": "B 分岐点",
+          "participantId": "p_B",
+          "x": 500,
+          "y": -200,
+          "width": 100,
+          "height": 90,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "OPP_KOKO",
+          "type": "OPP",
+          "label": "X 高校に\n入学する",
+          "x": 850,
+          "y": -80,
+          "width": 100,
+          "height": 130,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "OPP_HITO",
+          "type": "OPP",
+          "label": "自然と人と関わる",
+          "x": 1000,
+          "y": -80,
+          "width": 130,
+          "height": 80,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "A_2_1",
+          "type": "normal",
+          "label": "放課後にママになり、\nオンラインゲームを始める",
+          "subLabel": "A",
+          "participantId": "p_A",
+          "x": 1170,
+          "y": -300,
+          "width": 160,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "C_2_1",
+          "type": "normal",
+          "label": "ユーモアを持って\n話せるようになる",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 1170,
+          "y": -100,
+          "width": 130,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "B_2_1",
+          "type": "normal",
+          "label": "善意の人たちに\nもまれていく",
+          "subLabel": "B",
+          "participantId": "p_B",
+          "x": 1170,
+          "y": 80,
+          "width": 120,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "D_2_1",
+          "type": "normal",
+          "label": "クラスの中に同じような\n価値観の人がいる",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 1170,
+          "y": 220,
+          "width": 140,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "OPP_KADAI",
+          "type": "OPP",
+          "label": "学校の課題を\n頼りに自己変容\nする",
+          "x": 1400,
+          "y": -80,
+          "width": 130,
+          "height": 130,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "A_3_1",
+          "type": "normal",
+          "label": "大学に入っても考えを\n得るため色々なことを\nやる",
+          "subLabel": "A",
+          "participantId": "p_A",
+          "x": 1580,
+          "y": -320,
+          "width": 140,
+          "height": 90,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "C_3_1",
+          "type": "normal",
+          "label": "やる気のある人のなかで\n何か作り出したい",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 1580,
+          "y": -150,
+          "width": 150,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "B_3_1",
+          "type": "normal",
+          "label": "E 先生を超えられるよう\nに頑張ろう",
+          "subLabel": "B",
+          "participantId": "p_B",
+          "x": 1580,
+          "y": 30,
+          "width": 140,
+          "height": 70,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "D_3_1",
+          "type": "normal",
+          "label": "その人たちに悪意が\nだわって色々な必要が\nない",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 1580,
+          "y": 200,
+          "width": 140,
+          "height": 90,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "EFP2_A",
+          "type": "2nd-EFP",
+          "label": "スタンスの合わない人も\n巻き込みながら色々な\nことに挑戦する",
+          "subLabel": "A",
+          "participantId": "p_A",
+          "x": 1800,
+          "y": -320,
+          "width": 160,
+          "height": 100,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "EFP2_C",
+          "type": "2nd-EFP",
+          "label": "やる気のある集団の\n中で成長して自分で何かを\n作り出していきたい",
+          "subLabel": "C",
+          "participantId": "p_C",
+          "x": 1800,
+          "y": -150,
+          "width": 170,
+          "height": 100,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "EFP2_B",
+          "type": "2nd-EFP",
+          "label": "善悪の判断をつけて\nはっきりとモノを言う\n人になる",
+          "subLabel": "B",
+          "participantId": "p_B",
+          "x": 1800,
+          "y": 30,
+          "width": 160,
+          "height": 100,
+          "textOrientation": "horizontal"
+        },
+        {
+          "id": "EFP2_D",
+          "type": "2nd-EFP",
+          "label": "ひとつに凝り固まらない\nような生き方をしたい",
+          "subLabel": "D",
+          "participantId": "p_D",
+          "x": 1800,
+          "y": 200,
+          "width": 160,
+          "height": 80,
+          "textOrientation": "horizontal"
+        }
+      ],
+      "lines": [
+        {
+          "id": "L_1",
+          "type": "RLine",
+          "from": "A_1_1",
+          "to": "A_1_2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_2",
+          "type": "RLine",
+          "from": "A_1_2",
+          "to": "A_1_3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_3",
+          "type": "RLine",
+          "from": "A_1_3",
+          "to": "BFP_A_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_4",
+          "type": "RLine",
+          "from": "BFP_A_1",
+          "to": "OPP_KOKO",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_5",
+          "type": "RLine",
+          "from": "OPP_KOKO",
+          "to": "OPP_HITO",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_6",
+          "type": "RLine",
+          "from": "OPP_HITO",
+          "to": "A_2_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_7",
+          "type": "RLine",
+          "from": "A_2_1",
+          "to": "OPP_KADAI",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_8",
+          "type": "RLine",
+          "from": "OPP_KADAI",
+          "to": "A_3_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_9",
+          "type": "RLine",
+          "from": "A_3_1",
+          "to": "EFP2_A",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_10",
+          "type": "RLine",
+          "from": "B_1_1",
+          "to": "B_1_2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_11",
+          "type": "RLine",
+          "from": "B_1_2",
+          "to": "BFP_B_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_12",
+          "type": "RLine",
+          "from": "BFP_B_1",
+          "to": "OPP_KOKO",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_13",
+          "type": "RLine",
+          "from": "OPP_HITO",
+          "to": "B_2_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_14",
+          "type": "RLine",
+          "from": "B_2_1",
+          "to": "OPP_KADAI",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_15",
+          "type": "RLine",
+          "from": "OPP_KADAI",
+          "to": "B_3_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_16",
+          "type": "RLine",
+          "from": "B_3_1",
+          "to": "EFP2_B",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_17",
+          "type": "RLine",
+          "from": "C_1_1",
+          "to": "C_1_2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_18",
+          "type": "RLine",
+          "from": "C_1_2",
+          "to": "C_1_3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_19",
+          "type": "RLine",
+          "from": "C_1_3",
+          "to": "C_1_4",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_20",
+          "type": "RLine",
+          "from": "C_1_4",
+          "to": "C_1_5",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_21",
+          "type": "RLine",
+          "from": "C_1_5",
+          "to": "OPP_KOKO",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_22",
+          "type": "RLine",
+          "from": "OPP_HITO",
+          "to": "C_2_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_23",
+          "type": "RLine",
+          "from": "C_2_1",
+          "to": "OPP_KADAI",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_24",
+          "type": "RLine",
+          "from": "OPP_KADAI",
+          "to": "C_3_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_25",
+          "type": "RLine",
+          "from": "C_3_1",
+          "to": "EFP2_C",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_26",
+          "type": "RLine",
+          "from": "D_1_1",
+          "to": "D_1_2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_27",
+          "type": "RLine",
+          "from": "D_1_2",
+          "to": "D_1_3",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_28",
+          "type": "RLine",
+          "from": "D_1_3",
+          "to": "D_1_4",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_29",
+          "type": "RLine",
+          "from": "D_1_4",
+          "to": "D_1_5",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_30",
+          "type": "RLine",
+          "from": "D_1_5",
+          "to": "OPP_KOKO",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_31",
+          "type": "RLine",
+          "from": "OPP_HITO",
+          "to": "D_2_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_32",
+          "type": "RLine",
+          "from": "D_2_1",
+          "to": "OPP_KADAI",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_33",
+          "type": "RLine",
+          "from": "OPP_KADAI",
+          "to": "D_3_1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "L_34",
+          "type": "RLine",
+          "from": "D_3_1",
+          "to": "EFP2_D",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        }
+      ],
+      "sdsg": [
+        {
+          "id": "SD_KOKO",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "OPP_KOKO",
+          "attachedType": "box",
+          "itemOffset": -380,
+          "timeOffset": 0,
+          "width": 120,
+          "height": 50,
+          "subLabel": "中学校の不適応\n別室登校の孤立感"
+        },
+        {
+          "id": "SG_KOKO",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "OPP_KOKO",
+          "attachedType": "box",
+          "itemOffset": 320,
+          "timeOffset": 0,
+          "width": 120,
+          "height": 50,
+          "subLabel": "X 高校の自由\n不登校生徒受入れ"
+        },
+        {
+          "id": "SD_KADAI",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "OPP_KADAI",
+          "attachedType": "box",
+          "itemOffset": -380,
+          "timeOffset": 0,
+          "width": 120,
+          "height": 50,
+          "subLabel": "進路情報の不足\n不安"
+        },
+        {
+          "id": "SG_KADAI",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "OPP_KADAI",
+          "attachedType": "box",
+          "itemOffset": 320,
+          "timeOffset": 0,
+          "width": 120,
+          "height": 50,
+          "subLabel": "学校の課題\nボランティアの対話"
+        }
+      ],
+      "notes": [],
+      "comments": [],
+      "periodLabels": [
+        {
+          "id": "PD1",
+          "position": 4,
+          "label": "第1期 統制できない状況に直面する"
+        },
+        {
+          "id": "PD2",
+          "position": 10,
+          "label": "第2期 統制感を得る"
+        },
+        {
+          "id": "PD3",
+          "position": 15,
+          "label": "第3期 進路選択への自己変容"
+        },
+        {
+          "id": "PD4",
+          "position": 20,
+          "label": "第4期 2nd 等至点 (進路の選択)"
+        }
       ]
     }
   ],
-  "activeSheetId": "sheet-kanzaki2021",
+  "activeSheetId": "sheet-kanzaki2021-detail",
   "participants": [
-    { "id": "p_A", "pseudonym": "生徒A" },
-    { "id": "p_B", "pseudonym": "生徒B" },
-    { "id": "p_C", "pseudonym": "生徒C" },
-    { "id": "p_D", "pseudonym": "生徒D" },
-    { "id": "p_AB", "pseudonym": "A・B" },
-    { "id": "p_BC", "pseudonym": "B・C" },
-    { "id": "p_CD", "pseudonym": "C・D" },
-    { "id": "p_common", "pseudonym": "共通" }
+    {
+      "id": "Part_moioi0bb_irkn3",
+      "pseudonym": "A"
+    }
   ],
   "settings": {
     "layout": "horizontal",
-    "levelStep": 50,
-    "paperSize": "A4-landscape",
-    "customPaperWidthMm": 297,
-    "customPaperHeightMm": 210,
-    "ui": { "fontSize": 11 },
-    "defaults": {
-      "box": { "fontSize": 11, "normal": { "width": 70, "height": 100 }, "BFP": { "width": 80, "height": 130 }, "EFP": { "width": 90, "height": 130 }, "P-EFP": { "width": 90, "height": 130 }, "OPP": { "width": 90, "height": 140 }, "annotation": { "width": 80, "height": 50 }, "2nd-EFP": { "width": 90, "height": 130 }, "P-2nd-EFP": { "width": 90, "height": 130 } },
-      "line": { "strokeWidth": 1.5, "color": "#333" },
-      "sdsg": { "width": 70, "height": 50, "fontSize": 10 }
-    },
-    "timeArrow": { "enabled": true, "position": "bottom", "strokeWidth": 2, "color": "#333", "autoInsert": true, "labelOffset": 4, "fontSize": 12 },
-    "periodLabels": { "fontSize": 14, "alwaysVisible": true, "position": "top", "labelOffset": 4 },
-    "legend": { "enabled": false, "position": "top-right", "fontSize": 11, "items": [], "borderWidth": 1, "padding": 8 },
-    "sdsgSpace": {
-      "enabled": false,
-      "autoArrange": true,
-      "autoFlipDirectionInBand": false,
-      "allowMismatchedPlacement": false,
-      "bands": {
-        "top": { "enabled": false, "heightMode": "auto", "heightLevel": 1.5, "reference": "boxes", "offsetLevel": 0.2, "showBorder": true, "fillStyle": "tinted", "labelPosition": "top-left", "shrinkToFitRow": true, "autoExpandHeight": false },
-        "bottom": { "enabled": false, "heightMode": "auto", "heightLevel": 1.5, "reference": "boxes", "offsetLevel": 0.2, "showBorder": true, "fillStyle": "tinted", "labelPosition": "top-left", "shrinkToFitRow": true, "autoExpandHeight": false }
-      }
-    },
-    "typeLabelVisibility": { "SD": true, "SG": true, "BFP": true, "EFP": true, "P-EFP": true, "OPP": true, "2nd-EFP": true, "P-2nd-EFP": true, "annotation": true },
     "locale": "ja",
-    "showFrame": false,
-    "showRulers": false
+    "gridSize": 10,
+    "snap": {
+      "alignGuides": true,
+      "distanceSnap": true,
+      "distancePx": 20,
+      "gridSnap": false,
+      "gridPx": 10
+    },
+    "showLegend": true,
+    "legendPosition": "right",
+    "timelineLabel": {
+      "ja": "非可逆的時間",
+      "en": "Irreversible time"
+    },
+    "timelineAutoInsert": true,
+    "defaultFont": "system-ui",
+    "defaultFontSize": 13,
+    "defaultBoxSize": {
+      "width": 60,
+      "height": 100
+    },
+    "defaultAutoFitText": false,
+    "defaultAutoFitBox": false,
+    "defaultAutoFitBoxMode": "width-fixed",
+    "paperGuides": [
+      {
+        "enabled": false,
+        "size": "A4-landscape",
+        "baseSize": "A4",
+        "color": "#000000",
+        "pageCount": 2,
+        "maskOutside": true
+      }
+    ],
+    "uiFontSize": 13,
+    "ribbonFontSize": 12,
+    "levelStep": 0.5,
+    "timeArrow": {
+      "autoInsert": true,
+      "alwaysVisible": true,
+      "timeStartExtension": -0.5,
+      "timeEndExtension": 0.5,
+      "itemReference": "min",
+      "itemOffset": 0,
+      "label": "非可逆的時間",
+      "strokeWidth": 2.5,
+      "fontSize": 14,
+      "labelSideHorizontal": "bottom",
+      "labelSideVertical": "left",
+      "labelBold": false,
+      "labelItalic": false,
+      "labelUnderline": false,
+      "labelOffset": 4,
+      "labelAlignHorizontal": "center",
+      "labelAlignVertical": "center"
+    },
+    "legend": {
+      "autoGenerate": true,
+      "alwaysVisible": true,
+      "includeInExport": true,
+      "position": {
+        "x": 0,
+        "y": 500
+      },
+      "includeBoxes": true,
+      "includeLines": true,
+      "includeSDSG": true,
+      "includeTimeArrow": false,
+      "title": "凡例",
+      "fontSize": 11,
+      "minWidth": 200,
+      "showDescriptions": false,
+      "columns": 1,
+      "columnsHorizontal": 1,
+      "columnsVertical": 1,
+      "showTitle": true,
+      "titleBold": true,
+      "titleItalic": false,
+      "titleUnderline": false,
+      "titleAlign": "left",
+      "titlePosition": "top",
+      "titleWritingMode": "horizontal",
+      "titleVerticalAlign": "top",
+      "backgroundStyle": "white",
+      "borderWidth": 1,
+      "borderColor": "#999",
+      "sampleWidth": 32,
+      "sampleHeight": 18,
+      "titleSeparatorVisible": true,
+      "titleSeparatorColor": "#dddddd",
+      "itemOverrides": {}
+    },
+    "periodLabels": {
+      "alwaysVisible": true,
+      "includeInExport": true,
+      "itemReference": "max",
+      "itemOffset": 0,
+      "fontSize": 13,
+      "showDividers": true,
+      "dividerStrokeWidth": 1,
+      "bandStyle": "band",
+      "labelSideHorizontal": "top",
+      "labelSideVertical": "right"
+    },
+    "typeLabelVisibility": {
+      "BFP": true,
+      "EFP": true,
+      "P-EFP": true,
+      "OPP": true,
+      "2nd-EFP": true,
+      "P-2nd-EFP": true,
+      "SD": true,
+      "SG": true
+    },
+    "sdsgSpace": {
+      "enabled": true,
+      "bands": {
+        "top": {
+          "enabled": true,
+          "heightMode": "auto",
+          "heightLevel": 1.5,
+          "reference": "boxes",
+          "offsetLevel": 0.2,
+          "showBorder": true,
+          "borderColor": "#9b59b6",
+          "fillStyle": "tinted",
+          "labelPosition": "top-left",
+          "shrinkToFitRow": false,
+          "autoExpandHeight": false
+        },
+        "bottom": {
+          "enabled": true,
+          "heightMode": "auto",
+          "heightLevel": 1.5,
+          "reference": "boxes",
+          "offsetLevel": 0.2,
+          "showBorder": true,
+          "borderColor": "#27ae60",
+          "fillStyle": "tinted",
+          "labelPosition": "top-left",
+          "shrinkToFitRow": false,
+          "autoExpandHeight": false
+        }
+      },
+      "autoPlaceSD": "top",
+      "autoPlaceSG": "bottom",
+      "allowMismatchedPlacement": false,
+      "autoArrange": true,
+      "autoFlipDirectionInBand": false
+    }
   },
   "metadata": {
-    "title": "神崎・鈴木 (2021) Figure 1 簡略再現",
-    "author": "神崎真実・鈴木華子 (原典) / TEMer サンプル化",
-    "createdAt": "2026-04-28T00:00:00.000Z",
-    "modifiedAt": "2026-04-28T00:00:00.000Z",
-    "description": "発達心理学研究 32(3), 113-125「不登校経験者が高校を経由して進路選択に至るプロセス：複線径路等至性モデリングによる学校経験の理解」の Figure 1 を作例ギャラリー用に簡略再現したサンプル。協力者 4 名 (A/B/C/D) を AB/CD のグループ化で集約。原論文の細部 (各協力者個別の径路、SD/SG の具体内容、注釈) は省略。出力検証用途。"
+    "title": "神崎・鈴木 (2021) Figure 1 詳細再現",
+    "author": "中田友貴",
+    "createdAt": "2026-04-28T13:45:28.343Z",
+    "modifiedAt": "2026-04-28T13:46:50.343Z",
+    "description": "発達心理学研究 32(3), 113-125 の Figure 1 を可能な限り原図に近い形で再現したサンプル。協力者 4 名 (A/B/C/D) の各時期の出来事を個別に配置。X 高校入学・自然と人と関わる・学校の課題を頼りに自己変容する を共通 OPP として配置。最終到達点 (2nd EFP) も 4 名個別。"
   },
   "history": []
 }
