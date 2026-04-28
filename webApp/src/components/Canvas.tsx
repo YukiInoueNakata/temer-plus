@@ -575,10 +575,11 @@ function CanvasInner({
           let x = ch.position.x;
           let y = ch.position.y;
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
-          // snap (grid) 丸めは Box 等のみに適用。SDSG は anchor (Box 中心) との
-          // 相対位置で offset を計算するため、grid snap が乗ると anchor と整列せず
-          // offset が常にズレた値になり 0 を通れない。
-          if (snapEnabled && ch.dragging === false && !sdsgItem) {
+          // snap (grid) 丸めは Box 等のみに適用（ドラッグ中・ドロップ時とも）。
+          // SDSG は anchor (Box 中心) との相対位置で offset を計算するため、
+          // grid snap が乗ると anchor と整列せず offset が 0 を通れなくなる。
+          // React Flow の snapToGrid プロパティは false 固定にして、ここで手動 snap。
+          if (snapEnabled && !sdsgItem) {
             x = Math.round(x / gridPx) * gridPx;
             y = Math.round(y / gridPx) * gridPx;
           }
@@ -815,7 +816,7 @@ function CanvasInner({
             panOnScroll={false}
             zoomOnScroll={false}
             zoomOnPinch={true}
-            snapToGrid={snapEnabled}
+            snapToGrid={false}
             snapGrid={[gridPx, gridPx]}
             fitView
             fitViewOptions={{ padding: 0.2 }}
