@@ -626,27 +626,56 @@ function CanvasInner({
               }
             }
 
-            // --- attached / between モード: 従来通り offset 逆算 ---
+            // --- attached / between モード: offset 逆算 ---
+            // between モードでは描画と同じ「2 端点の中点」を anchor / 時間軸サイズを timeSpan に。
+            // 時間軸 anchor だけ食い違うと、ドラッグで時間オフセットが 0 を経由できなくなる
+            // (attachedTo Box 中心と描画中点の差分が常に乗るため)。
             let anchorX = 0, anchorY = 0;
-            const attachedBox = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
-            if (attachedBox) {
-              anchorX = attachedBox.x + attachedBox.width / 2;
-              anchorY = attachedBox.y + attachedBox.height / 2;
+            let w = sdsgItem.width ?? 70;
+            let h = sdsgItem.height ?? 40;
+            if (sdsgItem.anchorMode === 'between' && sdsgItem.attachedTo2) {
+              const boxByIdLocal = new Map(sheet.boxes.map((b) => [b.id, b]));
+              const lineByIdLocal = new Map(sheet.lines.map((l) => [l.id, l]));
+              const ep1 = resolveBetweenEndpoint(sdsgItem.attachedTo, boxByIdLocal, lineByIdLocal, isH);
+              const ep2 = resolveBetweenEndpoint(sdsgItem.attachedTo2, boxByIdLocal, lineByIdLocal, isH);
+              if (ep1 && ep2) {
+                const mode = sdsgItem.betweenMode ?? 'edge-to-edge';
+                const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+                const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
+                let startPos: number, endPos: number;
+                if (mode === 'edge-to-edge') {
+                  startPos = left.timeStart;
+                  endPos = right.timeStart + right.timeSize;
+                } else {
+                  startPos = left.timeStart + left.timeSize / 2;
+                  endPos = right.timeStart + right.timeSize / 2;
+                }
+                const timeCenter = (startPos + endPos) / 2;
+                const timeSpan = Math.max(10, Math.abs(endPos - startPos));
+                const itemCenter = (ep1.itemCenter + ep2.itemCenter) / 2;
+                anchorX = isH ? timeCenter : itemCenter;
+                anchorY = isH ? itemCenter : timeCenter;
+                if (isH) w = timeSpan; else h = timeSpan;
+              }
             } else {
-              const attachedLine = sheet.lines.find((l) => l.id === sdsgItem.attachedTo);
-              if (attachedLine) {
-                const fromBox = sheet.boxes.find((b) => b.id === attachedLine.from);
-                const toBox = sheet.boxes.find((b) => b.id === attachedLine.to);
-                if (fromBox && toBox) {
-                  anchorX = (fromBox.x + fromBox.width / 2 + toBox.x + toBox.width / 2) / 2;
-                  anchorY = (fromBox.y + fromBox.height / 2 + toBox.y + toBox.height / 2) / 2;
+              const attachedBox = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
+              if (attachedBox) {
+                anchorX = attachedBox.x + attachedBox.width / 2;
+                anchorY = attachedBox.y + attachedBox.height / 2;
+              } else {
+                const attachedLine = sheet.lines.find((l) => l.id === sdsgItem.attachedTo);
+                if (attachedLine) {
+                  const fromBox = sheet.boxes.find((b) => b.id === attachedLine.from);
+                  const toBox = sheet.boxes.find((b) => b.id === attachedLine.to);
+                  if (fromBox && toBox) {
+                    anchorX = (fromBox.x + fromBox.width / 2 + toBox.x + toBox.width / 2) / 2;
+                    anchorY = (fromBox.y + fromBox.height / 2 + toBox.y + toBox.height / 2) / 2;
+                  }
                 }
               }
             }
-            const w = sdsgItem.width ?? 70;
-            const h = sdsgItem.height ?? 40;
             // 新規左上座標 → offset へ逆算。offset 自体を 5px 刻みにすることで、
-            // ドラッグ中に値が必ず 0 を経由する（attached の Box 中心が 5px 刻みでなくても OK）。
+            // ドラッグ中に値が必ず 0 を経由する（anchor が 5px 整列でなくても OK）。
             // `|| 0` で negative zero (Math.round(-0.5) = -0) を正の 0 に正規化する
             const dx = x + w / 2 - anchorX;
             const dy = y + h / 2 - anchorY;
