@@ -25,11 +25,20 @@ import type {
   BoxType,
   BoxTypePreset,
 } from '../types';
-import { BOX_RENDER_SPECS } from '../store/defaults';
 import { CollapsibleSection } from './CollapsibleSection';
 import { FontFamilyRow, FontSizeRow, ColorRow } from './DecorationEditor';
 import { computeLegendItems } from '../utils/legend';
 import type { PaperBaseKey } from '../types';
+import {
+  BUILTIN_THEMES,
+  loadUserThemes,
+  saveUserTheme,
+  updateUserTheme,
+  deleteUserTheme,
+  themeToJsonString,
+  parseThemesFromJson,
+  type BoxStyleTheme,
+} from '../utils/boxThemes';
 
 type Tab = 'general' | 'snap' | 'typelabel' | 'boxstyle' | 'timearrow' | 'legend' | 'period' | 'sdsgspace' | 'project';
 
@@ -645,6 +654,15 @@ function BoxStyleSection() {
   const [activeType, setActiveType] = useState<BoxType>('normal');
   const preset: BoxTypePreset = presets[activeType] ?? {};
 
+  // テーマ ----------
+  const [userThemes, setUserThemes] = useState<BoxStyleTheme[]>(() => loadUserThemes());
+  const [selectedThemeId, setSelectedThemeId] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const allThemes: BoxStyleTheme[] = [...BUILTIN_THEMES, ...userThemes];
+  const selectedTheme = allThemes.find((t) => t.id === selectedThemeId) ?? null;
+
+  const refreshUserThemes = () => setUserThemes(loadUserThemes());
+
   const updatePreset = (patch: Partial<BoxTypePreset>) => {
     useTEMStore.setState((state) => ({
       doc: produce(state.doc, (d) => {
@@ -667,16 +685,149 @@ function BoxStyleSection() {
     }));
   };
 
-  const factory = BOX_RENDER_SPECS[activeType] ?? BOX_RENDER_SPECS.normal;
+  // テーマを設定全体に適用（boxTypePresets を置換）
+  const applyTheme = (theme: BoxStyleTheme) => {
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => {
+        d.settings.boxTypePresets = JSON.parse(JSON.stringify(theme.presets));
+      }),
+      dirty: true,
+    }));
+  };
+
+  const handleApply = () => {
+    if (!selectedTheme) { alert('テーマを選択してください'); return; }
+    if (!confirm(`「${selectedTheme.name}」を適用します。\n現在の Box タイプ別プリセットは上書きされます。よろしいですか？`)) return;
+    applyTheme(selectedTheme);
+  };
+
+  const handleSaveNew = () => {
+    const name = prompt('新しいテーマ名を入力してください:');
+    if (!name) return;
+    const t = saveUserTheme(name, presets);
+    refreshUserThemes();
+    setSelectedThemeId(t.id);
+  };
+
+  const handleOverwrite = () => {
+    if (!selectedTheme || selectedTheme.builtin) {
+      alert('上書き対象のユーザテーマを選択してください');
+      return;
+    }
+    if (!confirm(`ユーザテーマ「${selectedTheme.name}」を現在の設定で上書きします。よろしいですか？`)) return;
+    updateUserTheme(selectedTheme.id, selectedTheme.name, presets, selectedTheme.description);
+    refreshUserThemes();
+  };
+
+  const handleDelete = () => {
+    if (!selectedTheme || selectedTheme.builtin) {
+      alert('削除対象のユーザテーマを選択してください');
+      return;
+    }
+    if (!confirm(`ユーザテーマ「${selectedTheme.name}」を削除します。よろしいですか？`)) return;
+    deleteUserTheme(selectedTheme.id);
+    refreshUserThemes();
+    setSelectedThemeId('');
+  };
+
+  const handleExport = () => {
+    if (!selectedTheme) { alert('エクスポートするテーマを選択してください'); return; }
+    const json = themeToJsonString(selectedTheme);
+    const safeName = selectedTheme.name.replace(/[\\/:*?"<>|]/g, '_');
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `temer-theme-${safeName}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCurrent = () => {
+    const t: BoxStyleTheme = { id: 'current', name: '現在の設定', presets };
+    const json = themeToJsonString(t);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `temer-theme-current.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => fileInputRef.current?.click();
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ''; // 同じファイルでも再度発火させる
+    if (!f) return;
+    const text = await f.text();
+    const themes = parseThemesFromJson(text);
+    if (themes.length === 0) {
+      alert('有効なテーマが見つかりませんでした。JSON 形式を確認してください。');
+      return;
+    }
+    let savedCount = 0;
+    let lastId = '';
+    for (const t of themes) {
+      const saved = saveUserTheme(t.name, t.presets, t.description);
+      lastId = saved.id;
+      savedCount++;
+    }
+    refreshUserThemes();
+    setSelectedThemeId(lastId);
+    alert(`${savedCount} 件のテーマをユーザテーマとしてインポートしました`);
+  };
 
   return (
     <section className="settings-section">
       <h4>Box スタイルプリセット</h4>
       <p className="hint" style={{ marginBottom: 8 }}>
-        Box タイプごとの既定スタイルを指定できます。<br />
-        描画時の優先順位: <strong>Box 個別値 ＞ プリセット ＞ 工場出荷時</strong>。
-        未指定の項目は「自動（既定）」として下位レイヤーに委ねられます。
+        Box タイプごとの既定スタイルを指定できます。
+        未指定の項目は「自動」として下位レイヤー（Box 個別値・既定値）に委ねられます。
       </p>
+
+      {/* テーマセクション */}
+      <div style={{ padding: 8, background: '#f7f9fc', border: '1px solid #d8dde5', borderRadius: 4, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: '0.92em' }}>テーマ:</strong>
+          <select
+            value={selectedThemeId}
+            onChange={(e) => setSelectedThemeId(e.target.value)}
+            style={{ flex: 1, minWidth: 180, fontSize: '0.88em' }}
+          >
+            <option value="">（選択してください）</option>
+            <optgroup label="組み込み">
+              {BUILTIN_THEMES.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </optgroup>
+            {userThemes.length > 0 && (
+              <optgroup label="ユーザ">
+                {userThemes.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          <button className="ribbon-btn-small" onClick={handleApply} disabled={!selectedTheme} title="選択中のテーマを設定全体に適用">適用</button>
+          <button className="ribbon-btn-small" onClick={handleSaveNew} title="現在の設定を新しいユーザテーマとして保存">現状を保存...</button>
+          <button className="ribbon-btn-small" onClick={handleOverwrite} disabled={!selectedTheme || !!selectedTheme?.builtin} title="ユーザテーマを現在の設定で上書き">上書き</button>
+          <button className="ribbon-btn-small" onClick={handleDelete} disabled={!selectedTheme || !!selectedTheme?.builtin} title="ユーザテーマを削除">削除</button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+          <button className="ribbon-btn-small" onClick={handleExport} disabled={!selectedTheme} title="選択中のテーマを JSON エクスポート">エクスポート</button>
+          <button className="ribbon-btn-small" onClick={handleExportCurrent} title="現在の設定そのものを JSON でエクスポート（テーマ未選択でも OK）">現在設定をエクスポート</button>
+          <button className="ribbon-btn-small" onClick={handleImportClick} title="JSON ファイルを選んでユーザテーマとしてインポート">インポート...</button>
+          <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleImportFile} style={{ display: 'none' }} />
+          {selectedTheme?.description && (
+            <span style={{ fontSize: '0.82em', color: '#555', flex: '1 1 100%' }}>{selectedTheme.description}</span>
+          )}
+        </div>
+      </div>
 
       <div className="setting-row" style={{ flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
         {TYPE_LIST.map((t) => (
@@ -693,9 +844,6 @@ function BoxStyleSection() {
 
       <div style={{ fontSize: '0.86em', color: '#666', marginBottom: 6 }}>
         編集中: <strong>{TYPE_LIST.find((t) => t.key === activeType)?.label}</strong>
-        <span style={{ marginLeft: 12, color: '#999' }}>
-          工場出荷時: {factory.borderStyle} {factory.borderWidth}px / {factory.defaultShape}
-        </span>
       </div>
 
       <h5 style={{ margin: '8px 0 4px', fontSize: '0.92em', color: '#555' }}>枠線・形状</h5>
@@ -705,7 +853,7 @@ function BoxStyleSection() {
           value={preset.borderStyle ?? ''}
           onChange={(e) => updatePreset({ borderStyle: (e.target.value || undefined) as BoxTypePreset['borderStyle'] })}
         >
-          <option value="">（工場出荷時: {factory.borderStyle}）</option>
+          <option value="">（自動）</option>
           <option value="solid">実線</option>
           <option value="dashed">破線</option>
           <option value="dotted">点線</option>
@@ -720,7 +868,7 @@ function BoxStyleSection() {
           max={8}
           step={0.5}
           value={preset.borderWidth ?? ''}
-          placeholder={`工場 ${factory.borderWidth}`}
+          placeholder="自動"
           onChange={(e) => {
             const v = e.target.value;
             updatePreset({ borderWidth: v === '' ? undefined : Number(v) });
@@ -733,7 +881,7 @@ function BoxStyleSection() {
           value={preset.shape ?? ''}
           onChange={(e) => updatePreset({ shape: (e.target.value || undefined) as BoxTypePreset['shape'] })}
         >
-          <option value="">（工場出荷時: {factory.defaultShape}）</option>
+          <option value="">（自動）</option>
           <option value="rect">矩形</option>
           <option value="ellipse">楕円</option>
         </select>
