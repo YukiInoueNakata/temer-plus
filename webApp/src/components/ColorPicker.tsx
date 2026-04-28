@@ -72,6 +72,10 @@ function normalizeHex(input: string): string | null {
   return null;
 }
 
+// ポップオーバーの推定サイズ（画面端判定用）
+const POPOVER_WIDTH = 232;
+const POPOVER_HEIGHT_MAX = 360; // 自動 + プリセット 3 行 + recent 3 行 + custom
+
 export function ColorPicker({
   value,
   onChange,
@@ -85,12 +89,37 @@ export function ColorPicker({
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>(() => loadRecent());
   const [hexInput, setHexInput] = useState(value ?? '');
+  const [popPos, setPopPos] = useState<{ left: number; top: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setHexInput(value ?? '');
   }, [value]);
+
+  // 開いた時にトリガーの bounding rect を計算し、画面端を考慮してポップオーバー位置を決定。
+  // viewport を超えそうなら反対側に展開（fixed 配置）。
+  useEffect(() => {
+    if (!open) { setPopPos(null); return; }
+    const trigger = rootRef.current?.querySelector('button');
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8;
+    // 横: 右側に余裕があれば左揃え、なければ右揃え
+    let left = rect.left;
+    if (left + POPOVER_WIDTH + margin > vw) {
+      left = Math.max(margin, rect.right - POPOVER_WIDTH);
+    }
+    // 縦: 下に余裕があれば下、なければ上に展開
+    let top = rect.bottom + 4;
+    if (top + POPOVER_HEIGHT_MAX + margin > vh) {
+      const above = rect.top - 4 - POPOVER_HEIGHT_MAX;
+      top = above >= margin ? above : Math.max(margin, vh - POPOVER_HEIGHT_MAX - margin);
+    }
+    setPopPos({ left, top });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -102,11 +131,17 @@ export function ColorPicker({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    // スクロール / リサイズで閉じる（fixed 位置の追従より閉じる方がシンプル）
+    const onScrollOrResize = () => setOpen(false);
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onScrollOrResize);
+    window.addEventListener('scroll', onScrollOrResize, true);
     return () => {
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('scroll', onScrollOrResize, true);
     };
   }, [open]);
 
@@ -159,21 +194,22 @@ export function ColorPicker({
         <span style={{ fontSize: 9, color: '#666', lineHeight: 1 }}>▼</span>
       </button>
 
-      {open && (
+      {open && popPos && (
         <div
           ref={popRef}
           style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            marginTop: 4,
+            position: 'fixed',
+            top: popPos.top,
+            left: popPos.left,
             zIndex: 9999,
             background: '#fff',
             border: '1px solid #bbb',
             borderRadius: 4,
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             padding: 8,
-            minWidth: 216,
+            width: POPOVER_WIDTH,
+            maxHeight: POPOVER_HEIGHT_MAX,
+            overflowY: 'auto',
             fontSize: 12,
           }}
         >

@@ -483,14 +483,11 @@ function PaperGuideSection() {
           onChange={(e) => update({ maskOutside: e.target.checked })}
         />
       </div>
-      <div className="setting-row">
-        <label>枠線の色</label>
-        <input
-          type="color"
-          value={guide.color ?? '#000000'}
-          onChange={(e) => update({ color: e.target.value })}
-        />
-      </div>
+      <ColorRow rowClassName="setting-row" label="枠線の色"
+        value={guide.color}
+        onChange={(c) => update({ color: c ?? '#000000' })}
+        defaultLabel="既定 (#000000)"
+      />
     </>
   );
 }
@@ -948,14 +945,11 @@ function SDSGSpaceSection() {
           onChange={(e) => updateBand('top', { showBorder: e.target.checked })}
         />
       </div>
-      <div className="setting-row">
-        <label>枠の色</label>
-        <input
-          type="color"
-          value={space.bands.top.borderColor ?? '#9b59b6'}
-          onChange={(e) => updateBand('top', { borderColor: e.target.value })}
-        />
-      </div>
+      <ColorRow rowClassName="setting-row" label="枠の色"
+        value={space.bands.top.borderColor}
+        onChange={(c) => updateBand('top', { borderColor: c ?? '#9b59b6' })}
+        defaultLabel="既定 (#9b59b6)"
+      />
       <div className="setting-row">
         <label>背景塗りつぶし</label>
         <select
@@ -1045,14 +1039,11 @@ function SDSGSpaceSection() {
           onChange={(e) => updateBand('bottom', { showBorder: e.target.checked })}
         />
       </div>
-      <div className="setting-row">
-        <label>枠の色</label>
-        <input
-          type="color"
-          value={space.bands.bottom.borderColor ?? '#27ae60'}
-          onChange={(e) => updateBand('bottom', { borderColor: e.target.value })}
-        />
-      </div>
+      <ColorRow rowClassName="setting-row" label="枠の色"
+        value={space.bands.bottom.borderColor}
+        onChange={(c) => updateBand('bottom', { borderColor: c ?? '#27ae60' })}
+        defaultLabel="既定 (#27ae60)"
+      />
       <div className="setting-row">
         <label>背景塗りつぶし</label>
         <select
@@ -1775,14 +1766,11 @@ export function LegendSettingsSection() {
             style={{ width: 80 }}
           />
         </div>
-        <div className="setting-row">
-          <label>枠線の色</label>
-          <input
-            type="color"
-            value={lg.borderColor ?? '#999999'}
-            onChange={(e) => update({ borderColor: e.target.value })}
-          />
-        </div>
+        <ColorRow rowClassName="setting-row" label="枠線の色"
+          value={lg.borderColor}
+          onChange={(c) => update({ borderColor: c ?? '#999999' })}
+          defaultLabel="既定 (#999999)"
+        />
       </section>
 
       <section className="settings-section">
@@ -1795,13 +1783,16 @@ export function LegendSettingsSection() {
             onChange={(e) => update({ titleSeparatorVisible: e.target.checked })}
           />
         </div>
-        <div className="setting-row">
-          <label>色</label>
-          <input
-            type="color"
-            value={lg.titleSeparatorColor ?? '#dddddd'}
-            onChange={(e) => update({ titleSeparatorColor: e.target.value })}
-            disabled={lg.titleSeparatorVisible === false}
+        <div
+          style={{
+            opacity: lg.titleSeparatorVisible === false ? 0.4 : 1,
+            pointerEvents: lg.titleSeparatorVisible === false ? 'none' : undefined,
+          }}
+        >
+          <ColorRow rowClassName="setting-row" label="色"
+            value={lg.titleSeparatorColor}
+            onChange={(c) => update({ titleSeparatorColor: c ?? '#dddddd' })}
+            defaultLabel="既定 (#dddddd)"
           />
         </div>
       </section>
