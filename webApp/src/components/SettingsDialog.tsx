@@ -701,6 +701,15 @@ function BoxStyleSection() {
     applyTheme(selectedTheme);
   };
 
+  // 全 Box タイプのプリセットを削除し、すべて「自動」（工場出荷時）に戻す
+  const handleResetAll = () => {
+    if (!confirm('すべての Box タイプのプリセットを削除し、自動（工場出荷時）に戻します。\nよろしいですか？')) return;
+    useTEMStore.setState((state) => ({
+      doc: produce(state.doc, (d) => { d.settings.boxTypePresets = {}; }),
+      dirty: true,
+    }));
+  };
+
   const handleSaveNew = () => {
     const name = prompt('新しいテーマ名を入力してください:');
     if (!name) return;
@@ -814,6 +823,7 @@ function BoxStyleSection() {
             )}
           </select>
           <button className="ribbon-btn-small" onClick={handleApply} disabled={!selectedTheme} title="選択中のテーマを設定全体に適用">適用</button>
+          <button className="ribbon-btn-small" onClick={handleResetAll} title="すべての Box タイプを自動（工場出荷時）に戻す">すべて自動に戻す</button>
           <button className="ribbon-btn-small" onClick={handleSaveNew} title="現在の設定を新しいユーザテーマとして保存">現状を保存...</button>
           <button className="ribbon-btn-small" onClick={handleOverwrite} disabled={!selectedTheme || !!selectedTheme?.builtin} title="ユーザテーマを現在の設定で上書き">上書き</button>
           <button className="ribbon-btn-small" onClick={handleDelete} disabled={!selectedTheme || !!selectedTheme?.builtin} title="ユーザテーマを削除">削除</button>

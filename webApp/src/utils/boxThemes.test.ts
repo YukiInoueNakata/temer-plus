@@ -20,11 +20,11 @@ beforeEach(() => {
 });
 
 describe('BUILTIN_THEMES', () => {
-  it('contains default + several builtin themes with builtin=true', () => {
+  it('contains several builtin themes with builtin=true, monochrome at first', () => {
     expect(BUILTIN_THEMES.length).toBeGreaterThanOrEqual(4);
     expect(BUILTIN_THEMES.every((t) => t.builtin === true)).toBe(true);
-    expect(BUILTIN_THEMES.find((t) => t.id === 'theme-default')).toBeTruthy();
-    expect(BUILTIN_THEMES.find((t) => t.id === 'theme-default')?.presets).toEqual({});
+    expect(BUILTIN_THEMES[0].id).toBe('theme-monochrome');
+    expect(BUILTIN_THEMES.find((t) => t.id === 'theme-default')).toBeUndefined();
   });
 });
 

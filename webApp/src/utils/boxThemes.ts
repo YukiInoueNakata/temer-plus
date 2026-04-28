@@ -21,16 +21,9 @@ export interface BoxStyleTheme {
 
 export const BUILTIN_THEMES: BoxStyleTheme[] = [
   {
-    id: 'theme-default',
-    name: '既定（工場出荷時）',
-    description: 'すべてを自動（工場出荷時）に戻す。Box タイプごとの個別プリセットを全削除。',
-    builtin: true,
-    presets: {},
-  },
-  {
     id: 'theme-monochrome',
-    name: 'モノクロ',
-    description: '全 Box を白背景・黒枠で統一。論文の白黒図向け。',
+    name: 'モノクロ（既定）',
+    description: '全 Box を白背景・黒枠で統一。工場出荷時の見た目に近い。',
     builtin: true,
     presets: {
       normal:    { backgroundColor: '#ffffff', borderColor: '#000000', color: '#000000', borderWidth: 1.0, borderStyle: 'solid' },
