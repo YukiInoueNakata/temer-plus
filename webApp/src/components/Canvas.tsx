@@ -578,12 +578,10 @@ function CanvasInner({
             x = Math.round(x / gridPx) * gridPx;
             y = Math.round(y / gridPx) * gridPx;
           }
-          // SDSG のドラッグは 5px 刻みに丸める（細かい微調整は PropertyPanel の Offset から）
+          // SDSG のドラッグ時は座標自体を 5px 刻みにすると、anchor (Box 中心) が
+          // 5px 刻みでない場合に offset が ±2.5 などに偏って 0 を通らなくなる。
+          // 代わりに後段で offset / inset を 5px 刻みに丸める方針に変更。
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
-          if (sdsgItem) {
-            x = Math.round(x / 5) * 5;
-            y = Math.round(y / 5) * 5;
-          }
           if (sdsgItem) {
             const isH = layout === 'horizontal';
             const bandModeActive = settings.sdsgSpace?.enabled &&
@@ -616,8 +614,9 @@ function CanvasInner({
                 // isH: Time=X, Item=Y / !isH: Time=Y, Item=X
                 const newItemAxis = isH ? newCenterY : newCenterX;
                 const newTimeAxis = isH ? newCenterX : newCenterY;
-                const insetItem = newItemAxis - rowCenter;
-                const insetTime = newTimeAxis - anchorTime;
+                // 5px 刻みに丸めることで、ドラッグ時に必ず 0 を経由する
+                const insetItem = Math.round((newItemAxis - rowCenter) / 5) * 5;
+                const insetTime = Math.round((newTimeAxis - anchorTime) / 5) * 5;
                 updateSDSG(ch.id, {
                   spaceInsetItem: insetItem,
                   spaceInsetTime: insetTime,
@@ -645,11 +644,12 @@ function CanvasInner({
             }
             const w = sdsgItem.width ?? 70;
             const h = sdsgItem.height ?? 40;
-            // 新規左上座標 → offset へ逆算
+            // 新規左上座標 → offset へ逆算。offset 自体を 5px 刻みにすることで、
+            // ドラッグ中に値が必ず 0 を経由する（attached の Box 中心が 5px 刻みでなくても OK）。
             const dx = x + w / 2 - anchorX;
             const dy = y + h / 2 - anchorY;
-            const timeOff = isH ? dx : dy;
-            const itemOff = isH ? dy : dx;
+            const timeOff = Math.round((isH ? dx : dy) / 5) * 5;
+            const itemOff = Math.round((isH ? dy : dx) / 5) * 5;
             updateSDSG(ch.id, { timeOffset: timeOff, itemOffset: itemOff });
           } else {
             updateBox(ch.id, { x, y });
