@@ -578,10 +578,16 @@ function CanvasInner({
             x = Math.round(x / gridPx) * gridPx;
             y = Math.round(y / gridPx) * gridPx;
           }
-          // SDSG のドラッグ時は座標自体を 5px 刻みにすると、anchor (Box 中心) が
-          // 5px 刻みでない場合に offset が ±2.5 などに偏って 0 を通らなくなる。
-          // 代わりに後段で offset / inset を 5px 刻みに丸める方針に変更。
+          // SDSG のドラッグ:
+          // ドラッグ中 (ch.dragging === true) の毎フレーム store 更新は、
+          // store 更新 → useMemo 再実行 → 5px 刻みに丸めた position が
+          // React Flow の internal state と乖離し、PropertyPanel の値が
+          // 「±5 のジャンプにしか見えない / 0 を経由しない」現象の主因。
+          // ドラッグ完了時 (ch.dragging === false) の最終位置のみで store を更新する。
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
+          if (sdsgItem && ch.dragging === true) {
+            continue;
+          }
           if (sdsgItem) {
             const isH = layout === 'horizontal';
             const bandModeActive = settings.sdsgSpace?.enabled &&
