@@ -579,15 +579,11 @@ function CanvasInner({
             y = Math.round(y / gridPx) * gridPx;
           }
           // SDSG のドラッグ:
-          // ドラッグ中 (ch.dragging === true) の毎フレーム store 更新は、
-          // store 更新 → useMemo 再実行 → 5px 刻みに丸めた position が
-          // React Flow の internal state と乖離し、PropertyPanel の値が
-          // 「±5 のジャンプにしか見えない / 0 を経由しない」現象の主因。
-          // ドラッグ完了時 (ch.dragging === false) の最終位置のみで store を更新する。
+          // ドラッグ中は丸めなしの生の値で store を更新（React Flow の position と一致）
+          // ドロップ時 (ch.dragging === false) のみ 5px 刻みに丸める
+          // → ドラッグはスムーズ、最終値は 5px 刻みで 0 を経由できる
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
-          if (sdsgItem && ch.dragging === true) {
-            continue;
-          }
+          const isDropping = ch.dragging === false;
           if (sdsgItem) {
             const isH = layout === 'horizontal';
             const bandModeActive = settings.sdsgSpace?.enabled &&
@@ -620,10 +616,16 @@ function CanvasInner({
                 // isH: Time=X, Item=Y / !isH: Time=Y, Item=X
                 const newItemAxis = isH ? newCenterY : newCenterX;
                 const newTimeAxis = isH ? newCenterX : newCenterY;
-                // 5px 刻みに丸めることで、ドラッグ時に必ず 0 を経由する。
-                // `|| 0` で negative zero (Math.round(-0.5) = -0) を正の 0 に正規化する
-                const insetItem = (Math.round((newItemAxis - rowCenter) / 5) * 5) || 0;
-                const insetTime = (Math.round((newTimeAxis - anchorTime) / 5) * 5) || 0;
+                // ドロップ時のみ 5px 刻みに丸める（ドラッグ中は生の値）
+                // `|| 0` で negative zero を正の 0 に正規化
+                const rawInsetItem = newItemAxis - rowCenter;
+                const rawInsetTime = newTimeAxis - anchorTime;
+                const insetItem = isDropping
+                  ? ((Math.round(rawInsetItem / 5) * 5) || 0)
+                  : rawInsetItem;
+                const insetTime = isDropping
+                  ? ((Math.round(rawInsetTime / 5) * 5) || 0)
+                  : rawInsetTime;
                 updateSDSG(ch.id, {
                   spaceInsetItem: insetItem,
                   spaceInsetTime: insetTime,
@@ -680,13 +682,15 @@ function CanvasInner({
                 }
               }
             }
-            // 新規左上座標 → offset へ逆算。offset 自体を 5px 刻みにすることで、
-            // ドラッグ中に値が必ず 0 を経由する（anchor が 5px 整列でなくても OK）。
+            // 新規左上座標 → offset へ逆算。
+            // ドロップ時のみ 5px 刻みに丸める（ドラッグ中は生の値で滑らかに追従）
             // `|| 0` で negative zero (Math.round(-0.5) = -0) を正の 0 に正規化する
             const dx = x + w / 2 - anchorX;
             const dy = y + h / 2 - anchorY;
-            const timeOff = (Math.round((isH ? dx : dy) / 5) * 5) || 0;
-            const itemOff = (Math.round((isH ? dy : dx) / 5) * 5) || 0;
+            const rawTime = isH ? dx : dy;
+            const rawItem = isH ? dy : dx;
+            const timeOff = isDropping ? ((Math.round(rawTime / 5) * 5) || 0) : rawTime;
+            const itemOff = isDropping ? ((Math.round(rawItem / 5) * 5) || 0) : rawItem;
             updateSDSG(ch.id, { timeOffset: timeOff, itemOffset: itemOff });
           } else {
             updateBox(ch.id, { x, y });
