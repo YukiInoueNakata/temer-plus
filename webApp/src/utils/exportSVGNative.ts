@@ -1150,8 +1150,11 @@ function drawSDSGs(
         else      { tw2 = w * rectRatio; }
       }
     }
-    tx2 += sg.labelOffsetX ?? 0;
-    ty2 += sg.labelOffsetY ?? 0;
+    // labelOffsetX/Y は論理軸 (時間軸 / 項目軸) として扱い、レイアウトに応じて画面軸へ変換
+    const labelOffTime = sg.labelOffsetX ?? 0;
+    const labelOffItem = sg.labelOffsetY ?? 0;
+    tx2 += isH ? labelOffTime : labelOffItem;
+    ty2 += isH ? labelOffItem : labelOffTime;
     b.text(
       t.toX(tx2), t.toY(ty2), t.toLen(tw2), t.toLen(th2),
       sg.label,

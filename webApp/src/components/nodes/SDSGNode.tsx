@@ -134,8 +134,30 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
       if (labelArea === 'rect') textRect = { top: 0, left: 0, width: rectRight, height };
     }
   }
-  const labelOffX = data.labelOffsetX ?? 0;
-  const labelOffY = data.labelOffsetY ?? 0;
+  // labelOffsetX/Y は「論理軸」基準で扱う:
+  //   labelOffsetX = 時間軸方向のオフセット
+  //   labelOffsetY = 項目軸方向のオフセット
+  // レイアウトに応じて画面 X/Y 軸へ変換することで、横↔縦切替後も
+  // 設定値の意味が一貫する。
+  const labelOffTime = data.labelOffsetX ?? 0;
+  const labelOffItem = data.labelOffsetY ?? 0;
+  // 視覚補正: 中央揃えのとき、時間軸方向のフォント描画特性で
+  //   横型 → X(時間軸) に -2、縦型 → Y(時間軸) に -1 を加える。
+  //   ユーザ入力値は 0 のまま PropertyPanel 表示し、内部だけ補正。
+  const xAlignRaw = data.style?.textAlign ?? 'center';
+  const yAlignRaw = data.style?.verticalAlign ?? 'middle';
+  const isTimeAxisCentered = isHorizontalLayout
+    ? xAlignRaw === 'center'
+    : yAlignRaw === 'middle';
+  const timeVisualAdjust = isTimeAxisCentered
+    ? (isHorizontalLayout ? -2 : -1)
+    : 0;
+  const labelOffX = isHorizontalLayout
+    ? labelOffTime + timeVisualAdjust
+    : labelOffItem;
+  const labelOffY = isHorizontalLayout
+    ? labelOffItem
+    : labelOffTime + timeVisualAdjust;
 
   const bgColor = data.style?.backgroundColor ?? '#ffffff';
   const borderColor = data.style?.borderColor ?? '#333';
@@ -212,9 +234,12 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
         };
 
   // --- サブラベル（Box と同じ形式） ---
+  // subLabelOffsetX/Y は論理軸基準 (X=時間軸, Y=項目軸)、レイアウトで画面軸へ変換
   const subLabelText = data.subLabel ?? '';
-  const subOffsetX = data.subLabelOffsetX ?? 0;
-  const subOffsetY = data.subLabelOffsetY ?? 0;
+  const subOffTime = data.subLabelOffsetX ?? 0;
+  const subOffItem = data.subLabelOffsetY ?? 0;
+  const subOffsetX = isHorizontalLayout ? subOffTime : subOffItem;
+  const subOffsetY = isHorizontalLayout ? subOffItem : subOffTime;
   const subFontSize = data.subLabelFontSize ?? 10;
   const subAsciiUpright = data.subLabelAsciiUpright ?? asciiUpright;
   const subLabelColor = data.subLabelColor ?? '#555';
@@ -377,18 +402,23 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
       {view.view.showSDSGIds && (() => {
         // 横型 + SG (描画上 SG = !isSD): 下辺の中心にバッジを重ねる（下辺の上に被せる）
         // それ以外（横型 SD / 縦型）: 上辺の中心にバッジを重ねる（従来通り）
+        // idOffsetX/Y は論理軸基準 (X=時間軸, Y=項目軸)、レイアウトで画面軸へ変換
+        const idOffTime = data.idOffsetX ?? 0;
+        const idOffItem = data.idOffsetY ?? 0;
+        const idScreenX = isHorizontalLayout ? idOffTime : idOffItem;
+        const idScreenY = isHorizontalLayout ? idOffItem : idOffTime;
         const idAtBottom = isHorizontalLayout && !isSD;
         const baseStyle: React.CSSProperties = idAtBottom
           ? {
               position: 'absolute',
-              top: height - 2 + (data.idOffsetY ?? 0),
-              left: 4 + (data.idOffsetX ?? 0),
+              top: height - 2 + idScreenY,
+              left: 4 + idScreenX,
               transform: 'translateY(-50%)',
             }
           : {
               position: 'absolute',
-              top: -2 + (data.idOffsetY ?? 0),
-              left: 4 + (data.idOffsetX ?? 0),
+              top: -2 + idScreenY,
+              left: 4 + idScreenX,
               transform: 'translateY(-50%)',
             };
         return (

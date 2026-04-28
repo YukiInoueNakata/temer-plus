@@ -233,7 +233,7 @@ export function LineEdge({
       <>
         <BaseEdge id={id} path={toSvgPath(path)} markerEnd={markerEnd} style={style} />
         {view.view.showLineIds && renderLineIdBadge({
-          id, midX: midOfPath.x, midY: midOfPath.y, data,
+          id, midX: midOfPath.x, midY: midOfPath.y, data, isHorizontal: layout === 'horizontal',
         })}
         {showHandles && (
           <g className="curve-control-handles" style={{ pointerEvents: 'all' }}>
@@ -388,7 +388,7 @@ export function LineEdge({
     <>
       <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
       {view.view.showLineIds && renderLineIdBadge({
-        id, midX: (sx + tx) / 2, midY: (sy + ty) / 2, data,
+        id, midX: (sx + tx) / 2, midY: (sy + ty) / 2, data, isHorizontal: layout === 'horizontal',
       })}
     </>
   );
@@ -399,9 +399,14 @@ function renderLineIdBadge(args: {
   midX: number;
   midY: number;
   data?: LineEdgeData;
+  isHorizontal?: boolean;
 }) {
-  const offX = args.data?.idOffsetX ?? 0;
-  const offY = args.data?.idOffsetY ?? -12;
+  // idOffsetX/Y は論理軸基準 (X=時間軸, Y=項目軸)、レイアウトで画面軸へ変換
+  const offTime = args.data?.idOffsetX ?? 0;
+  const offItem = args.data?.idOffsetY ?? -12;
+  const isH = args.isHorizontal !== false;
+  const offX = isH ? offTime : offItem;
+  const offY = isH ? offItem : offTime;
   const fs = args.data?.idFontSize ?? 9;
   const disp = args.id.length > 14 ? args.id.slice(0, 14) + '…' : args.id;
   const cx = args.midX + offX;

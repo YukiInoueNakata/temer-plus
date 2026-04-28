@@ -414,19 +414,19 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             />
           </div>
           <div className="prop-row">
-            <label>位置調整 X / Y</label>
+            <label>位置調整 Time / Item (px)</label>
             <div style={{ display: 'flex', gap: 4 }}>
               <input
                 type="number"
                 value={getCommon(boxes, 'idOffsetX') ?? 0}
-                placeholder={getCommon(boxes, 'idOffsetX') === undefined ? '' : ''}
                 onChange={(e) => updateBoxes(ids, { idOffsetX: Number(e.target.value) })}
+                title="時間軸方向のオフセット (レイアウト切替に追従)"
               />
               <input
                 type="number"
                 value={getCommon(boxes, 'idOffsetY') ?? 0}
-                placeholder={getCommon(boxes, 'idOffsetY') === undefined ? '' : ''}
                 onChange={(e) => updateBoxes(ids, { idOffsetY: Number(e.target.value) })}
+                title="項目軸方向のオフセット"
               />
             </div>
           </div>
@@ -608,19 +608,19 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           />
         </div>
         <div className="prop-row">
-          <label>位置調整 X / Y</label>
+          <label>位置調整 Time / Item (px)</label>
           <div style={{ display: 'flex', gap: 4 }}>
             <input
               type="number"
               value={commonSubOffX ?? 0}
-              placeholder={commonSubOffX === undefined ? '' : ''}
               onChange={(e) => updateBoxes(ids, { subLabelOffsetX: Number(e.target.value) })}
+              title="時間軸方向のオフセット (レイアウト切替に追従)"
             />
             <input
               type="number"
               value={commonSubOffY ?? 0}
-              placeholder={commonSubOffY === undefined ? '' : ''}
               onChange={(e) => updateBoxes(ids, { subLabelOffsetY: Number(e.target.value) })}
+              title="項目軸方向のオフセット"
             />
           </div>
         </div>
@@ -1211,19 +1211,19 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             />
           </div>
           <div className="prop-row">
-            <label>IDバッジ位置調整 X / Y</label>
+            <label>IDバッジ位置調整 Time / Item (px)</label>
             <div style={{ display: 'flex', gap: 4 }}>
               <input
                 type="number"
                 value={getCommon(sdsgs, 'idOffsetX') ?? 0}
-                placeholder={getCommon(sdsgs, 'idOffsetX') === undefined ? '' : ''}
                 onChange={(e) => updateSDSGs(ids, { idOffsetX: Number(e.target.value) })}
+                title="時間軸方向のオフセット (レイアウト切替に追従)"
               />
               <input
                 type="number"
                 value={getCommon(sdsgs, 'idOffsetY') ?? 0}
-                placeholder={getCommon(sdsgs, 'idOffsetY') === undefined ? '' : ''}
                 onChange={(e) => updateSDSGs(ids, { idOffsetY: Number(e.target.value) })}
+                title="項目軸方向のオフセット"
               />
             </div>
           </div>
@@ -1297,21 +1297,19 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
           </select>
         </div>
         <div className="prop-row">
-          <label>位置調整 X / Y (px)</label>
+          <label>位置調整 Time / Item (px)</label>
           <div style={{ display: 'flex', gap: 4 }}>
             <input
               type="number"
               value={getCommon(sdsgs, 'labelOffsetX') ?? 0}
-              placeholder={getCommon(sdsgs, 'labelOffsetX') === undefined ? '' : ''}
               onChange={(e) => updateSDSGs(ids, { labelOffsetX: Number(e.target.value) })}
-              title="配置領域中の左右オフセット（+ で右、− で左）"
+              title="時間軸方向のラベル位置オフセット (+ で時間が進む方向、− で戻る方向)。レイアウト切替に追従。中央揃え時は視覚補正済"
             />
             <input
               type="number"
               value={getCommon(sdsgs, 'labelOffsetY') ?? 0}
-              placeholder={getCommon(sdsgs, 'labelOffsetY') === undefined ? '' : ''}
               onChange={(e) => updateSDSGs(ids, { labelOffsetY: Number(e.target.value) })}
-              title="配置領域中の上下オフセット（+ で下、− で上）"
+              title="項目軸方向のラベル位置オフセット。レイアウト切替に追従"
             />
           </div>
         </div>
@@ -1835,19 +1833,19 @@ function LineProperties({ lines }: { lines: Line[] }) {
           />
         </div>
         <div className="prop-row">
-          <label>位置調整 X / Y</label>
+          <label>位置調整 Time / Item (px)</label>
           <div style={{ display: 'flex', gap: 4 }}>
             <input
               type="number"
               value={getCommon(lines, 'idOffsetX') ?? 0}
-              placeholder={getCommon(lines, 'idOffsetX') === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { idOffsetX: Number(e.target.value) })}
+              title="時間軸方向のオフセット (レイアウト切替に追従)"
             />
             <input
               type="number"
               value={getCommon(lines, 'idOffsetY') ?? -12}
-              placeholder={getCommon(lines, 'idOffsetY') === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { idOffsetY: Number(e.target.value) })}
+              title="項目軸方向のオフセット"
             />
           </div>
         </div>

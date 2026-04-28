@@ -260,16 +260,19 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
       : { border: `${specBorderWidth}px ${specBorderStyle} ${borderColor}`, borderRadius: 0 };
 
   // IDバッジ
-  const idOffsetX = data.idOffsetX ?? 0;
-  const idOffsetY = data.idOffsetY ?? 0;
+  // idOffsetX/Y は論理軸基準 (X=時間軸, Y=項目軸)、レイアウトに応じて画面軸へ変換
+  const idOffTime = data.idOffsetX ?? 0;
+  const idOffItem = data.idOffsetY ?? 0;
+  const idScreenX = !isVerticalLayout ? idOffTime : idOffItem;
+  const idScreenY = !isVerticalLayout ? idOffItem : idOffTime;
   const idFontSize = data.idFontSize ?? 9;
   const idDisplay = data.id.length > 14 ? data.id.slice(0, 14) + '…' : data.id;
   const idBadge = showBoxIds ? (
     <div
       style={{
         position: 'absolute',
-        top: -2 + idOffsetY,
-        left: 4 + idOffsetX,
+        top: -2 + idScreenY,
+        left: 4 + idScreenX,
         fontSize: idFontSize,
         background: '#fff',
         padding: '0 3px',
@@ -343,9 +346,12 @@ export function BoxNode({ data, selected, id: nodeId }: NodeProps<BoxNodeData>) 
       };
 
   // サブラベル
+  // subLabelOffsetX/Y は論理軸基準 (X=時間軸, Y=項目軸)、レイアウトに応じて画面軸へ変換
   const subLabelText = data.subLabel ?? data.participantId ?? '';
-  const subOffsetX = data.subLabelOffsetX ?? 0;
-  const subOffsetY = data.subLabelOffsetY ?? 0;
+  const subOffTime = data.subLabelOffsetX ?? 0;
+  const subOffItem = data.subLabelOffsetY ?? 0;
+  const subOffsetX = !isVerticalLayout ? subOffTime : subOffItem;
+  const subOffsetY = !isVerticalLayout ? subOffItem : subOffTime;
   const subFontSize = data.subLabelFontSize ?? 10;
   const subAsciiUpright = data.subLabelAsciiUpright ?? asciiUpright;
   const subLabelColor = visuals?.subLabelColor ?? '#555';
