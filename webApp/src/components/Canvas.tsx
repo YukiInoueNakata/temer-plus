@@ -215,23 +215,22 @@ function CanvasInner({
     }));
   }, [sheet, storeBoxIds]);
 
-  // SDSG nodes - 位置は attachedTo Box/Line + offset から計算（between モード時は 2 Box の間）
-  const sdsgNodes: Node<SDSGNodeData>[] = useMemo(() => {
-    if (!sheet) return [];
-    const selSdsgIds = new Set(storeSdsgIds);
+  // SDSG band 計算は sdsgNodes / SDSGBandOverlay / onNodesChange (drag) の
+  // 3 箇所で必要なため、Canvas メインの useMemo に出して共有する。
+  // 依存は computeSDSGBandLayout 内部で参照される subset に絞る。
+  const sdsgBandComputation = useMemo(() => {
+    if (!sheet) return null;
     const isH = layout === 'horizontal';
     const boxById = new Map(sheet.boxes.map((b) => [b.id, b]));
     const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
 
-    // --- band モードの事前計算: 帯の位置 + row 割り当て ---
-    // 1st pass: row 割り当てだけ先に行うため、仮の band layout を計算
+    // band モード SDSG の Time 範囲を集計
     const bandSdsgsByBand: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number; ref: typeof sheet.sdsg[number] }>> = {
       top: [], bottom: [],
     };
     sheet.sdsg.forEach((sg) => {
       const bk = sdsgBandKey(sg);
       if (!bk) return;
-      // Time 軸方向の占有範囲を計算（between 時は 2 アイテム間、single 時は Box 1 つの中心 ± w/2）
       let timeStart: number;
       let timeEnd: number;
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
@@ -242,7 +241,6 @@ function CanvasInner({
         const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
         const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
         if (mode === 'edge-to-edge') {
-          // Time レベル最小アイテムの外辺（手前側）から最大アイテムの外辺（奥側）まで覆う
           timeStart = left.timeStart;
           timeEnd = right.timeStart + right.timeSize;
         } else {
@@ -253,7 +251,6 @@ function CanvasInner({
         const attached = boxById.get(sg.attachedTo);
         if (!attached) return;
         const centerT = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
-        // time 軸方向のサイズ: 横型 = spaceWidth / 縦型 = spaceHeight
         const timeAxisSize = isH
           ? (sg.spaceWidth ?? sg.width ?? 70)
           : (sg.spaceHeight ?? sg.height ?? 40);
@@ -262,22 +259,22 @@ function CanvasInner({
       }
       bandSdsgsByBand[bk].push({ id: sg.id, timeStart, timeEnd, rowOverride: sg.spaceRowOverride, ref: sg });
     });
-    // 帯の高さ算出には autoArrange に関わらず row 数を反映する（縦重ねに帯背景を合わせる）。
-    // 個別 SDSG の row 配置は autoArrange の設定を尊重する。
+    // 帯高さ算出は autoArrange に関わらず row 数を反映、SDSG 配置は autoArrange を尊重
     const topRowsAll = computeBandRowAssignments(bandSdsgsByBand.top);
     const bottomRowsAll = computeBandRowAssignments(bandSdsgsByBand.bottom);
-    const topRowAssignments = settings.sdsgSpace?.autoArrange
-      ? topRowsAll
-      : new Map<string, number>();
-    const bottomRowAssignments = settings.sdsgSpace?.autoArrange
-      ? bottomRowsAll
-      : new Map<string, number>();
+    const topRowAssignments = settings.sdsgSpace?.autoArrange ? topRowsAll : new Map<string, number>();
+    const bottomRowAssignments = settings.sdsgSpace?.autoArrange ? bottomRowsAll : new Map<string, number>();
     const topTotalRows = Math.max(1, ...Array.from(topRowsAll.values()).map((v) => v + 1));
     const bottomTotalRows = Math.max(1, ...Array.from(bottomRowsAll.values()).map((v) => v + 1));
-    // 2nd pass: row 数を渡して band layout 確定（autoExpandHeight 反映）
-    const bandLayout = computeSDSGBandLayout(sheet, layout, settings, {
-      top: topTotalRows, bottom: bottomTotalRows,
-    });
+    const bandLayout = computeSDSGBandLayout(sheet, layout, settings, { top: topTotalRows, bottom: bottomTotalRows });
+    return { isH, boxById, lineById, bandSdsgsByBand, topRowAssignments, bottomRowAssignments, topTotalRows, bottomTotalRows, bandLayout };
+  }, [sheet, layout, settings.sdsgSpace, settings.timeArrow, settings.periodLabels, settings.typeLabelVisibility]);
+
+  // SDSG nodes - 位置は attachedTo Box/Line + offset から計算（between モード時は 2 Box の間）
+  const sdsgNodes: Node<SDSGNodeData>[] = useMemo(() => {
+    if (!sheet || !sdsgBandComputation) return [];
+    const selSdsgIds = new Set(storeSdsgIds);
+    const { isH, boxById, lineById, bandSdsgsByBand, topRowAssignments, bottomRowAssignments, topTotalRows, bottomTotalRows, bandLayout } = sdsgBandComputation;
 
     return sheet.sdsg.map((sg) => {
       const timeOff = sg.timeOffset ?? 0;
@@ -446,7 +443,7 @@ function CanvasInner({
         draggable: true,
       };
     }).filter((n): n is NonNullable<typeof n> => n !== null);
-  }, [sheet, storeSdsgIds, layout, settings]);
+  }, [sheet, storeSdsgIds, sdsgBandComputation]);
 
   const nodes = useMemo(() => [...boxNodes, ...sdsgNodes], [boxNodes, sdsgNodes]);
 
@@ -593,35 +590,16 @@ function CanvasInner({
               (sdsgItem.spaceMode === 'band-top' || sdsgItem.spaceMode === 'band-bottom');
 
             // --- band モード時のドラッグ: spaceInsetItem / spaceInsetTime に反映 ---
-            if (bandModeActive) {
+            if (bandModeActive && sdsgBandComputation) {
               const bk = sdsgItem.spaceMode === 'band-top' ? 'top' : 'bottom';
-              const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
-              const band = bk === 'top' ? bandLayout.topBand : bandLayout.bottomBand;
+              // 上位 useMemo で計算済みの bandLayout / row 情報を再利用（重複計算を回避）
+              const band = bk === 'top' ? sdsgBandComputation.bandLayout.topBand : sdsgBandComputation.bandLayout.bottomBand;
               if (band) {
-                // 現在の描画位置を再計算（auto-arrange の row を考慮）
-                // まず Time anchor（attached Box center）
                 const attached = sheet.boxes.find((b) => b.id === sdsgItem.attachedTo);
                 if (!attached) { return; }
                 const anchorTime = isH ? attached.x + attached.width / 2 : attached.y + attached.height / 2;
-                // row 割り当てを再計算（現在の描画と同じ）
-                const bandEntries = sheet.sdsg
-                  .filter((s) => sdsgBandKey(s) === bk)
-                  .map((s) => {
-                    const a = sheet.boxes.find((b) => b.id === s.attachedTo);
-                    const centerT = a ? (isH ? a.x + a.width / 2 : a.y + a.height / 2) : 0;
-                    const taxSize = isH
-                      ? (s.spaceWidth ?? s.width ?? 70)
-                      : (s.spaceHeight ?? s.height ?? 40);
-                    return {
-                      id: s.id,
-                      timeStart: centerT - taxSize / 2,
-                      timeEnd: centerT + taxSize / 2,
-                      rowOverride: s.spaceRowOverride,
-                    };
-                  });
-                const rowMap = settings.sdsgSpace?.autoArrange
-                  ? computeBandRowAssignments(bandEntries) : new Map<string, number>();
-                const totalRows = Math.max(1, ...Array.from(rowMap.values()).map((v) => v + 1));
+                const totalRows = bk === 'top' ? sdsgBandComputation.topTotalRows : sdsgBandComputation.bottomTotalRows;
+                const rowMap = bk === 'top' ? sdsgBandComputation.topRowAssignments : sdsgBandComputation.bottomRowAssignments;
                 const rowIdx = rowMap.get(sdsgItem.id) ?? 0;
                 const rowSpan = totalRows > 0 ? band.axisSpan / totalRows : band.axisSpan;
                 // computeSDSGBandPosition と同じ: band.start (box-side inner edge) アンカー
@@ -679,7 +657,7 @@ function CanvasInner({
         }
       }
     },
-    [sheet, updateBox, updateSDSG, snapEnabled, gridPx, layout, settings]
+    [sheet, updateBox, updateSDSG, snapEnabled, gridPx, layout, settings, sdsgBandComputation]
   );
 
   const onConnect = useCallback(
@@ -803,7 +781,7 @@ function CanvasInner({
             <TimeArrowOverlay onOpenSettings={onOpenTimeArrowSettings} />
             <PeriodLabelsOverlay onOpenSettings={onOpenPeriodSettings} />
             <LegendOverlay onOpenSettings={onOpenLegendSettings} />
-            <SDSGBandOverlay dragInfo={bandDragInfo} />
+            <SDSGBandOverlay dragInfo={bandDragInfo} bandLayout={sdsgBandComputation?.bandLayout ?? {}} />
             <SmartGuidesOverlay guides={guides} />
             <CustomControls />
           </ReactFlow>
@@ -1423,7 +1401,15 @@ function LeftRuler({ layout }: { layout: 'horizontal' | 'vertical' }) {
 // ============================================================================
 // SDSGBandOverlay - SD/SG 帯の範囲を点線で可視化（編集時のみ、出力には含めない）
 // ============================================================================
-function SDSGBandOverlay({ dragInfo }: { dragInfo?: { sdsgId: string; bandKey: 'top' | 'bottom' } | null }) {
+function SDSGBandOverlay({
+  dragInfo,
+  bandLayout,
+}: {
+  dragInfo?: { sdsgId: string; bandKey: 'top' | 'bottom' } | null;
+  // 親 (CanvasInner) で計算済みの bandLayout を受け取る。
+  // 重複計算を避け、計算結果を sdsgNodes / drag handler と共有。
+  bandLayout: ReturnType<typeof computeSDSGBandLayout>;
+}) {
   const view = useTEMView();
   const sheet = view.sheet;
   const settings = view.settings;
@@ -1431,13 +1417,6 @@ function SDSGBandOverlay({ dragInfo }: { dragInfo?: { sdsgId: string; bandKey: '
   const isPreview = view.isPreview;
   const transform = useReactFlowStore((s) => s.transform);
   const [panX, panY, zoom] = transform;
-
-  // bandLayout は毎レンダーで走らないよう memo 化（dragInfo 変更時に再計算しない）。
-  // useMemo はフックなので早期 return より前に呼ぶ必要がある。
-  const bandLayout = useMemo(
-    () => (sheet && settings.sdsgSpace?.enabled ? computeSDSGBandLayout(sheet, layout, settings) : {}),
-    [sheet, layout, settings],
-  );
 
   if (isPreview || !sheet || !settings.sdsgSpace?.enabled) return null;
   const isH = layout === 'horizontal';
