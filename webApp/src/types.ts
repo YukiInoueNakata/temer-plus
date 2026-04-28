@@ -201,6 +201,11 @@ export interface SDSG {
   // 五角形の矩形部分の高さ比率（0-1、既定 0.55）
   // 1 に近いほど矩形部分が大きく、三角の点が浅くなる
   rectRatio?: number;
+  // 本体ラベルの配置領域: 'pentagon' = 五角形全体（既定）/ 'rect' = 矩形部分のみ
+  labelArea?: 'pentagon' | 'rect';
+  // 本体ラベルの位置調整 (px)。textRect 中の grid alignment に対する追加オフセット
+  labelOffsetX?: number;
+  labelOffsetY?: number;
   style?: BoxStyle;
   description?: string;
   noDescriptionNeeded?: boolean;

@@ -274,6 +274,7 @@ function Inner({
         data: {
           id: sg.id, type: sg.type, label: sg.label,
           width: w, height: h, style: sg.style, rectRatio: sg.rectRatio,
+          labelArea: sg.labelArea, labelOffsetX: sg.labelOffsetX, labelOffsetY: sg.labelOffsetY,
           flipDirection,
           subLabel: sg.subLabel,
           subLabelOffsetX: sg.subLabelOffsetX,

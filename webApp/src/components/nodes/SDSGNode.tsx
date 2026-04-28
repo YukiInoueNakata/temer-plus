@@ -16,6 +16,7 @@ import { useTEMStore } from '../../store/store';
 export interface SDSGNodeData extends Pick<
   SDSG,
   'type' | 'label' | 'width' | 'height' | 'style' | 'rectRatio' |
+  'labelArea' | 'labelOffsetX' | 'labelOffsetY' |
   'subLabel' | 'subLabelOffsetX' | 'subLabelOffsetY' | 'subLabelFontSize' | 'subLabelAsciiUpright' |
   'subLabelColor' | 'subLabelBackgroundColor' | 'subLabelBorderColor' | 'subLabelBorderWidth' |
   'typeLabelFontSize' | 'typeLabelBold' | 'typeLabelItalic' | 'typeLabelFontFamily' | 'typeLabelAsciiUpright' |
@@ -103,9 +104,9 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
   const triRatio = 1 - rectRatio;
 
   let points: string;
-  // 文字は五角形全体に配置（textAlign / verticalAlign の効きを Box と同じ感覚に揃える）
-  // 三角部分にもテキストが伸びる可能性があるが、ユーザが選ぶ alignment に従う
-  const textRect = { top: 0, left: 0, width, height };
+  // 本体ラベル配置領域: 既定は五角形全体、'rect' なら矩形部分のみ
+  const labelArea = data.labelArea ?? 'pentagon';
+  let textRect = { top: 0, left: 0, width, height };
   if (isHorizontalLayout) {
     // 横型: 矩形上側、三角が上下いずれかに出る
     // SD 下向き: 矩形上 + 三角下、rectRatio = 矩形高さ / 全高
@@ -113,9 +114,11 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
     if (isSD) {
       const rectBottom = height * rectRatio;
       points = `0,0 ${width},0 ${width},${rectBottom} ${width / 2},${height} 0,${rectBottom}`;
+      if (labelArea === 'rect') textRect = { top: 0, left: 0, width, height: rectBottom };
     } else {
       const rectTop = height * triRatio;
       points = `${width / 2},0 ${width},${rectTop} ${width},${height} 0,${height} 0,${rectTop}`;
+      if (labelArea === 'rect') textRect = { top: rectTop, left: 0, width, height: height - rectTop };
     }
   } else {
     // 縦型: 矩形左右、三角が左右に出る
@@ -124,11 +127,15 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
     if (isSD) {
       const rectLeft = width * triRatio;
       points = `${rectLeft},0 ${width},0 ${width},${height} ${rectLeft},${height} 0,${height / 2}`;
+      if (labelArea === 'rect') textRect = { top: 0, left: rectLeft, width: width - rectLeft, height };
     } else {
       const rectRight = width * rectRatio;
       points = `0,0 ${rectRight},0 ${width},${height / 2} ${rectRight},${height} 0,${height}`;
+      if (labelArea === 'rect') textRect = { top: 0, left: 0, width: rectRight, height };
     }
   }
+  const labelOffX = data.labelOffsetX ?? 0;
+  const labelOffY = data.labelOffsetY ?? 0;
 
   const bgColor = data.style?.backgroundColor ?? '#ffffff';
   const borderColor = data.style?.borderColor ?? '#333';
@@ -301,8 +308,8 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
-            top: textRect.top,
-            left: textRect.left,
+            top: textRect.top + labelOffY,
+            left: textRect.left + labelOffX,
             width: textRect.width,
             height: textRect.height,
             border: 'none',
@@ -333,8 +340,8 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
             <div
               style={{
                 position: 'absolute',
-                top: textRect.top,
-                left: textRect.left,
+                top: textRect.top + labelOffY,
+                left: textRect.left + labelOffX,
                 width: textRect.width,
                 height: textRect.height,
                 display: 'grid',
@@ -367,26 +374,41 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
           {renderVerticalAwareText(subLabelText, isVerticalLayout && subAsciiUpright)}
         </div>
       )}
-      {view.view.showSDSGIds && (
-        <div
-          style={{
-            position: 'absolute',
-            top: -2 + (data.idOffsetY ?? 0),
-            left: 4 + (data.idOffsetX ?? 0),
-            fontSize: data.idFontSize ?? 9,
-            background: '#fff',
-            padding: '0 3px',
-            color: '#666',
-            lineHeight: '10px',
-            fontFamily: 'monospace',
-            pointerEvents: 'none',
-            transform: 'translateY(-50%)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {nodeId.length > 14 ? nodeId.slice(0, 14) + '…' : nodeId}
-        </div>
-      )}
+      {view.view.showSDSGIds && (() => {
+        // 横型 + SG (描画上 SG = !isSD): 下辺中央にバッジ
+        // それ以外（横型 SD / 縦型）: 上辺左端に従来通り
+        const idAtBottom = isHorizontalLayout && !isSD;
+        const baseStyle: React.CSSProperties = idAtBottom
+          ? {
+              position: 'absolute',
+              top: height + 2 + (data.idOffsetY ?? 0),
+              left: 4 + (data.idOffsetX ?? 0),
+              transform: 'translateY(0)',
+            }
+          : {
+              position: 'absolute',
+              top: -2 + (data.idOffsetY ?? 0),
+              left: 4 + (data.idOffsetX ?? 0),
+              transform: 'translateY(-50%)',
+            };
+        return (
+          <div
+            style={{
+              ...baseStyle,
+              fontSize: data.idFontSize ?? 9,
+              background: '#fff',
+              padding: '0 3px',
+              color: '#666',
+              lineHeight: '10px',
+              fontFamily: 'monospace',
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {nodeId.length > 14 ? nodeId.slice(0, 14) + '…' : nodeId}
+          </div>
+        );
+      })()}
     </div>
   );
 }

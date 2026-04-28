@@ -982,19 +982,22 @@ function drawSDSGs(
       line: { color: borderColor, width: 1.5 },
       rotate,
     });
-    // ラベル (本体): 矩形部分に限定配置（三角部分に被らない）
+    // ラベル領域: pentagon (五角形全体・既定) / rect (矩形部分のみ)
     const sgRectRatio = Math.max(0.05, Math.min(0.95, sg.rectRatio ?? 0.55));
     const sgTriRatio = 1 - sgRectRatio;
-    // H SD: text rect = top portion、H SG: bottom portion
-    // V SD: text rect = right portion、V SG: left portion
+    const labelArea = sg.labelArea ?? 'pentagon';
     let tx2 = wx, ty2 = wy, tw2 = w, th2 = h;
-    if (isH) {
-      if (isSD) { th2 = h * sgRectRatio; }
-      else      { ty2 = wy + h * sgTriRatio; th2 = h * sgRectRatio; }
-    } else {
-      if (isSD) { tx2 = wx + w * sgTriRatio; tw2 = w * sgRectRatio; }
-      else      { tw2 = w * sgRectRatio; }
+    if (labelArea === 'rect') {
+      if (isH) {
+        if (isSD) { th2 = h * sgRectRatio; }
+        else      { ty2 = wy + h * sgTriRatio; th2 = h * sgRectRatio; }
+      } else {
+        if (isSD) { tx2 = wx + w * sgTriRatio; tw2 = w * sgRectRatio; }
+        else      { tw2 = w * sgRectRatio; }
+      }
     }
+    tx2 += sg.labelOffsetX ?? 0;
+    ty2 += sg.labelOffsetY ?? 0;
     slide.addText(sg.label, {
       x: t.toX(tx2),
       y: t.toY(ty2),

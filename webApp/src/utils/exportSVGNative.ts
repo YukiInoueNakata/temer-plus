@@ -1137,16 +1137,21 @@ function drawSDSGs(
     const svgPoints = points.map((p) => ({ x: t.toX(p.x), y: t.toY(p.y) }));
     b.polygon(svgPoints, { fill: bgColor, stroke: borderColor, strokeWidth: 1.5 });
 
-    // ラベル: 矩形部分に限定配置
+    // ラベル領域: pentagon (五角形全体) / rect (矩形部分のみ)
+    const labelArea = sg.labelArea ?? 'pentagon';
     const sgTriRatio = 1 - rectRatio;
     let tx2 = wx, ty2 = wy, tw2 = w, th2 = h;
-    if (isH) {
-      if (isSD) { th2 = h * rectRatio; }
-      else      { ty2 = wy + h * sgTriRatio; th2 = h * rectRatio; }
-    } else {
-      if (isSD) { tx2 = wx + w * sgTriRatio; tw2 = w * rectRatio; }
-      else      { tw2 = w * rectRatio; }
+    if (labelArea === 'rect') {
+      if (isH) {
+        if (isSD) { th2 = h * rectRatio; }
+        else      { ty2 = wy + h * sgTriRatio; th2 = h * rectRatio; }
+      } else {
+        if (isSD) { tx2 = wx + w * sgTriRatio; tw2 = w * rectRatio; }
+        else      { tw2 = w * rectRatio; }
+      }
     }
+    tx2 += sg.labelOffsetX ?? 0;
+    ty2 += sg.labelOffsetY ?? 0;
     b.text(
       t.toX(tx2), t.toY(ty2), t.toLen(tw2), t.toLen(th2),
       sg.label,
@@ -1165,20 +1170,22 @@ function drawSDSGs(
 
     drawSDSGTypeLabel(b, sg, wx, wy, w, h, isH, settings, t);
     drawSDSGSubLabel(b, sg, wx, wy, w, h, isH, t);
-    if (includeIds) drawSDSGIdBadge(b, sg, wx, wy, t);
+    if (includeIds) drawSDSGIdBadge(b, sg, wx, wy, h, isH, isSD, t);
   }
 }
 
-function drawSDSGIdBadge(b: SVGBuilder, sg: SDSG, wx: number, wy: number, t: Transform) {
+function drawSDSGIdBadge(b: SVGBuilder, sg: SDSG, wx: number, wy: number, sgH: number, isH: boolean, isSD: boolean, t: Transform) {
   const offX = sg.idOffsetX ?? 0;
   const offY = sg.idOffsetY ?? 0;
   const fs = sg.idFontSize ?? 9;
   const id = sg.id.length > 14 ? sg.id.slice(0, 14) + '…' : sg.id;
+  // 横型 SG（描画上 SG）は下辺中央寄り、それ以外は上辺左寄り（既存）
+  const idAtBottom = isH && !isSD;
   const cx = t.toX(wx + 8 + offX);
-  const cy = t.toY(wy - 2 + offY);
-  const w = id.length * fs * 0.62 + 6;
-  const h = fs + 2;
-  b.rect(cx - 3, cy - h / 2, w, h, { fill: '#ffffff', stroke: 'none' });
+  const cy = idAtBottom ? t.toY(wy + sgH + 2 + fs * 0.5 + offY) : t.toY(wy - 2 + offY);
+  const badgeW = id.length * fs * 0.62 + 6;
+  const badgeH = fs + 2;
+  b.rect(cx - 3, cy - badgeH / 2, badgeW, badgeH, { fill: '#ffffff', stroke: 'none' });
   (b as unknown as { parts: string[] }).parts.push(
     `<text x="${fmt(cx)}" y="${fmt(cy + fs * 0.35)}" fill="#666" font-size="${fmt(fs)}" text-anchor="start" style="font-family:monospace">${escapeText(id)}</text>`,
   );

@@ -1286,6 +1286,36 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
           onChange={(v) => updateSDSGs(ids, { style: { verticalAlign: v } })}
         />
         <div className="prop-row">
+          <label>配置領域</label>
+          <select
+            value={getCommon(sdsgs, 'labelArea') ?? 'pentagon'}
+            onChange={(e) => updateSDSGs(ids, { labelArea: e.target.value as 'pentagon' | 'rect' })}
+            title="ラベルを配置する領域。pentagon=五角形全体（既定） / rect=矩形部分のみ"
+          >
+            <option value="pentagon">五角形全体</option>
+            <option value="rect">矩形部分のみ</option>
+          </select>
+        </div>
+        <div className="prop-row">
+          <label>位置調整 X / Y (px)</label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <input
+              type="number"
+              value={getCommon(sdsgs, 'labelOffsetX') ?? 0}
+              placeholder={getCommon(sdsgs, 'labelOffsetX') === undefined ? '混在' : ''}
+              onChange={(e) => updateSDSGs(ids, { labelOffsetX: Number(e.target.value) })}
+              title="配置領域中の左右オフセット（+ で右、− で左）"
+            />
+            <input
+              type="number"
+              value={getCommon(sdsgs, 'labelOffsetY') ?? 0}
+              placeholder={getCommon(sdsgs, 'labelOffsetY') === undefined ? '混在' : ''}
+              onChange={(e) => updateSDSGs(ids, { labelOffsetY: Number(e.target.value) })}
+              title="配置領域中の上下オフセット（+ で下、− で上）"
+            />
+          </div>
+        </div>
+        <div className="prop-row">
           <label>ASCII縦向き（縦型レイアウト）</label>
           <input
             type="checkbox"
