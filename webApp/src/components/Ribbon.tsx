@@ -20,6 +20,7 @@ export function Ribbon({
   onOpenPaperReport,
   onOpenResize,
   onOpenCSVImport,
+  onCSVExport,
   onOpenShiftContent,
   onSave,
   onSaveAs,
@@ -35,6 +36,7 @@ export function Ribbon({
   onOpenPaperReport: () => void;
   onOpenResize: () => void;
   onOpenCSVImport: () => void;
+  onCSVExport: () => void;
   onOpenShiftContent: () => void;
   onSave: () => void;
   onSaveAs: () => void;
@@ -62,7 +64,7 @@ export function Ribbon({
         <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onOpenAsNewSheets={onOpenAsNewSheets} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onOpenSettings={onOpenSettings} />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onOpenAsNewSheets={onOpenAsNewSheets} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onCSVExport={onCSVExport} onOpenSettings={onOpenSettings} />}
         {activeTab === 'home' && <HomeTab onOpenResize={onOpenResize} onOpenShiftContent={onOpenShiftContent} />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'view' && <ViewTab onOpenPeriodSettings={onOpenPeriodSettings} onOpenPeriodLabels={onOpenPeriodLabels} />}
@@ -134,7 +136,7 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExport, onOpenPaperReport: _onOpenPaperReport, onOpenCSVImport, onOpenSettings }: {
+function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExport, onOpenPaperReport: _onOpenPaperReport, onOpenCSVImport, onCSVExport, onOpenSettings }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -143,6 +145,7 @@ function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExp
   onOpenExport: () => void;
   onOpenPaperReport: () => void;
   onOpenCSVImport: () => void;
+  onCSVExport: () => void;
   onOpenSettings: () => void;
 }) {
   return (
@@ -155,10 +158,11 @@ function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExp
         <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
       </RibbonGroup>
       <RibbonGroup title="インポート">
-        <RibbonButton label="CSV インポート..." icon="📥" onClick={onOpenCSVImport} title="CSV から Box を一括追加" />
+        <RibbonButton label="CSV インポート..." icon="📥" onClick={onOpenCSVImport} title="CSV から Box / Line / SDSG / 時期ラベルを一括追加" />
       </RibbonGroup>
       <RibbonGroup title="出力">
         <RibbonButton label="出力..." icon="📤" onClick={onOpenExport} title="PNG / SVG / PDF / PPTX 出力（設定ダイアログ）" />
+        <RibbonButton label="CSV エクスポート" icon="📑" onClick={onCSVExport} title="現在シートの Box / Line / SDSG / 時期ラベルを ZIP で CSV エクスポート" />
         {/* 論文レポート機能は調整中のため一時停止 */}
         <RibbonButton label="論文レポート(調整中)" icon="📝" onClick={() => alert('論文レポート出力は現在調整中のため一時的に無効化しています。')} title="調整中のため一時停止" />
       </RibbonGroup>

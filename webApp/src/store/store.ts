@@ -102,6 +102,10 @@ interface Actions {
   // （時期区分・時間矢印・凡例は不変）
   shiftActiveSheetContent: (deltaTimeLevel: number, deltaItemLevel: number) => void;
   shiftSelectedBoxes: (ids: string[], deltaTimeLevel: number, deltaItemLevel: number) => void;
+  // CSV インポート: 各エンティティを一括追加
+  importLines: (newLines: Line[]) => void;
+  importSDSGs: (newSDSGs: SDSG[]) => void;
+  importPeriodLabels: (newPeriodLabels: PeriodLabel[]) => void;
   // CSV インポート: Box/Line を一括追加（シフト挿入対応）
   importBoxes: (
     newBoxes: Box[],
@@ -586,6 +590,36 @@ export const useTEMStore = create<Store>()(
           dirty: true,
         }));
       },
+      importLines: (newLines) => {
+        if (newLines.length === 0) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            sheet.lines.push(...newLines);
+          }),
+          dirty: true,
+        }));
+      },
+
+      importSDSGs: (newSDSGs) => {
+        if (newSDSGs.length === 0) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            sheet.sdsg.push(...newSDSGs);
+          }),
+          dirty: true,
+        }));
+      },
+
+      importPeriodLabels: (newPeriodLabels) => {
+        if (newPeriodLabels.length === 0) return;
+        set((state) => ({
+          doc: mutateActiveSheet(state.doc, (sheet) => {
+            sheet.periodLabels.push(...newPeriodLabels);
+          }),
+          dirty: true,
+        }));
+      },
+
       importBoxes: (newBoxes, newLines, opts) => {
         set((state) => ({
           doc: mutateActiveSheet(state.doc, (sheet) => {

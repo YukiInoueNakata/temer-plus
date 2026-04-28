@@ -24,6 +24,12 @@ import {
   clearAutoBackup,
   BACKUP_INTERVAL_MS,
 } from './utils/fileIO';
+import {
+  exportBoxesToCsv,
+  exportLinesToCsv,
+  exportSDSGsToCsv,
+  exportPeriodLabelsToCsv,
+} from './utils/csvExport';
 import './App.css';
 
 export default function App() {
@@ -169,6 +175,33 @@ export default function App() {
     }
   };
 
+  // CSV エクスポート: アクティブシートの 4 エンティティを ZIP にまとめてダウンロード
+  const handleCSVExport = async () => {
+    const state = useTEMStore.getState();
+    const sheet = state.doc.sheets.find((s) => s.id === state.doc.activeSheetId);
+    if (!sheet) { alert('アクティブシートが見つかりません'); return; }
+    const baseName = (sheet.name || 'sheet').replace(/[\\/:*?"<>|]/g, '_');
+    const files: Array<[string, string]> = [
+      [`${baseName}-boxes.csv`, exportBoxesToCsv(sheet.boxes)],
+      [`${baseName}-lines.csv`, exportLinesToCsv(sheet.lines)],
+      [`${baseName}-sdsg.csv`, exportSDSGsToCsv(sheet.sdsg)],
+      [`${baseName}-period-labels.csv`, exportPeriodLabelsToCsv(sheet.periodLabels)],
+    ];
+    // JSZip は dynamic import でメインバンドルから分離
+    const { default: JSZip } = await import('jszip');
+    const zip = new JSZip();
+    for (const [name, content] of files) zip.file(name, content);
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${baseName}-csv.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // 新規作成
   const handleNew = () => {
     const state = useTEMStore.getState();
@@ -252,6 +285,7 @@ export default function App() {
         onOpenPaperReport={() => setReportOpen(true)}
         onOpenResize={() => setResizeOpen(true)}
         onOpenCSVImport={() => setCsvOpen(true)}
+        onCSVExport={handleCSVExport}
         onOpenShiftContent={() => setShiftOpen(true)}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
