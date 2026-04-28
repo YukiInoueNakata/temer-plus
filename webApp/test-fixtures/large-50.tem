@@ -1,0 +1,988 @@
+{
+  "version": "0.3",
+  "sheets": [
+    {
+      "id": "sheet-50",
+      "name": "Large 50",
+      "type": "individual",
+      "order": 0,
+      "boxes": [
+        {
+          "id": "box-0",
+          "type": "normal",
+          "label": "Box 0",
+          "x": 0,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-1",
+          "type": "normal",
+          "label": "Box 1",
+          "x": 120,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-2",
+          "type": "normal",
+          "label": "Box 2",
+          "x": 240,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-3",
+          "type": "normal",
+          "label": "Box 3",
+          "x": 360,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-4",
+          "type": "normal",
+          "label": "Box 4",
+          "x": 480,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-5",
+          "type": "normal",
+          "label": "Box 5",
+          "x": 600,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-6",
+          "type": "normal",
+          "label": "Box 6",
+          "x": 720,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-7",
+          "type": "normal",
+          "label": "Box 7",
+          "x": 840,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-8",
+          "type": "normal",
+          "label": "Box 8",
+          "x": 960,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-9",
+          "type": "normal",
+          "label": "Box 9",
+          "x": 1080,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-10",
+          "type": "normal",
+          "label": "Box 10",
+          "x": 1200,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-11",
+          "type": "normal",
+          "label": "Box 11",
+          "x": 1320,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-12",
+          "type": "normal",
+          "label": "Box 12",
+          "x": 1440,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-13",
+          "type": "normal",
+          "label": "Box 13",
+          "x": 1560,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-14",
+          "type": "normal",
+          "label": "Box 14",
+          "x": 1680,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-15",
+          "type": "normal",
+          "label": "Box 15",
+          "x": 1800,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-16",
+          "type": "normal",
+          "label": "Box 16",
+          "x": 1920,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-17",
+          "type": "normal",
+          "label": "Box 17",
+          "x": 2040,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-18",
+          "type": "normal",
+          "label": "Box 18",
+          "x": 2160,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-19",
+          "type": "normal",
+          "label": "Box 19",
+          "x": 2280,
+          "y": 0,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-20",
+          "type": "normal",
+          "label": "Box 20",
+          "x": 0,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-21",
+          "type": "normal",
+          "label": "Box 21",
+          "x": 120,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-22",
+          "type": "normal",
+          "label": "Box 22",
+          "x": 240,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-23",
+          "type": "normal",
+          "label": "Box 23",
+          "x": 360,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-24",
+          "type": "normal",
+          "label": "Box 24",
+          "x": 480,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-25",
+          "type": "normal",
+          "label": "Box 25",
+          "x": 600,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-26",
+          "type": "normal",
+          "label": "Box 26",
+          "x": 720,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-27",
+          "type": "normal",
+          "label": "Box 27",
+          "x": 840,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-28",
+          "type": "normal",
+          "label": "Box 28",
+          "x": 960,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-29",
+          "type": "normal",
+          "label": "Box 29",
+          "x": 1080,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-30",
+          "type": "normal",
+          "label": "Box 30",
+          "x": 1200,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-31",
+          "type": "normal",
+          "label": "Box 31",
+          "x": 1320,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-32",
+          "type": "normal",
+          "label": "Box 32",
+          "x": 1440,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-33",
+          "type": "normal",
+          "label": "Box 33",
+          "x": 1560,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-34",
+          "type": "normal",
+          "label": "Box 34",
+          "x": 1680,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-35",
+          "type": "normal",
+          "label": "Box 35",
+          "x": 1800,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-36",
+          "type": "normal",
+          "label": "Box 36",
+          "x": 1920,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-37",
+          "type": "normal",
+          "label": "Box 37",
+          "x": 2040,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-38",
+          "type": "normal",
+          "label": "Box 38",
+          "x": 2160,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-39",
+          "type": "normal",
+          "label": "Box 39",
+          "x": 2280,
+          "y": 80,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-40",
+          "type": "normal",
+          "label": "Box 40",
+          "x": 0,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-41",
+          "type": "normal",
+          "label": "Box 41",
+          "x": 120,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-42",
+          "type": "normal",
+          "label": "Box 42",
+          "x": 240,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-43",
+          "type": "normal",
+          "label": "Box 43",
+          "x": 360,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-44",
+          "type": "normal",
+          "label": "Box 44",
+          "x": 480,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-45",
+          "type": "normal",
+          "label": "Box 45",
+          "x": 600,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-46",
+          "type": "normal",
+          "label": "Box 46",
+          "x": 720,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-47",
+          "type": "normal",
+          "label": "Box 47",
+          "x": 840,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-48",
+          "type": "normal",
+          "label": "Box 48",
+          "x": 960,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "id": "box-49",
+          "type": "normal",
+          "label": "Box 49",
+          "x": 1080,
+          "y": 160,
+          "width": 100,
+          "height": 50
+        }
+      ],
+      "lines": [
+        {
+          "id": "line-0",
+          "type": "XLine",
+          "from": "box-0",
+          "to": "box-1",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-1",
+          "type": "RLine",
+          "from": "box-1",
+          "to": "box-2",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-3",
+          "type": "RLine",
+          "from": "box-3",
+          "to": "box-4",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-4",
+          "type": "RLine",
+          "from": "box-4",
+          "to": "box-5",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-6",
+          "type": "RLine",
+          "from": "box-6",
+          "to": "box-7",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-7",
+          "type": "RLine",
+          "from": "box-7",
+          "to": "box-8",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-9",
+          "type": "RLine",
+          "from": "box-9",
+          "to": "box-10",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-10",
+          "type": "XLine",
+          "from": "box-10",
+          "to": "box-11",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-12",
+          "type": "RLine",
+          "from": "box-12",
+          "to": "box-13",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-13",
+          "type": "RLine",
+          "from": "box-13",
+          "to": "box-14",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-15",
+          "type": "XLine",
+          "from": "box-15",
+          "to": "box-16",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-16",
+          "type": "RLine",
+          "from": "box-16",
+          "to": "box-17",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-18",
+          "type": "RLine",
+          "from": "box-18",
+          "to": "box-19",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-19",
+          "type": "RLine",
+          "from": "box-19",
+          "to": "box-20",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-21",
+          "type": "RLine",
+          "from": "box-21",
+          "to": "box-22",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-22",
+          "type": "RLine",
+          "from": "box-22",
+          "to": "box-23",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-24",
+          "type": "RLine",
+          "from": "box-24",
+          "to": "box-25",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-25",
+          "type": "XLine",
+          "from": "box-25",
+          "to": "box-26",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-27",
+          "type": "RLine",
+          "from": "box-27",
+          "to": "box-28",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-28",
+          "type": "RLine",
+          "from": "box-28",
+          "to": "box-29",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-30",
+          "type": "XLine",
+          "from": "box-30",
+          "to": "box-31",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-31",
+          "type": "RLine",
+          "from": "box-31",
+          "to": "box-32",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-33",
+          "type": "RLine",
+          "from": "box-33",
+          "to": "box-34",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-34",
+          "type": "RLine",
+          "from": "box-34",
+          "to": "box-35",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-36",
+          "type": "RLine",
+          "from": "box-36",
+          "to": "box-37",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-37",
+          "type": "RLine",
+          "from": "box-37",
+          "to": "box-38",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-39",
+          "type": "RLine",
+          "from": "box-39",
+          "to": "box-40",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-40",
+          "type": "XLine",
+          "from": "box-40",
+          "to": "box-41",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-42",
+          "type": "RLine",
+          "from": "box-42",
+          "to": "box-43",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-43",
+          "type": "RLine",
+          "from": "box-43",
+          "to": "box-44",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-45",
+          "type": "XLine",
+          "from": "box-45",
+          "to": "box-46",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-46",
+          "type": "RLine",
+          "from": "box-46",
+          "to": "box-47",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        },
+        {
+          "id": "line-48",
+          "type": "RLine",
+          "from": "box-48",
+          "to": "box-49",
+          "connectionMode": "center-to-center",
+          "shape": "straight"
+        }
+      ],
+      "sdsg": [
+        {
+          "id": "sdsg-0",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "box-0",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "sdsg-1",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "box-5",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "sdsg-2",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "box-10",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "sdsg-3",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "box-15",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "sdsg-4",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "box-20",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "sdsg-5",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "box-25",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "sdsg-6",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "box-30",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "sdsg-7",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "box-35",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-bottom"
+        },
+        {
+          "id": "sdsg-8",
+          "type": "SD",
+          "label": "SD",
+          "attachedTo": "box-40",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-top"
+        },
+        {
+          "id": "sdsg-9",
+          "type": "SG",
+          "label": "SG",
+          "attachedTo": "box-45",
+          "attachedType": "box",
+          "itemOffset": 0,
+          "timeOffset": 0,
+          "width": 70,
+          "height": 40,
+          "spaceMode": "band-bottom"
+        }
+      ],
+      "notes": [],
+      "comments": [],
+      "periodLabels": []
+    }
+  ],
+  "activeSheetId": "sheet-50",
+  "participants": [],
+  "settings": {
+    "layout": "horizontal",
+    "levelStep": 50,
+    "paperSize": "A4-landscape",
+    "customPaperWidthMm": 297,
+    "customPaperHeightMm": 210,
+    "ui": {
+      "fontSize": 11
+    },
+    "defaults": {
+      "box": {
+        "fontSize": 11,
+        "normal": {
+          "width": 100,
+          "height": 50
+        },
+        "BFP": {
+          "width": 60,
+          "height": 100
+        },
+        "EFP": {
+          "width": 70,
+          "height": 120
+        },
+        "P-EFP": {
+          "width": 70,
+          "height": 120
+        },
+        "OPP": {
+          "width": 60,
+          "height": 120
+        },
+        "annotation": {
+          "width": 80,
+          "height": 50
+        },
+        "2nd-EFP": {
+          "width": 70,
+          "height": 120
+        },
+        "P-2nd-EFP": {
+          "width": 70,
+          "height": 120
+        }
+      },
+      "line": {
+        "strokeWidth": 1.5,
+        "color": "#333"
+      },
+      "sdsg": {
+        "width": 70,
+        "height": 40,
+        "fontSize": 11
+      }
+    },
+    "timeArrow": {
+      "enabled": true,
+      "position": "bottom",
+      "strokeWidth": 2,
+      "color": "#333",
+      "autoInsert": true,
+      "labelOffset": 4,
+      "fontSize": 12
+    },
+    "periodLabels": {
+      "fontSize": 14,
+      "alwaysVisible": true,
+      "position": "top",
+      "labelOffset": 4
+    },
+    "legend": {
+      "enabled": false,
+      "position": "top-right",
+      "fontSize": 11,
+      "items": [],
+      "borderWidth": 1,
+      "padding": 8
+    },
+    "sdsgSpace": {
+      "enabled": true,
+      "autoArrange": true,
+      "autoFlipDirectionInBand": false,
+      "allowMismatchedPlacement": false,
+      "bands": {
+        "top": {
+          "enabled": true,
+          "heightMode": "auto",
+          "heightLevel": 1.5,
+          "reference": "boxes",
+          "offsetLevel": 0.2,
+          "showBorder": true,
+          "fillStyle": "tinted",
+          "labelPosition": "top-left",
+          "shrinkToFitRow": true,
+          "autoExpandHeight": false
+        },
+        "bottom": {
+          "enabled": true,
+          "heightMode": "auto",
+          "heightLevel": 1.5,
+          "reference": "boxes",
+          "offsetLevel": 0.2,
+          "showBorder": true,
+          "fillStyle": "tinted",
+          "labelPosition": "top-left",
+          "shrinkToFitRow": true,
+          "autoExpandHeight": false
+        }
+      }
+    },
+    "typeLabelVisibility": {
+      "SD": true,
+      "SG": true,
+      "BFP": true,
+      "EFP": true,
+      "P-EFP": true,
+      "OPP": true,
+      "2nd-EFP": true,
+      "P-2nd-EFP": true,
+      "annotation": true
+    },
+    "locale": "ja",
+    "showFrame": false,
+    "showRulers": false
+  },
+  "metadata": {
+    "title": "Large Diagram (50 boxes)",
+    "createdAt": "2026-04-28T06:16:30.272Z",
+    "modifiedAt": "2026-04-28T06:16:30.273Z",
+    "description": "perf 検証用ダミー: Box 50 個 + 接続 + SD/SG"
+  },
+  "history": []
+}
