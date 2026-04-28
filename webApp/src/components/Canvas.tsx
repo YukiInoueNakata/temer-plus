@@ -614,9 +614,10 @@ function CanvasInner({
                 // isH: Time=X, Item=Y / !isH: Time=Y, Item=X
                 const newItemAxis = isH ? newCenterY : newCenterX;
                 const newTimeAxis = isH ? newCenterX : newCenterY;
-                // 5px 刻みに丸めることで、ドラッグ時に必ず 0 を経由する
-                const insetItem = Math.round((newItemAxis - rowCenter) / 5) * 5;
-                const insetTime = Math.round((newTimeAxis - anchorTime) / 5) * 5;
+                // 5px 刻みに丸めることで、ドラッグ時に必ず 0 を経由する。
+                // `|| 0` で negative zero (Math.round(-0.5) = -0) を正の 0 に正規化する
+                const insetItem = (Math.round((newItemAxis - rowCenter) / 5) * 5) || 0;
+                const insetTime = (Math.round((newTimeAxis - anchorTime) / 5) * 5) || 0;
                 updateSDSG(ch.id, {
                   spaceInsetItem: insetItem,
                   spaceInsetTime: insetTime,
@@ -646,10 +647,11 @@ function CanvasInner({
             const h = sdsgItem.height ?? 40;
             // 新規左上座標 → offset へ逆算。offset 自体を 5px 刻みにすることで、
             // ドラッグ中に値が必ず 0 を経由する（attached の Box 中心が 5px 刻みでなくても OK）。
+            // `|| 0` で negative zero (Math.round(-0.5) = -0) を正の 0 に正規化する
             const dx = x + w / 2 - anchorX;
             const dy = y + h / 2 - anchorY;
-            const timeOff = Math.round((isH ? dx : dy) / 5) * 5;
-            const itemOff = Math.round((isH ? dy : dx) / 5) * 5;
+            const timeOff = (Math.round((isH ? dx : dy) / 5) * 5) || 0;
+            const itemOff = (Math.round((isH ? dy : dx) / 5) * 5) || 0;
             updateSDSG(ch.id, { timeOffset: timeOff, itemOffset: itemOff });
           } else {
             updateBox(ch.id, { x, y });
