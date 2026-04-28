@@ -324,7 +324,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
         min={min}
         max={max}
         value={common === undefined ? '' : common}
-        placeholder={common === undefined ? '（混在）' : ''}
+        placeholder={common === undefined ? '' : ''}
         onChange={(e) => {
           const v = Number(e.target.value);
           if (!isNaN(v)) onChange(v);
@@ -366,7 +366,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
               else ids.forEach((id) => changeBoxType(id, newType));
             }}
           >
-            {commonType === undefined && <option value="">（混在）</option>}
+            {commonType === undefined && <option value=""></option>}
             {SELECTABLE_BOX_TYPES.map((t) => (
               <option key={t} value={t}>{BOX_TYPE_LABELS[t].ja}</option>
             ))}
@@ -409,7 +409,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
               min={6}
               max={40}
               value={getCommon(boxes, 'idFontSize') ?? 10}
-              placeholder={getCommon(boxes, 'idFontSize') === undefined ? '（混在）' : ''}
+              placeholder={getCommon(boxes, 'idFontSize') === undefined ? '' : ''}
               onChange={(e) => updateBoxes(ids, { idFontSize: Number(e.target.value) })}
             />
           </div>
@@ -419,13 +419,13 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
               <input
                 type="number"
                 value={getCommon(boxes, 'idOffsetX') ?? 0}
-                placeholder={getCommon(boxes, 'idOffsetX') === undefined ? '混在' : ''}
+                placeholder={getCommon(boxes, 'idOffsetX') === undefined ? '' : ''}
                 onChange={(e) => updateBoxes(ids, { idOffsetX: Number(e.target.value) })}
               />
               <input
                 type="number"
                 value={getCommon(boxes, 'idOffsetY') ?? 0}
-                placeholder={getCommon(boxes, 'idOffsetY') === undefined ? '混在' : ''}
+                placeholder={getCommon(boxes, 'idOffsetY') === undefined ? '' : ''}
                 onChange={(e) => updateBoxes(ids, { idOffsetY: Number(e.target.value) })}
               />
             </div>
@@ -489,7 +489,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
               value={getCommon(boxes, 'asciiUpright') === undefined ? '' : (getCommon(boxes, 'asciiUpright') ? 'upright' : 'mixed')}
               onChange={(e) => updateBoxes(ids, { asciiUpright: e.target.value === 'upright' })}
             >
-              {getCommon(boxes, 'asciiUpright') === undefined && <option value="">（混在）</option>}
+              {getCommon(boxes, 'asciiUpright') === undefined && <option value=""></option>}
               <option value="upright">縦向き（上下に積む）</option>
               <option value="mixed">横倒し（伝統的）</option>
             </select>
@@ -578,7 +578,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             max={5}
             step={0.5}
             value={getCommon(boxes, 'typeLabelBorderWidth') ?? 0}
-            placeholder={getCommon(boxes, 'typeLabelBorderWidth') === undefined ? '混在' : ''}
+            placeholder={getCommon(boxes, 'typeLabelBorderWidth') === undefined ? '' : ''}
             onChange={(e) => updateBoxes(ids, { typeLabelBorderWidth: Number(e.target.value) })}
             title="0 = 枠線なし"
           />
@@ -592,7 +592,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
           <input
             type="text"
             value={!isMulti ? (first.subLabel ?? '') : (commonSubLabel ?? '')}
-            placeholder={isMulti && commonSubLabel === undefined ? '（混在）' : '例: Aさん'}
+            placeholder={isMulti && commonSubLabel === undefined ? '' : '例: Aさん'}
             onChange={(e) => updateBoxes(ids, { subLabel: e.target.value })}
           />
         </div>
@@ -603,7 +603,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             min={6}
             max={40}
             value={commonSubLabelFS ?? 10}
-            placeholder={commonSubLabelFS === undefined ? '（混在）' : ''}
+            placeholder={commonSubLabelFS === undefined ? '' : ''}
             onChange={(e) => updateBoxes(ids, { subLabelFontSize: Number(e.target.value) })}
           />
         </div>
@@ -613,13 +613,13 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             <input
               type="number"
               value={commonSubOffX ?? 0}
-              placeholder={commonSubOffX === undefined ? '混在' : ''}
+              placeholder={commonSubOffX === undefined ? '' : ''}
               onChange={(e) => updateBoxes(ids, { subLabelOffsetX: Number(e.target.value) })}
             />
             <input
               type="number"
               value={commonSubOffY ?? 0}
-              placeholder={commonSubOffY === undefined ? '混在' : ''}
+              placeholder={commonSubOffY === undefined ? '' : ''}
               onChange={(e) => updateBoxes(ids, { subLabelOffsetY: Number(e.target.value) })}
             />
           </div>
@@ -665,7 +665,7 @@ function BoxProperties({ boxes }: { boxes: Box[] }) {
             max={5}
             step={0.5}
             value={getCommon(boxes, 'subLabelBorderWidth') ?? 0}
-            placeholder={getCommon(boxes, 'subLabelBorderWidth') === undefined ? '混在' : ''}
+            placeholder={getCommon(boxes, 'subLabelBorderWidth') === undefined ? '' : ''}
             onChange={(e) => updateBoxes(ids, { subLabelBorderWidth: Number(e.target.value) })}
             title="0 = 枠線なし"
           />
@@ -1206,7 +1206,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               min={6}
               max={40}
               value={getCommon(sdsgs, 'idFontSize') ?? 9}
-              placeholder={getCommon(sdsgs, 'idFontSize') === undefined ? '（混在）' : ''}
+              placeholder={getCommon(sdsgs, 'idFontSize') === undefined ? '' : ''}
               onChange={(e) => updateSDSGs(ids, { idFontSize: Number(e.target.value) })}
             />
           </div>
@@ -1216,13 +1216,13 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
               <input
                 type="number"
                 value={getCommon(sdsgs, 'idOffsetX') ?? 0}
-                placeholder={getCommon(sdsgs, 'idOffsetX') === undefined ? '混在' : ''}
+                placeholder={getCommon(sdsgs, 'idOffsetX') === undefined ? '' : ''}
                 onChange={(e) => updateSDSGs(ids, { idOffsetX: Number(e.target.value) })}
               />
               <input
                 type="number"
                 value={getCommon(sdsgs, 'idOffsetY') ?? 0}
-                placeholder={getCommon(sdsgs, 'idOffsetY') === undefined ? '混在' : ''}
+                placeholder={getCommon(sdsgs, 'idOffsetY') === undefined ? '' : ''}
                 onChange={(e) => updateSDSGs(ids, { idOffsetY: Number(e.target.value) })}
               />
             </div>
@@ -1302,14 +1302,14 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             <input
               type="number"
               value={getCommon(sdsgs, 'labelOffsetX') ?? 0}
-              placeholder={getCommon(sdsgs, 'labelOffsetX') === undefined ? '混在' : ''}
+              placeholder={getCommon(sdsgs, 'labelOffsetX') === undefined ? '' : ''}
               onChange={(e) => updateSDSGs(ids, { labelOffsetX: Number(e.target.value) })}
               title="配置領域中の左右オフセット（+ で右、− で左）"
             />
             <input
               type="number"
               value={getCommon(sdsgs, 'labelOffsetY') ?? 0}
-              placeholder={getCommon(sdsgs, 'labelOffsetY') === undefined ? '混在' : ''}
+              placeholder={getCommon(sdsgs, 'labelOffsetY') === undefined ? '' : ''}
               onChange={(e) => updateSDSGs(ids, { labelOffsetY: Number(e.target.value) })}
               title="配置領域中の上下オフセット（+ で下、− で上）"
             />
@@ -1395,7 +1395,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             max={5}
             step={0.5}
             value={commonTLBorderWidth ?? 0}
-            placeholder={commonTLBorderWidth === undefined ? '（混在）' : ''}
+            placeholder={commonTLBorderWidth === undefined ? '' : ''}
             onChange={(e) => updateSDSGs(ids, { typeLabelBorderWidth: Number(e.target.value) })}
             title="0 = 枠線なし"
           />
@@ -1426,7 +1426,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             min={6}
             max={40}
             value={commonSubFS ?? 10}
-            placeholder={commonSubFS === undefined ? '（混在）' : ''}
+            placeholder={commonSubFS === undefined ? '' : ''}
             onChange={(e) => updateSDSGs(ids, { subLabelFontSize: Number(e.target.value) })}
           />
         </div>
@@ -1436,13 +1436,13 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             <input
               type="number"
               value={commonSubOffX ?? 0}
-              placeholder={commonSubOffX === undefined ? '混在' : ''}
+              placeholder={commonSubOffX === undefined ? '' : ''}
               onChange={(e) => updateSDSGs(ids, { subLabelOffsetX: Number(e.target.value) })}
             />
             <input
               type="number"
               value={commonSubOffY ?? 0}
-              placeholder={commonSubOffY === undefined ? '混在' : ''}
+              placeholder={commonSubOffY === undefined ? '' : ''}
               onChange={(e) => updateSDSGs(ids, { subLabelOffsetY: Number(e.target.value) })}
             />
           </div>
@@ -1484,7 +1484,7 @@ function SDSGProperties({ sdsgs }: { sdsgs: SDSG[] }) {
             max={5}
             step={0.5}
             value={commonSubBorderWidth ?? 0}
-            placeholder={commonSubBorderWidth === undefined ? '（混在）' : ''}
+            placeholder={commonSubBorderWidth === undefined ? '' : ''}
             onChange={(e) => updateSDSGs(ids, { subLabelBorderWidth: Number(e.target.value) })}
             title="0 = 枠線なし"
           />
@@ -1563,7 +1563,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
       <div className="prop-row">
         <label>線種</label>
         <select value={commonType ?? ''} onChange={(e) => updateLines(ids, { type: e.target.value as 'RLine' | 'XLine' })}>
-          {commonType === undefined && <option value="">（混在）</option>}
+          {commonType === undefined && <option value=""></option>}
           <option value="RLine">実線（実現径路）</option>
           <option value="XLine">点線（未実現径路）</option>
         </select>
@@ -1575,7 +1575,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
           value={commonShape ?? ''}
           onChange={(e) => updateLines(ids, { shape: e.target.value as 'straight' | 'elbow' | 'curve' })}
         >
-          {commonShape === undefined && <option value="">（混在）</option>}
+          {commonShape === undefined && <option value=""></option>}
           <option value="straight">直線</option>
           <option value="elbow">L字接続</option>
           <option value="curve">曲線</option>
@@ -1590,7 +1590,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
             max={1}
             step={0.05}
             value={getCommon(lines, 'elbowBendRatio') ?? 0.5}
-            placeholder={getCommon(lines, 'elbowBendRatio') === undefined ? '（混在）' : ''}
+            placeholder={getCommon(lines, 'elbowBendRatio') === undefined ? '' : ''}
             onChange={(e) => {
               const v = Math.max(0, Math.min(1, Number(e.target.value) || 0));
               updateLines(ids, { elbowBendRatio: v });
@@ -1609,7 +1609,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
               max={1}
               step={0.05}
               value={getCommon(lines, 'curveIntensity') ?? 0.5}
-              placeholder={getCommon(lines, 'curveIntensity') === undefined ? '（混在）' : ''}
+              placeholder={getCommon(lines, 'curveIntensity') === undefined ? '' : ''}
               disabled={lines.some((l) => l.controlPoints && l.controlPoints.length >= 2)}
               onChange={(e) => {
                 const v = Math.max(0, Math.min(1, Number(e.target.value) || 0));
@@ -1662,7 +1662,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
                 max={6}
                 step={0.5}
                 value={commonWidth ?? 1.5}
-                placeholder={commonWidth === undefined ? '（混在）' : ''}
+                placeholder={commonWidth === undefined ? '' : ''}
                 onChange={(e) => updateLines(ids, { style: { ...first.style, strokeWidth: Number(e.target.value) } })}
               />
             </div>
@@ -1697,7 +1697,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
             max={85}
             step={1}
             value={commonAngleDeg ?? 0}
-            placeholder={commonAngleDeg === undefined ? '（混在）' : ''}
+            placeholder={commonAngleDeg === undefined ? '' : ''}
             disabled={!allAngleOn || commonShape === 'elbow' || commonShape === 'curve'}
             onChange={(e) => {
               const v = Math.max(-85, Math.min(85, Number(e.target.value) || 0));
@@ -1720,13 +1720,13 @@ function LineProperties({ lines }: { lines: Line[] }) {
             <input
               type="number"
               value={commonStartOffTime ?? 0}
-              placeholder={commonStartOffTime === undefined ? '混在' : ''}
+              placeholder={commonStartOffTime === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { startOffsetTime: Number(e.target.value) })}
             />
             <input
               type="number"
               value={commonStartOffItem ?? 0}
-              placeholder={commonStartOffItem === undefined ? '混在' : ''}
+              placeholder={commonStartOffItem === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { startOffsetItem: Number(e.target.value) })}
             />
           </div>
@@ -1737,13 +1737,13 @@ function LineProperties({ lines }: { lines: Line[] }) {
             <input
               type="number"
               value={commonEndOffTime ?? 0}
-              placeholder={commonEndOffTime === undefined ? '混在' : ''}
+              placeholder={commonEndOffTime === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { endOffsetTime: Number(e.target.value) })}
             />
             <input
               type="number"
               value={commonEndOffItem ?? 0}
-              placeholder={commonEndOffItem === undefined ? '混在' : ''}
+              placeholder={commonEndOffItem === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { endOffsetItem: Number(e.target.value) })}
             />
           </div>
@@ -1753,7 +1753,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
           <input
             type="number"
             value={commonStartMargin ?? 0}
-            placeholder={commonStartMargin === undefined ? '（混在）' : ''}
+            placeholder={commonStartMargin === undefined ? '' : ''}
             disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { startMargin: Number(e.target.value) })}
           />
@@ -1763,7 +1763,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
           <input
             type="number"
             value={commonEndMargin ?? 0}
-            placeholder={commonEndMargin === undefined ? '（混在）' : ''}
+            placeholder={commonEndMargin === undefined ? '' : ''}
             disabled={allAngleOn}
             onChange={(e) => updateLines(ids, { endMargin: Number(e.target.value) })}
           />
@@ -1830,7 +1830,7 @@ function LineProperties({ lines }: { lines: Line[] }) {
             min={6}
             max={40}
             value={getCommon(lines, 'idFontSize') ?? 9}
-            placeholder={getCommon(lines, 'idFontSize') === undefined ? '（混在）' : ''}
+            placeholder={getCommon(lines, 'idFontSize') === undefined ? '' : ''}
             onChange={(e) => updateLines(ids, { idFontSize: Number(e.target.value) })}
           />
         </div>
@@ -1840,13 +1840,13 @@ function LineProperties({ lines }: { lines: Line[] }) {
             <input
               type="number"
               value={getCommon(lines, 'idOffsetX') ?? 0}
-              placeholder={getCommon(lines, 'idOffsetX') === undefined ? '混在' : ''}
+              placeholder={getCommon(lines, 'idOffsetX') === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { idOffsetX: Number(e.target.value) })}
             />
             <input
               type="number"
               value={getCommon(lines, 'idOffsetY') ?? -12}
-              placeholder={getCommon(lines, 'idOffsetY') === undefined ? '混在' : ''}
+              placeholder={getCommon(lines, 'idOffsetY') === undefined ? '' : ''}
               onChange={(e) => updateLines(ids, { idOffsetY: Number(e.target.value) })}
             />
           </div>
