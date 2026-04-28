@@ -143,15 +143,16 @@ export function computeSDSGBandLayout(
     const rowsNeeded = side === 'top' ? requiredRows?.top ?? 0 : requiredRows?.bottom ?? 0;
 
     // heightPx 決定:
-    //   heightMode='auto' (既定): 帯内 SDSG + typeLabel から算出
-    //   heightMode='manual'    : heightLevel * LEVEL_PX を使用
+    //   heightMode='auto' (既定): 帯内 SDSG + typeLabel から算出（rows 反映）
+    //   heightMode='manual'    : heightLevel * LEVEL_PX を基準に、rows>1 で拡張
     const mode = band.heightMode ?? 'auto';
     let heightPx = mode === 'auto'
       ? autoHeightPx(side, rowsNeeded)
       : band.heightLevel * LEVEL_PX;
 
-    // autoExpandHeight=true の場合、必要な row 数に応じて heightPx を拡大（manual モード用）
-    if (mode === 'manual' && band.autoExpandHeight && rowsNeeded > 1) {
+    // 縦重ねがある場合、heightMode/autoExpandHeight に関わらず最低限の拡張を保証する。
+    // (auto: autoHeightPx 内で rows 反映済みだがここで下限を保証 / manual: 旧 autoExpandHeight 必須を撤廃)
+    if (rowsNeeded > 1) {
       const minPerRow = 50;
       const required = rowsNeeded * minPerRow;
       if (required > heightPx) heightPx = required;

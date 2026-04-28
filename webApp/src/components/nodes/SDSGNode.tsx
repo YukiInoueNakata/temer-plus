@@ -375,15 +375,15 @@ export function SDSGNode({ data, selected, id: nodeId }: NodeProps<SDSGNodeData>
         </div>
       )}
       {view.view.showSDSGIds && (() => {
-        // 横型 + SG (描画上 SG = !isSD): 下辺中央にバッジ
-        // それ以外（横型 SD / 縦型）: 上辺左端に従来通り
+        // 横型 + SG (描画上 SG = !isSD): 下辺の中心にバッジを重ねる（下辺の上に被せる）
+        // それ以外（横型 SD / 縦型）: 上辺の中心にバッジを重ねる（従来通り）
         const idAtBottom = isHorizontalLayout && !isSD;
         const baseStyle: React.CSSProperties = idAtBottom
           ? {
               position: 'absolute',
-              top: height + 2 + (data.idOffsetY ?? 0),
+              top: height - 2 + (data.idOffsetY ?? 0),
               left: 4 + (data.idOffsetX ?? 0),
-              transform: 'translateY(0)',
+              transform: 'translateY(-50%)',
             }
           : {
               position: 'absolute',

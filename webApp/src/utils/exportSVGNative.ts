@@ -1179,10 +1179,10 @@ function drawSDSGIdBadge(b: SVGBuilder, sg: SDSG, wx: number, wy: number, sgH: n
   const offY = sg.idOffsetY ?? 0;
   const fs = sg.idFontSize ?? 9;
   const id = sg.id.length > 14 ? sg.id.slice(0, 14) + '…' : sg.id;
-  // 横型 SG（描画上 SG）は下辺中央寄り、それ以外は上辺左寄り（既存）
+  // 横型 SG（描画上 SG）は下辺の上に被せる、それ以外は上辺左寄り（従来通り）
   const idAtBottom = isH && !isSD;
   const cx = t.toX(wx + 8 + offX);
-  const cy = idAtBottom ? t.toY(wy + sgH + 2 + fs * 0.5 + offY) : t.toY(wy - 2 + offY);
+  const cy = idAtBottom ? t.toY(wy + sgH - 2 + offY) : t.toY(wy - 2 + offY);
   const badgeW = id.length * fs * 0.62 + 6;
   const badgeH = fs + 2;
   b.rect(cx - 3, cy - badgeH / 2, badgeW, badgeH, { fill: '#ffffff', stroke: 'none' });
