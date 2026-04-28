@@ -9,7 +9,7 @@ import type { BoxType } from '../types';
 import { BOX_TYPE_LABELS } from '../store/defaults';
 import { pickBetweenAnchors } from '../utils/sdsgBetween';
 
-type RibbonTab = 'file' | 'home' | 'insert' | 'view' | 'help';
+type RibbonTab = 'file' | 'home' | 'insert' | 'arrange' | 'view' | 'help';
 
 export function Ribbon({
   onOpenSettings,
@@ -49,7 +49,7 @@ export function Ribbon({
   return (
     <div className="ribbon">
       <div className="ribbon-tabs">
-        {(['file', 'home', 'insert', 'view', 'help'] as const).map((tab) => (
+        {(['file', 'home', 'insert', 'arrange', 'view', 'help'] as const).map((tab) => (
           <button
             key={tab}
             className={`ribbon-tab ${activeTab === tab ? 'active' : ''}`}
@@ -64,9 +64,10 @@ export function Ribbon({
         <SaveButton onSave={onSave} />
       </div>
       <div className="ribbon-body">
-        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onOpenAsNewSheets={onOpenAsNewSheets} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onCSVExport={onCSVExport} onOpenSettings={onOpenSettings} />}
-        {activeTab === 'home' && <HomeTab onOpenResize={onOpenResize} onOpenShiftContent={onOpenShiftContent} />}
+        {activeTab === 'file' && <FileTab onSave={onSave} onSaveAs={onSaveAs} onOpen={onOpen} onOpenAsNewSheets={onOpenAsNewSheets} onNew={onNew} onOpenExport={onOpenExport} onOpenPaperReport={onOpenPaperReport} onOpenCSVImport={onOpenCSVImport} onCSVExport={onCSVExport} onOpenSettings={onOpenSettings} onOpenResize={onOpenResize} onOpenShiftContent={onOpenShiftContent} />}
+        {activeTab === 'home' && <HomeTab />}
         {activeTab === 'insert' && <InsertTab onOpenInsertBetween={onOpenInsertBetween} onOpenPeriodLabels={onOpenPeriodLabels} />}
+        {activeTab === 'arrange' && <ArrangeTab />}
         {activeTab === 'view' && <ViewTab onOpenPeriodSettings={onOpenPeriodSettings} onOpenPeriodLabels={onOpenPeriodLabels} />}
         {activeTab === 'help' && <HelpTab />}
       </div>
@@ -79,6 +80,7 @@ function tabLabel(tab: RibbonTab): string {
     file: 'ファイル',
     home: '編集',
     insert: '挿入',
+    arrange: '整理',
     view: '表示',
     help: 'ヘルプ',
   };
@@ -136,7 +138,7 @@ function SaveButton({ onSave }: { onSave: () => void }) {
 
 // ---------------------------------------------------------------------------
 
-function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExport, onOpenPaperReport: _onOpenPaperReport, onOpenCSVImport, onCSVExport, onOpenSettings }: {
+function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExport, onOpenPaperReport: _onOpenPaperReport, onOpenCSVImport, onCSVExport, onOpenSettings, onOpenResize, onOpenShiftContent }: {
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
@@ -147,6 +149,8 @@ function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExp
   onOpenCSVImport: () => void;
   onCSVExport: () => void;
   onOpenSettings: () => void;
+  onOpenResize: () => void;
+  onOpenShiftContent: () => void;
 }) {
   return (
     <>
@@ -156,6 +160,8 @@ function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExp
         <RibbonButton label="別シートとして開く" icon="📂+" onClick={onOpenAsNewSheets} title="現状のシートはそのまま、ファイル内のシートを追加" />
         <RibbonButton label="保存 (Ctrl+S)" icon="💾" onClick={onSave} />
         <RibbonButton label="名前を付けて保存" icon="💾+" onClick={onSaveAs} />
+        <RibbonButton label="リサイズ..." icon="⤡" onClick={onOpenResize} title="シート全体を用紙サイズや任意の倍率でリサイズ" />
+        <RibbonButton label="移動..." icon="✥" onClick={onOpenShiftContent} title="選択中の Box または全体を Time/Item 方向に移動" />
       </RibbonGroup>
       <RibbonGroup title="インポート">
         <RibbonButton label="CSV インポート..." icon="📥" onClick={onOpenCSVImport} title="CSV から Box / Line / SDSG / 時期ラベルを一括追加" />
@@ -173,20 +179,14 @@ function FileTab({ onSave, onSaveAs, onOpen, onOpenAsNewSheets, onNew, onOpenExp
   );
 }
 
-function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => void; onOpenShiftContent: () => void }) {
+function HomeTab() {
   const copyToClipboard = useTEMStore((s) => s.copyToClipboard);
   const pasteFromClipboard = useTEMStore((s) => s.pasteFromClipboard);
   const selection = useTEMStore((s) => s.selection);
   const removeBoxes = useTEMStore((s) => s.removeBoxes);
   const removeLines = useTEMStore((s) => s.removeLines);
-  const bringToFront = useTEMStore((s) => s.bringToFront);
-  const sendToBack = useTEMStore((s) => s.sendToBack);
-  const bringForward = useTEMStore((s) => s.bringForward);
-  const sendBackward = useTEMStore((s) => s.sendBackward);
   const canvasMode = useTEMStore((s) => s.view.canvasMode);
   const setCanvasMode = useTEMStore((s) => s.setCanvasMode);
-
-  const firstSelectedId = selection.boxIds[0] ?? selection.lineIds[0];
 
   const handleDelete = () => {
     if (selection.boxIds.length > 0) removeBoxes(selection.boxIds);
@@ -218,14 +218,12 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
           active={canvasMode === 'select'}
         />
       </RibbonGroup>
-      <RibbonGroup title="クリップボード">
+      <RibbonGroup title="基本操作">
+        <RibbonButton label="元に戻す (Ctrl+Z)" icon="↶" onClick={() => useTEMStore.temporal.getState().undo()} />
+        <RibbonButton label="進む (Ctrl+Y)" icon="↷" onClick={() => useTEMStore.temporal.getState().redo()} />
         <RibbonButton label="コピー" icon="📋" onClick={copyToClipboard} />
         <RibbonButton label="貼付" icon="📥" onClick={() => pasteFromClipboard()} />
         <RibbonButton label="削除" icon="🗑" onClick={handleDelete} />
-      </RibbonGroup>
-      <RibbonGroup title="履歴">
-        <RibbonButton label="元に戻す (Ctrl+Z)" icon="↶" onClick={() => useTEMStore.temporal.getState().undo()} />
-        <RibbonButton label="進む (Ctrl+Y)" icon="↷" onClick={() => useTEMStore.temporal.getState().redo()} />
       </RibbonGroup>
       <RibbonGroup title="編集">
         <RibbonButton label="全選択" icon="☰" onClick={() => useTEMStore.getState().selectAll()} />
@@ -273,6 +271,23 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
         <SwapBoxesFullButton />
         <ShiftAfterButton />
       </RibbonGroup>
+    </>
+  );
+}
+
+// ============================================================================
+// 整理タブ - 整列・サイズ / 順序
+// ============================================================================
+function ArrangeTab() {
+  const selection = useTEMStore((s) => s.selection);
+  const bringToFront = useTEMStore((s) => s.bringToFront);
+  const sendToBack = useTEMStore((s) => s.sendToBack);
+  const bringForward = useTEMStore((s) => s.bringForward);
+  const sendBackward = useTEMStore((s) => s.sendBackward);
+  const firstSelectedId = selection.boxIds[0] ?? selection.lineIds[0];
+
+  return (
+    <>
       <RibbonGroup title="整列・サイズ">
         <AlignButton type="left" />
         <AlignButton type="center-h" />
@@ -327,20 +342,6 @@ function HomeTab({ onOpenResize, onOpenShiftContent }: { onOpenResize: () => voi
         <RibbonButton label="前面" icon="⬆" onClick={() => firstSelectedId && bringForward(firstSelectedId)} />
         <RibbonButton label="背面" icon="⬇" onClick={() => firstSelectedId && sendBackward(firstSelectedId)} />
         <RibbonButton label="最背面" icon="⬇⬇" onClick={() => firstSelectedId && sendToBack(firstSelectedId)} />
-      </RibbonGroup>
-      <RibbonGroup title="シート">
-        <RibbonButton
-          label="リサイズ..."
-          icon="⤡"
-          onClick={onOpenResize}
-          title="シート全体を用紙サイズや任意の倍率でリサイズ"
-        />
-        <RibbonButton
-          label="移動..."
-          icon="✥"
-          onClick={onOpenShiftContent}
-          title="選択中の Box または全体を Time/Item 方向に移動（▲▼ で即時 / 数値で一括）"
-        />
       </RibbonGroup>
     </>
   );
@@ -570,37 +571,32 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
       </RibbonGroup>
       <RibbonGroup title="SD/SG 配置">
         <RibbonButton
-          label="帯モードへ"
-          icon="☰"
+          label="配置切替"
+          icon="☰⇄"
           onClick={() => {
             const st = useTEMStore.getState();
             const ids = st.selection.sdsgIds;
             if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
             const sheet = st.doc.sheets.find((s) => s.id === st.doc.activeSheetId);
             if (!sheet) return;
-            // 選択中 SDSG を種別別に分割: SD → band-top, SG → band-bottom
-            const sdIds: string[] = [];
-            const sgIds: string[] = [];
-            sheet.sdsg.forEach((s) => {
-              if (!ids.includes(s.id)) return;
-              if (s.type === 'SD') sdIds.push(s.id);
-              else sgIds.push(s.id);
-            });
-            if (sdIds.length === 0 && sgIds.length === 0) return;
-            if (sdIds.length > 0) st.setSDSGSpaceMode(sdIds, 'band-top');
-            if (sgIds.length > 0) st.setSDSGSpaceMode(sgIds, 'band-bottom');
+            const selected = sheet.sdsg.filter((s) => ids.includes(s.id));
+            // 1 つでも attached（または未指定）が含まれていれば全体を band へ。
+            // 全部 band なら attached に戻す（トグル動作）。
+            const hasAttached = selected.some((s) => !s.spaceMode || s.spaceMode === 'attached');
+            if (hasAttached) {
+              const sdIds: string[] = [];
+              const sgIds: string[] = [];
+              selected.forEach((s) => {
+                if (s.type === 'SD') sdIds.push(s.id);
+                else sgIds.push(s.id);
+              });
+              if (sdIds.length > 0) st.setSDSGSpaceMode(sdIds, 'band-top');
+              if (sgIds.length > 0) st.setSDSGSpaceMode(sgIds, 'band-bottom');
+            } else {
+              st.setSDSGSpaceMode(ids, 'attached');
+            }
           }}
-          title="選択中 SD/SG を種別に応じて帯に配置（SD→上部帯 / SG→下部帯、縦型では右/左）"
-        />
-        <RibbonButton
-          label="attached に"
-          icon="⇄"
-          onClick={() => {
-            const ids = useTEMStore.getState().selection.sdsgIds;
-            if (ids.length === 0) { alert('SD/SG を選択してください'); return; }
-            useTEMStore.getState().setSDSGSpaceMode(ids, 'attached');
-          }}
-          title="選択中の SD/SG を attached モード（Box 追従）に戻す"
+          title="選択中 SD/SG の配置をトグル: attached を含めば帯モードへ / 全部帯なら attached に戻す（SD→上部帯 / SG→下部帯）"
         />
       </RibbonGroup>
       <RibbonGroup title="その他">
