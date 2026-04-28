@@ -578,11 +578,11 @@ function CanvasInner({
             x = Math.round(x / gridPx) * gridPx;
             y = Math.round(y / gridPx) * gridPx;
           }
-          // SDSG のドラッグは sub-pixel 抑制のため 0.5px 刻みに丸め
+          // SDSG のドラッグは 5px 刻みに丸める（細かい微調整は PropertyPanel の Offset から）
           const sdsgItem = sheet.sdsg.find((s) => s.id === ch.id);
           if (sdsgItem) {
-            x = Math.round(x * 2) / 2;
-            y = Math.round(y * 2) / 2;
+            x = Math.round(x / 5) * 5;
+            y = Math.round(y / 5) * 5;
           }
           if (sdsgItem) {
             const isH = layout === 'horizontal';
