@@ -584,10 +584,11 @@ function CanvasInner({
             y = Math.round(y / gridPx) * gridPx;
           }
           // SDSG のドラッグ:
-          // ドラッグ中は丸めなしの生の値で store を更新（React Flow の position と一致）
-          // ドロップ時 (ch.dragging === false) のみ 5px 刻みに丸める
-          // → ドラッグはスムーズ、最終値は 5px 刻みで 0 を経由できる
+          // - snap 有効時: ドラッグ中も 5px 刻みに丸める（5 単位で動く）
+          // - snap 無効時: ドラッグ中は生の値、ドロップ時のみ 5px 刻みに丸める
+          // 5px 刻みでも anchor との相対値で計算するので必ず 0 を経由する
           const isDropping = ch.dragging === false;
+          const shouldRound = isDropping || snapEnabled;
           if (sdsgItem) {
             const isH = layout === 'horizontal';
             const bandModeActive = settings.sdsgSpace?.enabled &&
@@ -620,14 +621,14 @@ function CanvasInner({
                 // isH: Time=X, Item=Y / !isH: Time=Y, Item=X
                 const newItemAxis = isH ? newCenterY : newCenterX;
                 const newTimeAxis = isH ? newCenterX : newCenterY;
-                // ドロップ時のみ 5px 刻みに丸める（ドラッグ中は生の値）
+                // shouldRound (snap 有効 or ドロップ時) なら 5px 刻みに丸める
                 // `|| 0` で negative zero を正の 0 に正規化
                 const rawInsetItem = newItemAxis - rowCenter;
                 const rawInsetTime = newTimeAxis - anchorTime;
-                const insetItem = isDropping
+                const insetItem = shouldRound
                   ? ((Math.round(rawInsetItem / 5) * 5) || 0)
                   : rawInsetItem;
-                const insetTime = isDropping
+                const insetTime = shouldRound
                   ? ((Math.round(rawInsetTime / 5) * 5) || 0)
                   : rawInsetTime;
                 updateSDSG(ch.id, {
@@ -687,14 +688,14 @@ function CanvasInner({
               }
             }
             // 新規左上座標 → offset へ逆算。
-            // ドロップ時のみ 5px 刻みに丸める（ドラッグ中は生の値で滑らかに追従）
+            // shouldRound (snap 有効 or ドロップ時) なら 5px 刻みに丸める
             // `|| 0` で negative zero (Math.round(-0.5) = -0) を正の 0 に正規化する
             const dx = x + w / 2 - anchorX;
             const dy = y + h / 2 - anchorY;
             const rawTime = isH ? dx : dy;
             const rawItem = isH ? dy : dx;
-            const timeOff = isDropping ? ((Math.round(rawTime / 5) * 5) || 0) : rawTime;
-            const itemOff = isDropping ? ((Math.round(rawItem / 5) * 5) || 0) : rawItem;
+            const timeOff = shouldRound ? ((Math.round(rawTime / 5) * 5) || 0) : rawTime;
+            const itemOff = shouldRound ? ((Math.round(rawItem / 5) * 5) || 0) : rawItem;
             updateSDSG(ch.id, { timeOffset: timeOff, itemOffset: itemOff });
           } else {
             updateBox(ch.id, { x, y });
