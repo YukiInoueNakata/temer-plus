@@ -172,12 +172,17 @@ export interface SDSG {
   attachedTo: string;                  // Box or Line ID
   /**
    * attachedTo が Box を指すか Line を指すかの明示フラグ。
-   * 未指定時は実行時に両コレクションを走査するフォールバックを取るが、
-   * 新規作成とファイル読込の migration で常にセットされる。
+   * 新規作成 (store.addSDSG) とファイル読込 (fileIO の migration) で
+   * 必ずセットされるため必須プロパティ。実行時検索フォールバックは不要。
    */
-  attachedType?: 'box' | 'line';
+  attachedType: 'box' | 'line';
   // 2 アイテム間に配置するモード用: 2 つ目の Box ID
   attachedTo2?: string;
+  /**
+   * attachedTo2 の参照種別。attachedType と同じ規則で必須化されている。
+   * 旧ファイルは fileIO の migration で補完。
+   */
+  attachedType2?: 'box' | 'line';
   // アンカー方式: 'single' = attachedTo のみ / 'between' = attachedTo と attachedTo2 の間
   anchorMode?: 'single' | 'between';
   // between モード時の横幅定義方式: 'edge-to-edge'（既定）= 隣接する Box 端どうし / 'center-to-center' = Box 中心どうし

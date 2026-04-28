@@ -968,6 +968,10 @@ export const useTEMStore = create<Store>()(
             // attachedType を推定（明示指定があればそれを使用）
             const attachedType: 'box' | 'line' = partial.attachedType
               ?? (sh.boxes.some((b) => b.id === partial.attachedTo) ? 'box' : 'line');
+            // attachedTo2 がある場合は attachedType2 も推定
+            const attachedType2: 'box' | 'line' | undefined = partial.attachedTo2
+              ? (partial.attachedType2 ?? (sh.boxes.some((b) => b.id === partial.attachedTo2) ? 'box' : 'line'))
+              : undefined;
             const defaults: SDSG = {
               id,
               type: partial.type,
@@ -979,7 +983,7 @@ export const useTEMStore = create<Store>()(
               width: 70,
               height: 40,
             };
-            sh.sdsg.push({ ...defaults, ...partial, id, attachedType });
+            sh.sdsg.push({ ...defaults, ...partial, id, attachedType, ...(attachedType2 ? { attachedType2 } : {}) });
           }),
           // addBox と同様に、挿入した SDSG を自動選択状態に
           selection: {

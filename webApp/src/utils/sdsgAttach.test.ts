@@ -8,9 +8,13 @@ const b = (id: string, x: number, y: number, width = 100, height = 50): Box => (
 const line = (id: string, from: string, to: string): Line => ({
   id, type: 'RLine', from, to, connectionMode: 'center-to-center', shape: 'straight',
 });
-const sg = (attachedTo: string, attachedType?: 'box' | 'line'): SDSG => ({
+const sg = (attachedTo: string, attachedType: 'box' | 'line' = 'box'): SDSG => ({
   id: 'SD1', type: 'SD', label: 'SD', attachedTo, attachedType, itemOffset: 0, timeOffset: 0,
 });
+// レガシー（attachedType 未指定）動作確認用
+const sgLegacy = (attachedTo: string): SDSG => ({
+  id: 'SD1', type: 'SD', label: 'SD', attachedTo, itemOffset: 0, timeOffset: 0,
+} as unknown as SDSG);
 
 describe('resolveAttachedAnchor', () => {
   const boxA = b('A', 0, 0);
@@ -35,12 +39,12 @@ describe('resolveAttachedAnchor', () => {
   });
 
   it('falls back when attachedType is undefined (legacy) — box first', () => {
-    const r = resolveAttachedAnchor(sg('A'), boxMap, lineMap);
+    const r = resolveAttachedAnchor(sgLegacy('A'), boxMap, lineMap);
     expect(r).toEqual({ kind: 'box', box: boxA });
   });
 
   it('falls back to line when attachedType is undefined and not a box', () => {
-    const r = resolveAttachedAnchor(sg('L1'), boxMap, lineMap);
+    const r = resolveAttachedAnchor(sgLegacy('L1'), boxMap, lineMap);
     expect(r?.kind).toBe('line');
   });
 

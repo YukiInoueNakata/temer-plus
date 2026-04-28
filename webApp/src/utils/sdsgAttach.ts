@@ -1,8 +1,8 @@
 // ============================================================================
 // SDSG attached-anchor resolution
-// SDSG.attachedTo は Box ID か Line ID のどちらか。attachedType が設定されて
-// いればその種別で直接 Map lookup、未設定 (旧ファイル) は box → line の順で
-// フォールバック検索する。
+// SDSG.attachedType ('box' | 'line') は型定義上必須で、新規作成 (store) と
+// ファイル読込 (fileIO migration) で必ずセットされる前提。
+// 安全のためレガシーデータが渡された場合の最小フォールバック (box → line) は残す。
 // ============================================================================
 
 import type { SDSG, Box, Line } from '../types';
@@ -16,7 +16,10 @@ export function resolveAttachedAnchor(
   boxById: Map<string, Box>,
   lineById: Map<string, Line>,
 ): AttachedAnchor | null {
-  if (sg.attachedType === 'line') {
+  // 型定義上 attachedType は必須。万一 undefined のレガシーデータが
+  // 紛れ込んでもクラッシュしないよう、ここで box → line の保険推定。
+  const kind: 'box' | 'line' = (sg.attachedType ?? (boxById.has(sg.attachedTo) ? 'box' : 'line'));
+  if (kind === 'line') {
     const line = lineById.get(sg.attachedTo);
     if (!line) return null;
     const from = boxById.get(line.from);
@@ -24,19 +27,8 @@ export function resolveAttachedAnchor(
     if (!from || !to) return null;
     return { kind: 'line', line, from, to };
   }
-  if (sg.attachedType === 'box') {
-    const box = boxById.get(sg.attachedTo);
-    return box ? { kind: 'box', box } : null;
-  }
-  // 旧ファイル: 先に box を試し、miss したら line
   const box = boxById.get(sg.attachedTo);
-  if (box) return { kind: 'box', box };
-  const line = lineById.get(sg.attachedTo);
-  if (!line) return null;
-  const from = boxById.get(line.from);
-  const to = boxById.get(line.to);
-  if (!from || !to) return null;
-  return { kind: 'line', line, from, to };
+  return box ? { kind: 'box', box } : null;
 }
 
 /** AttachedAnchor の中心座標 (single mode で anchor として使う) */

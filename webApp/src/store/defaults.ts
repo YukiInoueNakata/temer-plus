@@ -292,8 +292,8 @@ export function createSampleSheet(name: string, order: number): Sheet {
   ];
   // SD / SG を分岐点(BFP1) に配置。既定サイズ 70x40
   const sdsg: SDSG[] = [
-    { id: 'SD1', type: 'SD', label: 'SD', attachedTo: 'BFP1', itemOffset: -120, timeOffset: 0, width: 70, height: 40 },
-    { id: 'SG1', type: 'SG', label: 'SG', attachedTo: 'BFP1', itemOffset: 130,  timeOffset: 0, width: 70, height: 40 },
+    { id: 'SD1', type: 'SD', label: 'SD', attachedTo: 'BFP1', attachedType: 'box', itemOffset: -120, timeOffset: 0, width: 70, height: 40 },
+    { id: 'SG1', type: 'SG', label: 'SG', attachedTo: 'BFP1', attachedType: 'box', itemOffset: 130,  timeOffset: 0, width: 70, height: 40 },
   ];
   // 時期ラベル: 時期1 (出発点〜等至点中央あたり)、時期2 (等至点以降)
   // Item 左端 x=100 → timeLevel=1, EFP x=700 → timeLevel=7
