@@ -37,6 +37,7 @@ import {
   computeSDSGBandPosition,
 } from '../utils/sdsgSpaceLayout';
 import { resolveAttachedAnchor, anchorCenter } from '../utils/sdsgAttach';
+import { resolveBetweenEndpoint } from '../utils/sdsgBetween';
 import { useTEMView } from '../context/TEMViewContext';
 
 const nodeTypes = { box: BoxNode, sdsg: SDSGNode };
@@ -230,27 +231,23 @@ function CanvasInner({
     sheet.sdsg.forEach((sg) => {
       const bk = sdsgBandKey(sg);
       if (!bk) return;
-      // Time 軸方向の占有範囲を計算（between 時は 2 Box、single 時は Box 1 つの中心 ± w/2）
+      // Time 軸方向の占有範囲を計算（between 時は 2 アイテム間、single 時は Box 1 つの中心 ± w/2）
       let timeStart: number;
       let timeEnd: number;
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const a = boxById.get(sg.attachedTo);
-        const b = boxById.get(sg.attachedTo2);
-        if (!a || !b) return;
+        const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+        const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+        if (!ep1 || !ep2) return;
         const mode = sg.betweenMode ?? 'edge-to-edge';
-        const aT = isH ? a.x : a.y;
-        const bT = isH ? b.x : b.y;
-        const aSize = isH ? a.width : a.height;
-        const bSize = isH ? b.width : b.height;
-        const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
-        const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
+        const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+        const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
         if (mode === 'edge-to-edge') {
-          // Time レベル最小 Box の外辺（手前側）から最大 Box の外辺（奥側）まで覆う
-          timeStart = left.t;
-          timeEnd = right.t + right.sz;
+          // Time レベル最小アイテムの外辺（手前側）から最大アイテムの外辺（奥側）まで覆う
+          timeStart = left.timeStart;
+          timeEnd = right.timeStart + right.timeSize;
         } else {
-          timeStart = left.t + left.sz / 2;
-          timeEnd = right.t + right.sz / 2;
+          timeStart = left.timeStart + left.timeSize / 2;
+          timeEnd = right.timeStart + right.timeSize / 2;
         }
       } else {
         const attached = boxById.get(sg.attachedTo);
@@ -265,14 +262,18 @@ function CanvasInner({
       }
       bandSdsgsByBand[bk].push({ id: sg.id, timeStart, timeEnd, rowOverride: sg.spaceRowOverride, ref: sg });
     });
+    // 帯の高さ算出には autoArrange に関わらず row 数を反映する（縦重ねに帯背景を合わせる）。
+    // 個別 SDSG の row 配置は autoArrange の設定を尊重する。
+    const topRowsAll = computeBandRowAssignments(bandSdsgsByBand.top);
+    const bottomRowsAll = computeBandRowAssignments(bandSdsgsByBand.bottom);
     const topRowAssignments = settings.sdsgSpace?.autoArrange
-      ? computeBandRowAssignments(bandSdsgsByBand.top)
+      ? topRowsAll
       : new Map<string, number>();
     const bottomRowAssignments = settings.sdsgSpace?.autoArrange
-      ? computeBandRowAssignments(bandSdsgsByBand.bottom)
+      ? bottomRowsAll
       : new Map<string, number>();
-    const topTotalRows = Math.max(1, ...Array.from(topRowAssignments.values()).map((v) => v + 1));
-    const bottomTotalRows = Math.max(1, ...Array.from(bottomRowAssignments.values()).map((v) => v + 1));
+    const topTotalRows = Math.max(1, ...Array.from(topRowsAll.values()).map((v) => v + 1));
+    const bottomTotalRows = Math.max(1, ...Array.from(bottomRowsAll.values()).map((v) => v + 1));
     // 2nd pass: row 数を渡して band layout 確定（autoExpandHeight 反映）
     const bandLayout = computeSDSGBandLayout(sheet, layout, settings, {
       top: topTotalRows, bottom: bottomTotalRows,
@@ -344,54 +345,29 @@ function CanvasInner({
         }
       }
 
-      // between モード: 2 つの Box の間に配置
+      // between モード: Box / Line 混在の 2 端点間に配置
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const boxA = boxById.get(sg.attachedTo);
-        const boxB = boxById.get(sg.attachedTo2);
-        if (!boxA || !boxB) return null;
-        // Time 軸（layout により x/y）で先頭/末尾を自動判定
+        const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+        const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+        if (!ep1 || !ep2) return null;
         const betweenMode = sg.betweenMode ?? 'edge-to-edge';
+        const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+        const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
         let startPos: number;
         let endPos: number;
-        if (isH) {
-          // Time = X 軸
-          const aLeft = boxA.x, aRight = boxA.x + boxA.width;
-          const bLeft = boxB.x, bRight = boxB.x + boxB.width;
-          // どちらが左（時間的に先）かを判定
-          const leftBox = aLeft <= bLeft ? boxA : boxB;
-          const rightBox = aLeft <= bLeft ? boxB : boxA;
-          if (betweenMode === 'edge-to-edge') {
-            // Time 軸両端を覆う: 左 Box の左端 ～ 右 Box の右端
-            startPos = leftBox.x;
-            endPos = rightBox.x + rightBox.width;
-          } else {
-            // center-to-center
-            startPos = leftBox.x + leftBox.width / 2;
-            endPos = rightBox.x + rightBox.width / 2;
-          }
-          void aRight; void bRight;
+        if (betweenMode === 'edge-to-edge') {
+          // Time 軸両端を覆う: 手前端 ～ 奥端
+          startPos = left.timeStart;
+          endPos = right.timeStart + right.timeSize;
         } else {
-          // Time = Y 軸
-          const aTop = boxA.y, aBottom = boxA.y + boxA.height;
-          const bTop = boxB.y, bBottom = boxB.y + boxB.height;
-          const topBox = aTop <= bTop ? boxA : boxB;
-          const bottomBox = aTop <= bTop ? boxB : boxA;
-          if (betweenMode === 'edge-to-edge') {
-            // Time 軸両端を覆う: 上 Box の上端 ～ 下 Box の下端
-            startPos = topBox.y;
-            endPos = bottomBox.y + bottomBox.height;
-          } else {
-            startPos = topBox.y + topBox.height / 2;
-            endPos = bottomBox.y + bottomBox.height / 2;
-          }
-          void aBottom; void bBottom;
+          // center-to-center
+          startPos = left.timeStart + left.timeSize / 2;
+          endPos = right.timeStart + right.timeSize / 2;
         }
         const timeCenter = (startPos + endPos) / 2;
         const timeSpan = Math.max(10, Math.abs(endPos - startPos));
-        // Item 軸のアンカー = 2 Box の中心の平均
-        const itemA = isH ? boxA.y + boxA.height / 2 : boxA.x + boxA.width / 2;
-        const itemB = isH ? boxB.y + boxB.height / 2 : boxB.x + boxB.width / 2;
-        const itemCenter = (itemA + itemB) / 2;
+        // Item 軸のアンカー = 2 端点の Item 中心の平均
+        const itemCenter = (ep1.itemCenter + ep2.itemCenter) / 2;
         // SDSG サイズ: Time 軸方向は 2 Box 間の距離、Item 軸方向は sg.height/width
         const w = isH ? timeSpan : (sg.width ?? 70);
         const h = isH ? (sg.height ?? 40) : timeSpan;
@@ -1472,8 +1448,8 @@ function SDSGBandOverlay({ dragInfo }: { dragInfo?: { sdsgId: string; bandKey: '
         const taxSize = isH ? (s.spaceWidth ?? s.width ?? 70) : (s.spaceHeight ?? s.height ?? 40);
         return { id: s.id, timeStart: centerT - taxSize / 2, timeEnd: centerT + taxSize / 2, rowOverride: s.spaceRowOverride };
       });
-    const rowMap = settings.sdsgSpace?.autoArrange ? computeBandRowAssignments(entries) : new Map<string, number>();
-    const totalRows = Math.max(1, ...Array.from(rowMap.values()).map((v) => v + 1));
+    const rowMapAll = computeBandRowAssignments(entries);
+    const totalRows = Math.max(1, ...Array.from(rowMapAll.values()).map((v) => v + 1));
     const rowSpan = band.axisSpan / totalRows;
     const dir = Math.sign(band.end - band.start) || (bk === 'top' ? -1 : 1);
     const guides: React.ReactNode[] = [];

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { pickBetweenAnchors } from './sdsgBetween';
-import type { Box } from '../types';
+import { pickBetweenAnchors, resolveBetweenEndpoint } from './sdsgBetween';
+import type { Box, Line } from '../types';
 
 const b = (id: string, x: number, y: number, w = 100, h = 50): Box => ({
   id, type: 'normal', label: id, x, y, width: w, height: h,
@@ -39,5 +39,42 @@ describe('pickBetweenAnchors', () => {
     const boxes = [b('lowX_highY', 0, 999), b('highX_lowY', 500, 0)];
     const r = pickBetweenAnchors(boxes, true);
     expect(r).toEqual({ lowBoxId: 'lowX_highY', highBoxId: 'highX_lowY' });
+  });
+});
+
+describe('resolveBetweenEndpoint', () => {
+  const boxA = b('A', 0, 0, 100, 50);
+  const boxB = b('B', 200, 100, 100, 50);
+  const line = (id: string, from: string, to: string): Line => ({
+    id, type: 'RLine', from, to, connectionMode: 'center-to-center', shape: 'straight',
+  });
+  const L = line('L1', 'A', 'B');
+  const boxMap = new Map<string, Box>([['A', boxA], ['B', boxB]]);
+  const lineMap = new Map<string, Line>([['L1', L]]);
+
+  it('horizontal box: timeStart=x, timeSize=width, itemCenter=y center', () => {
+    const r = resolveBetweenEndpoint('A', boxMap, lineMap, true);
+    expect(r).toEqual({ timeStart: 0, timeSize: 100, itemCenter: 25 });
+  });
+
+  it('vertical box: timeStart=y, timeSize=height, itemCenter=x center', () => {
+    const r = resolveBetweenEndpoint('B', boxMap, lineMap, false);
+    expect(r).toEqual({ timeStart: 100, timeSize: 50, itemCenter: 250 });
+  });
+
+  it('horizontal line: midpoint with timeSize=0', () => {
+    // boxA center=(50,25), boxB center=(250,125), midpoint=(150,75)
+    const r = resolveBetweenEndpoint('L1', boxMap, lineMap, true);
+    expect(r).toEqual({ timeStart: 150, timeSize: 0, itemCenter: 75 });
+  });
+
+  it('returns null for missing id', () => {
+    expect(resolveBetweenEndpoint('Z', boxMap, lineMap, true)).toBeNull();
+  });
+
+  it('returns null when line endpoints are missing', () => {
+    const broken = line('L2', 'X', 'Y');
+    const r = resolveBetweenEndpoint('L2', boxMap, new Map([['L2', broken]]), true);
+    expect(r).toBeNull();
   });
 });

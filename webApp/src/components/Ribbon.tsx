@@ -483,10 +483,9 @@ function AlignButton({ type }: { type: 'left' | 'center-h' | 'right' | 'top' | '
 function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBetween: () => void; onOpenPeriodLabels: () => void }) {
   const addBox = useTEMStore((s) => s.addBox);
   const selection = useTEMStore((s) => s.selection);
-  const addLine = useTEMStore((s) => s.addLine);
   const addSequentialLines = useTEMStore((s) => s.addSequentialLines);
   const addSDSG = useTEMStore((s) => s.addSDSG);
-  const boxTypes: BoxType[] = ['normal', 'BFP', 'EFP', 'P-EFP', 'OPP', 'annotation'];
+  const boxTypes: BoxType[] = ['normal', 'annotation', 'BFP', 'EFP', 'P-EFP', 'OPP'];
 
   // 選択数で自動分岐:
   //   Box 0 + Line 0 → エラー
@@ -533,17 +532,10 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
     });
   };
 
-  const handleAddLine = (type: 'RLine' | 'XLine') => {
-    if (selection.boxIds.length !== 2) {
-      alert('Box を 2つ選択してください（選択順に矢印を引きます）');
-      return;
-    }
-    addLine(selection.boxIds[0], selection.boxIds[1], { type });
-  };
-
+  // 1 ボタンで Box 2 個 = 単線、3 個以上 = 選択順に順次接続。
   const handleSequentialArrow = (type: 'RLine' | 'XLine') => {
     if (selection.boxIds.length < 2) {
-      alert('Box を2つ以上選択してください（選択順に矢印を繋ぎます）');
+      alert('Box を2つ以上選択してください（2 個=単線、3 個以上=選択順に接続）');
       return;
     }
     addSequentialLines(selection.boxIds, type);
@@ -565,10 +557,8 @@ function InsertTab({ onOpenInsertBetween, onOpenPeriodLabels }: { onOpenInsertBe
         <RibbonButton label="間に挿入..." icon="↔+" onClick={onOpenInsertBetween} />
       </RibbonGroup>
       <RibbonGroup title="Line / 矢印">
-        <RibbonButton label="実線矢印" icon="→" onClick={() => handleAddLine('RLine')} />
-        <RibbonButton label="点線矢印" icon="⇢" onClick={() => handleAddLine('XLine')} />
-        <RibbonButton label="順次接続(実線)" icon="→→" onClick={() => handleSequentialArrow('RLine')} />
-        <RibbonButton label="順次接続(点線)" icon="⇢⇢" onClick={() => handleSequentialArrow('XLine')} />
+        <RibbonButton label="実線矢印" icon="→" onClick={() => handleSequentialArrow('RLine')} title="Box 2 個=単線 / 3 個以上=選択順に順次接続" />
+        <RibbonButton label="点線矢印" icon="⇢" onClick={() => handleSequentialArrow('XLine')} title="Box 2 個=単線 / 3 個以上=選択順に順次接続" />
       </RibbonGroup>
       <RibbonGroup title="SD/SG 作成">
         <RibbonButton label="SD追加" icon="▽" onClick={() => handleAddSDSG('SD')} title="Box 1個=single / 2個=between / 3個以上=Time軸両端2個でbetween" />

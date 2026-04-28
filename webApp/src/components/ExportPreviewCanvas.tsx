@@ -32,6 +32,7 @@ import { TimeArrowOverlay } from './Canvas';
 import { TEMViewContext, type TEMViewContextValue } from '../context/TEMViewContext';
 import { getPaperPx, type PaperSizeKey } from '../utils/paperSizes';
 import { resolveAttachedAnchor, anchorCenter } from '../utils/sdsgAttach';
+import { resolveBetweenEndpoint } from '../utils/sdsgBetween';
 import { MINOR_TICK_PX } from '../store/defaults';
 import type { PageBounds } from '../utils/pageSplit';
 import { useStore as useReactFlowStore } from 'reactflow';
@@ -174,18 +175,14 @@ function Inner({
       if (!bk) return;
       let timeStart: number, timeEnd: number;
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const a = boxById.get(sg.attachedTo);
-        const b = boxById.get(sg.attachedTo2);
-        if (!a || !b) return;
+        const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+        const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+        if (!ep1 || !ep2) return;
         const mode = sg.betweenMode ?? 'edge-to-edge';
-        const aT = isH ? a.x : a.y;
-        const bT = isH ? b.x : b.y;
-        const aSize = isH ? a.width : a.height;
-        const bSize = isH ? b.width : b.height;
-        const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
-        const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-        if (mode === 'edge-to-edge') { timeStart = left.t; timeEnd = right.t + right.sz; }
-        else { timeStart = left.t + left.sz / 2; timeEnd = right.t + right.sz / 2; }
+        const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+        const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
+        if (mode === 'edge-to-edge') { timeStart = left.timeStart; timeEnd = right.timeStart + right.timeSize; }
+        else { timeStart = left.timeStart + left.timeSize / 2; timeEnd = right.timeStart + right.timeSize / 2; }
       } else {
         const attached = boxById.get(sg.attachedTo);
         if (!attached) return;
@@ -196,14 +193,13 @@ function Inner({
       }
       bandEntries[bk].push({ id: sg.id, timeStart, timeEnd, rowOverride: sg.spaceRowOverride });
     });
-    const topRows = doc.settings.sdsgSpace?.autoArrange
-      ? computeBandRowAssignments(bandEntries.top)
-      : new Map<string, number>();
-    const bottomRows = doc.settings.sdsgSpace?.autoArrange
-      ? computeBandRowAssignments(bandEntries.bottom)
-      : new Map<string, number>();
-    const topTotal = Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1));
-    const bottomTotal = Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1));
+    // 帯の高さ算出には autoArrange に関わらず row 数を反映する（縦重ねに帯背景を合わせる）。
+    const topRowsAll = computeBandRowAssignments(bandEntries.top);
+    const bottomRowsAll = computeBandRowAssignments(bandEntries.bottom);
+    const topRows = doc.settings.sdsgSpace?.autoArrange ? topRowsAll : new Map<string, number>();
+    const bottomRows = doc.settings.sdsgSpace?.autoArrange ? bottomRowsAll : new Map<string, number>();
+    const topTotal = Math.max(1, ...Array.from(topRowsAll.values()).map((v) => v + 1));
+    const bottomTotal = Math.max(1, ...Array.from(bottomRowsAll.values()).map((v) => v + 1));
     const bandLayout = computeSDSGBandLayout(sheet, doc.settings.layout, doc.settings, {
       top: topTotal, bottom: bottomTotal,
     });
@@ -235,28 +231,24 @@ function Inner({
           );
         } else { return null as unknown as Node<SDSGNodeData>; }
       } else if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        // between モード
-        const boxA = boxById.get(sg.attachedTo);
-        const boxB = boxById.get(sg.attachedTo2);
-        if (!boxA || !boxB) return null as unknown as Node<SDSGNodeData>;
+        // between モード（Box / Line 混在対応）
+        const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+        const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+        if (!ep1 || !ep2) return null as unknown as Node<SDSGNodeData>;
         const mode = sg.betweenMode ?? 'edge-to-edge';
+        const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+        const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
         let startPos: number, endPos: number;
-        if (isH) {
-          const leftBox = boxA.x <= boxB.x ? boxA : boxB;
-          const rightBox = boxA.x <= boxB.x ? boxB : boxA;
-          if (mode === 'edge-to-edge') { startPos = leftBox.x; endPos = rightBox.x + rightBox.width; }
-          else { startPos = leftBox.x + leftBox.width / 2; endPos = rightBox.x + rightBox.width / 2; }
+        if (mode === 'edge-to-edge') {
+          startPos = left.timeStart;
+          endPos = right.timeStart + right.timeSize;
         } else {
-          const topBox = boxA.y <= boxB.y ? boxA : boxB;
-          const botBox = boxA.y <= boxB.y ? boxB : boxA;
-          if (mode === 'edge-to-edge') { startPos = topBox.y; endPos = botBox.y + botBox.height; }
-          else { startPos = topBox.y + topBox.height / 2; endPos = botBox.y + botBox.height / 2; }
+          startPos = left.timeStart + left.timeSize / 2;
+          endPos = right.timeStart + right.timeSize / 2;
         }
         const timeCenter = (startPos + endPos) / 2;
         const timeSpan = Math.max(10, Math.abs(endPos - startPos));
-        const itemA = isH ? boxA.y + boxA.height / 2 : boxA.x + boxA.width / 2;
-        const itemB = isH ? boxB.y + boxB.height / 2 : boxB.x + boxB.width / 2;
-        const itemCenter = (itemA + itemB) / 2;
+        const itemCenter = (ep1.itemCenter + ep2.itemCenter) / 2;
         w = isH ? timeSpan : (sg.width ?? 70);
         h = isH ? (sg.height ?? 40) : timeSpan;
         const anchorX = isH ? timeCenter : itemCenter;

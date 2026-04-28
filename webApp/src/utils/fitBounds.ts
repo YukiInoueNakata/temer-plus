@@ -8,6 +8,7 @@ import type { Sheet, ProjectSettings, LayoutDirection } from '../types';
 import { computeTimeArrow } from './timeArrow';
 import { computePeriodLabels } from './periodLabels';
 import { computeLegendItems } from './legend';
+import { resolveBetweenEndpoint } from './sdsgBetween';
 import {
   computeSDSGBandLayout,
   sdsgBandKey,
@@ -39,6 +40,8 @@ export function computeContentBounds(
   // SDSG - band / between / attached の 3 モードを区別
   const isH = layout === 'horizontal';
   const bandEnabled = settings.sdsgSpace?.enabled;
+  const boxById = new Map(sheet.boxes.map((b) => [b.id, b]));
+  const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
 
   // band モード事前計算（有効時のみ）
   const bandEntries: Record<'top' | 'bottom', Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }>> = { top: [], bottom: [] };
@@ -48,18 +51,14 @@ export function computeContentBounds(
       if (!bk) return;
       let tS: number, tE: number;
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
-        const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
-        if (!a || !b) return;
+        const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+        const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+        if (!ep1 || !ep2) return;
         const mode = sg.betweenMode ?? 'edge-to-edge';
-        const aT = isH ? a.x : a.y;
-        const bT = isH ? b.x : b.y;
-        const aSize = isH ? a.width : a.height;
-        const bSize = isH ? b.width : b.height;
-        const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
-        const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-        if (mode === 'edge-to-edge') { tS = left.t; tE = right.t + right.sz; }
-        else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
+        const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+        const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
+        if (mode === 'edge-to-edge') { tS = left.timeStart; tE = right.timeStart + right.timeSize; }
+        else { tS = left.timeStart + left.timeSize / 2; tE = right.timeStart + right.timeSize / 2; }
       } else {
         const attached = sheet.boxes.find((b) => b.id === sg.attachedTo);
         if (!attached) return;
@@ -73,12 +72,13 @@ export function computeContentBounds(
       bandEntries[bk].push({ id: sg.id, timeStart: tS, timeEnd: tE, rowOverride: sg.spaceRowOverride });
     });
   }
-  const topRows = bandEnabled && settings.sdsgSpace?.autoArrange
-    ? computeBandRowAssignments(bandEntries.top) : new Map<string, number>();
-  const bottomRows = bandEnabled && settings.sdsgSpace?.autoArrange
-    ? computeBandRowAssignments(bandEntries.bottom) : new Map<string, number>();
-  const topTotalRows = Math.max(1, ...Array.from(topRows.values()).map((v) => v + 1));
-  const bottomTotalRows = Math.max(1, ...Array.from(bottomRows.values()).map((v) => v + 1));
+  // 帯の高さ算出には autoArrange に関わらず row 数を反映する（縦重ねに帯背景を合わせる）。
+  const topRowsAll = bandEnabled ? computeBandRowAssignments(bandEntries.top) : new Map<string, number>();
+  const bottomRowsAll = bandEnabled ? computeBandRowAssignments(bandEntries.bottom) : new Map<string, number>();
+  const topRows = bandEnabled && settings.sdsgSpace?.autoArrange ? topRowsAll : new Map<string, number>();
+  const bottomRows = bandEnabled && settings.sdsgSpace?.autoArrange ? bottomRowsAll : new Map<string, number>();
+  const topTotalRows = Math.max(1, ...Array.from(topRowsAll.values()).map((v) => v + 1));
+  const bottomTotalRows = Math.max(1, ...Array.from(bottomRowsAll.values()).map((v) => v + 1));
   const bandLayout = bandEnabled
     ? computeSDSGBandLayout(sheet, layout, settings, { top: topTotalRows, bottom: bottomTotalRows })
     : {};
@@ -104,29 +104,25 @@ export function computeContentBounds(
       }
     }
 
-    // --- between モード ---
+    // --- between モード（Box / Line 混在対応） ---
     if (sg.anchorMode === 'between' && sg.attachedTo2) {
-      const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
-      const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
-      if (a && b) {
+      const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+      const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+      if (ep1 && ep2) {
         const mode = sg.betweenMode ?? 'edge-to-edge';
+        const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+        const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
         let startPos: number, endPos: number;
-        if (isH) {
-          const leftBox = a.x <= b.x ? a : b;
-          const rightBox = a.x <= b.x ? b : a;
-          if (mode === 'edge-to-edge') { startPos = leftBox.x; endPos = rightBox.x + rightBox.width; }
-          else { startPos = leftBox.x + leftBox.width / 2; endPos = rightBox.x + rightBox.width / 2; }
+        if (mode === 'edge-to-edge') {
+          startPos = left.timeStart;
+          endPos = right.timeStart + right.timeSize;
         } else {
-          const topBox = a.y <= b.y ? a : b;
-          const botBox = a.y <= b.y ? b : a;
-          if (mode === 'edge-to-edge') { startPos = topBox.y; endPos = botBox.y + botBox.height; }
-          else { startPos = topBox.y + topBox.height / 2; endPos = botBox.y + botBox.height / 2; }
+          startPos = left.timeStart + left.timeSize / 2;
+          endPos = right.timeStart + right.timeSize / 2;
         }
         const timeCenter = (startPos + endPos) / 2;
         const timeSpan = Math.max(10, Math.abs(endPos - startPos));
-        const itemA = isH ? a.y + a.height / 2 : a.x + a.width / 2;
-        const itemB = isH ? b.y + b.height / 2 : b.x + b.width / 2;
-        const itemCenter = (itemA + itemB) / 2;
+        const itemCenter = (ep1.itemCenter + ep2.itemCenter) / 2;
         const w = isH ? timeSpan : (sg.width ?? 70);
         const h = isH ? (sg.height ?? 40) : timeSpan;
         const anchorX = isH ? timeCenter : itemCenter;

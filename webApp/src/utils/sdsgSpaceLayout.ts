@@ -15,6 +15,7 @@ import type {
 import { LEVEL_PX } from '../store/defaults';
 import { computeTimeArrow } from './timeArrow';
 import { computePeriodLabels } from './periodLabels';
+import { resolveBetweenEndpoint } from './sdsgBetween';
 
 export interface BandRange {
   // layout=horizontal: y 座標範囲 / layout=vertical: x 座標範囲
@@ -286,21 +287,19 @@ export function resolveBandOuterBounds(
       (side === 'top' && sg.spaceMode === 'band-top') ||
       (side === 'bottom' && sg.spaceMode === 'band-bottom')
     );
+    const boxById = new Map(sheet.boxes.map((b) => [b.id, b]));
+    const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
     return sgs.map((sg) => {
       // band 時の時間範囲の概算（詳細は computeBandRowAssignments と整合）
       let tS = 0, tE = 0;
       if (sg.anchorMode === 'between' && sg.attachedTo2) {
-        const a = sheet.boxes.find((b) => b.id === sg.attachedTo);
-        const b = sheet.boxes.find((bx) => bx.id === sg.attachedTo2);
-        if (!a || !b) return null;
-        const aT = isH ? a.x : a.y;
-        const bT = isH ? b.x : b.y;
-        const aSize = isH ? a.width : a.height;
-        const bSize = isH ? b.width : b.height;
-        const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
-        const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-        // edge-to-edge: 左 Box の左端 ～ 右 Box の右端（Time 軸両端を覆う）
-        tS = left.t; tE = right.t + right.sz;
+        const ep1 = resolveBetweenEndpoint(sg.attachedTo, boxById, lineById, isH);
+        const ep2 = resolveBetweenEndpoint(sg.attachedTo2, boxById, lineById, isH);
+        if (!ep1 || !ep2) return null;
+        const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+        const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
+        // edge-to-edge: Time 軸両端を覆う
+        tS = left.timeStart; tE = right.timeStart + right.timeSize;
       } else {
         const at = sheet.boxes.find((b) => b.id === sg.attachedTo);
         if (!at) return null;
@@ -522,20 +521,20 @@ export function isSDSGOutOfRange(
 
   // band layout と row 割り当てを再計算（Canvas/export と同じロジック）
   const entries: Array<{ id: string; timeStart: number; timeEnd: number; rowOverride?: number }> = [];
+  const boxById = new Map(sheet.boxes.map((b) => [b.id, b]));
+  const lineById = new Map(sheet.lines.map((l) => [l.id, l]));
   sheet.sdsg.forEach((s) => {
     if (sdsgBandKey(s) !== bk) return;
     let tS: number, tE: number;
     if (s.anchorMode === 'between' && s.attachedTo2) {
-      const a = sheet.boxes.find((b) => b.id === s.attachedTo);
-      const b = sheet.boxes.find((bx) => bx.id === s.attachedTo2);
-      if (!a || !b) return;
+      const ep1 = resolveBetweenEndpoint(s.attachedTo, boxById, lineById, isH);
+      const ep2 = resolveBetweenEndpoint(s.attachedTo2, boxById, lineById, isH);
+      if (!ep1 || !ep2) return;
       const mode = s.betweenMode ?? 'edge-to-edge';
-      const aT = isH ? a.x : a.y; const bT = isH ? b.x : b.y;
-      const aSize = isH ? a.width : a.height; const bSize = isH ? b.width : b.height;
-      const left = aT <= bT ? { t: aT, sz: aSize } : { t: bT, sz: bSize };
-      const right = aT <= bT ? { t: bT, sz: bSize } : { t: aT, sz: aSize };
-      if (mode === 'edge-to-edge') { tS = left.t; tE = right.t + right.sz; }
-      else { tS = left.t + left.sz / 2; tE = right.t + right.sz / 2; }
+      const left = ep1.timeStart <= ep2.timeStart ? ep1 : ep2;
+      const right = ep1.timeStart <= ep2.timeStart ? ep2 : ep1;
+      if (mode === 'edge-to-edge') { tS = left.timeStart; tE = right.timeStart + right.timeSize; }
+      else { tS = left.timeStart + left.timeSize / 2; tE = right.timeStart + right.timeSize / 2; }
     } else {
       const attached = sheet.boxes.find((b) => b.id === s.attachedTo);
       if (!attached) return;
