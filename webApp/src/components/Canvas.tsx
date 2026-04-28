@@ -1432,8 +1432,14 @@ function SDSGBandOverlay({ dragInfo }: { dragInfo?: { sdsgId: string; bandKey: '
   const transform = useReactFlowStore((s) => s.transform);
   const [panX, panY, zoom] = transform;
 
+  // bandLayout は毎レンダーで走らないよう memo 化（dragInfo 変更時に再計算しない）。
+  // useMemo はフックなので早期 return より前に呼ぶ必要がある。
+  const bandLayout = useMemo(
+    () => (sheet && settings.sdsgSpace?.enabled ? computeSDSGBandLayout(sheet, layout, settings) : {}),
+    [sheet, layout, settings],
+  );
+
   if (isPreview || !sheet || !settings.sdsgSpace?.enabled) return null;
-  const bandLayout = computeSDSGBandLayout(sheet, layout, settings);
   const isH = layout === 'horizontal';
 
   // row 境界線オーバーレイ（ドラッグ中のみ表示）
